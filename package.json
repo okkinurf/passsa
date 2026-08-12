@@ -1,0 +1,52 @@
+{
+  "name": "passsa",
+  "version": "0.1.0",
+  "description": "PassSa password manager for Windows",
+  "author": "PassSa",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test",
+    "test:e2e": "electron --no-sandbox scripts/e2e-smoke.js",
+    "qa:google-network": "electron scripts/google-network-qa.js",
+    "configure:google": "electron scripts/configure-google.js",
+    "qa": "npm test && npm run test:e2e",
+    "create-test-user": "electron scripts/create-test-user.js",
+    "seed-dummy-vault": "electron scripts/seed-dummy-vault.js",
+    "pack": "electron-builder --dir",
+    "dist": "npm run dist:signed",
+    "dist:unsigned": "electron-builder --win nsis -c.win.signExecutable=false",
+    "dist:signed": "node scripts/verify-signing-config.js && electron-builder --win nsis -c.forceCodeSigning=true",
+    "qa:installer": "node scripts/installer-qa.js"
+  },
+  "devDependencies": {
+    "electron": "^39.8.10",
+    "electron-builder": "^26.0.12"
+  },
+  "build": {
+    "appId": "id.passsa.app",
+    "productName": "PassSa",
+    "copyright": "Copyright © 2026 PassSa",
+    "artifactName": "${productName}-Setup-${version}.${ext}",
+    "asar": true,
+    "files": [
+      "main.js",
+      "preload.js",
+      "scripts/**/*",
+      "src/**/*",
+      "THIRD_PARTY_NOTICES.md",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    }
+  },
+  "dependencies": {
+    "@fortawesome/fontawesome-free": "^7.3.1"
+  }
+}

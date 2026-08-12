@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PassSa</title>
+    <link rel="stylesheet" href="../node_modules/@fortawesome/fontawesome-free/css/all.min.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app-titlebar" aria-hidden="true"><img src="assets/passsa-mark.png" alt="" /><span>PassSa</span></div>
+    <main id="auth-view" class="auth-layout">
+      <section class="brand-panel">
+        <img class="brand-logo" src="assets/passsa-mark.png" alt="PassSa" />
+        <div class="brand-kicker"><span></span> PASSA SECURE VAULT</div>
+        <h1>Password aman.<br />Akses lebih mudah.</h1>
+        <p class="brand-copy">
+          Simpan kredensial Anda di satu tempat. Vault terenkripsi dapat disinkronkan aman melalui Google Drive.
+        </p>
+        <div class="security-note">
+          <span aria-hidden="true"><i class="fa-solid fa-shield-halved"></i></span>
+          <p><strong>Vault terenkripsi &amp; terkunci</strong><br />Kredensial sensitif tidak pernah disimpan sebagai teks biasa.</p>
+        </div>
+      </section>
+
+      <section class="form-panel">
+        <div class="auth-card">
+          <div class="tabs" data-mode="login" role="tablist" aria-label="Autentikasi">
+            <button id="login-tab" class="tab active" type="button" role="tab" aria-selected="true">Masuk</button>
+            <button id="register-tab" class="tab" type="button" role="tab" aria-selected="false">Daftar</button>
+          </div>
+
+          <div class="form-heading">
+            <h2 id="form-title">Selamat datang</h2>
+            <p id="form-subtitle">Masuk menggunakan akun testing Anda.</p>
+          </div>
+
+          <form id="auth-form" novalidate>
+            <label for="email">Email atau Username</label>
+            <input id="email" name="email" type="text" autocomplete="username" placeholder="nama@email.com atau username" required />
+
+            <label for="password">Password</label>
+            <div class="password-field">
+              <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Minimal 8 karakter" minlength="8" required />
+              <button id="toggle-password" class="text-button" type="button" aria-label="Tampilkan password">Lihat</button>
+            </div>
+
+            <p id="message" class="message" role="alert" aria-live="polite"></p>
+            <button id="submit-button" class="primary-button" type="submit">Masuk</button>
+          </form>
+
+          <div class="future-login">
+            <span></span><p>Tahap berikutnya</p><span></span>
+          </div>
+          <button id="google-login-button" class="google-button" type="button" title="Login dengan Google">
+            <span class="google-g">G</span> Lanjutkan dengan Google
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <main id="vault-view" class="vault-layout hidden">
+      <aside class="sidebar">
+        <button class="sidebar-brand workspace-switcher" type="button" title="Vault PassSa">
+          <img class="sidebar-brand-logo" src="assets/passsa-mark.png" alt="" />
+          <span><strong>PassSa</strong><small>Vault pribadi</small></span>
+          <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
+        </button>
+        <nav class="vault-tree" aria-label="Grup vault">
+          <p class="sidebar-section-label">VAULT</p>
+          <div class="tree-row level-0">
+            <span class="tree-spacer"></span>
+            <button class="tree-node active" type="button" data-filter="all" data-title="Semua Password"><i class="fa-solid fa-key"></i> <span>Semua Item</span></button>
+          </div>
+          <div class="tree-branch tree-root-categories">
+            <div id="custom-categories-tree" class="tree-branch"></div>
+            <p class="sidebar-section-label sidebar-section-organize">ORGANISASI</p>
+            <div class="tree-row level-1"><span class="tree-spacer"></span><button class="tree-node" type="button" data-filter="favorites" data-title="Favorit"><i class="fa-solid fa-star system-icon favorite-icon"></i><span>Favorit</span></button></div>
+            <div class="tree-row level-1"><span class="tree-spacer"></span><button class="tree-node" type="button" data-filter="trash" data-title="Recycle Bin">🗑️ <span>Recycle Bin</span></button></div>
+            <div class="tree-row level-1">
+              <button class="tree-toggle" type="button" data-target="tags-tree" aria-label="Buka atau tutup Tags" aria-expanded="true">▾</button>
+              <button class="tree-node" type="button" data-filter="tags" data-title="Semua Tags"><i class="fa-solid fa-tags system-icon tags-icon"></i><span>Tags</span></button>
+            </div>
+            <div id="tags-tree" class="tree-branch tags-panel">
+              <label class="tag-search" for="tag-search-input">
+                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+                <input id="tag-search-input" type="search" placeholder="Cari tag..." autocomplete="off" aria-label="Cari tag" />
+              </label>
+              <div id="tag-list" class="tag-list" aria-live="polite"></div>
+              <p id="tag-empty" class="tag-empty hidden">Tag tidak ditemukan.</p>
+            </div>
+          </div>
+        </nav>
+        <div class="sidebar-fixed">
+          <div class="sidebar-create-actions" aria-label="Buat baru">
+            <button id="sidebar-add-item-button" class="sidebar-create-button" type="button"><i class="fa-solid fa-plus"></i> New Credential</button>
+            <button id="sidebar-add-tag-button" class="sidebar-create-button" type="button" title="Buat tag melalui credential baru"><i class="fa-solid fa-plus"></i> New Tags</button>
+            <button id="add-category-button" class="sidebar-create-button" type="button"><i class="fa-solid fa-plus"></i> Kategori Custom</button>
+          </div>
+          <div class="sidebar-user">
+            <div id="user-avatar" class="avatar">U</div>
+            <div><strong id="user-email">user@email.com</strong><small>Akun testing lokal</small></div>
+            <button id="sync-button" class="sync-button" title="Sinkronkan Google Drive" aria-label="Sinkronkan vault dengan Google Drive"><i class="fa-solid fa-cloud-arrow-up"></i></button>
+            <button id="logout-button" class="logout-button" title="Keluar" aria-label="Keluar dan kunci vault">↪</button>
+          </div>
+        </div>
+        <div id="sidebar-resizer" class="sidebar-resizer" role="separator" aria-label="Ubah lebar panel kategori" aria-orientation="vertical" tabindex="0"></div>
+      </aside>
+      <section class="vault-content">
+        <header>
+          <div>
+            <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> VAULT PRIBADI</p>
+            <div class="vault-heading-line">
+              <h2>Semua Item</h2>
+              <button id="clear-filter-button" class="filter-reset hidden" type="button" aria-label="Kembali ke semua item"><i class="fa-solid fa-arrow-left" aria-hidden="true"></i> Semua item</button>
+            </div>
+          </div>
+        </header>
+        <div class="vault-toolbar">
+          <input id="search-input" type="search" placeholder="Cari nama, username, atau alamat situs…" />
+          <div class="toolbar-meta">
+            <span id="item-count">0 item</span>
+            <label class="sort-control" for="sort-select">Urutkan</label>
+            <select id="sort-select" aria-label="Urutkan item">
+              <option value="frequent">Paling sering digunakan</option>
+              <option value="newest">Paling baru</option>
+              <option value="recently-used">Terakhir digunakan</option>
+              <option value="name">Nama A–Z</option>
+              <option value="tags">Tags A–Z</option>
+            </select>
+          </div>
+        </div>
+        <div id="vault-notice" class="vault-notice hidden" role="status" aria-live="polite"></div>
+        <div id="bulk-toolbar" class="bulk-toolbar hidden">
+          <strong id="selected-count">0 dipilih</strong>
+          <button id="bulk-edit-button" class="secondary-button compact-control" type="button">Edit Bulk</button>
+          <button id="bulk-restore-button" class="secondary-button compact-control hidden" type="button">Pulihkan</button>
+          <button id="bulk-delete-button" class="danger-button compact-control" type="button">Pindah ke Sampah</button>
+          <button id="clear-selection" class="text-control" type="button">Batalkan pilihan</button>
+        </div>
+        <div class="items-scroll">
+          <div id="empty-state" class="empty-state">
+            <div class="empty-icon">◇</div>
+            <h3>Vault Anda masih kosong</h3>
+            <p>Tambahkan login pertama Anda. Data akan dienkripsi dan disimpan hanya di komputer ini.</p>
+          </div>
+          <div id="items-header" class="items-header hidden">
+            <div class="items-header-primary"><input id="select-all" type="checkbox" aria-label="Pilih semua item yang terlihat" /><span>Item</span></div>
+            <button class="items-header-button" type="button" data-sort-column="tags">Tags <i class="fa-solid fa-arrow-down-a-z" aria-hidden="true"></i></button>
+            <button class="items-header-button" type="button" data-sort-column="recently-used">Akun <i class="fa-solid fa-arrow-down-a-z" aria-hidden="true"></i></button>
+            <span class="items-header-actions">Aksi</span>
+          </div>
+          <div id="items-list" class="items-list hidden"></div>
+        </div>
+      </section>
+    </main>
+
+    <div id="item-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <form id="item-form" class="item-modal">
+        <div class="modal-header">
+          <div><p class="eyebrow">VAULT LOKAL</p><h2 id="modal-title">Tambah Item</h2></div>
+          <button id="close-modal" class="icon-button" type="button" aria-label="Tutup">×</button>
+        </div>
+        <input id="item-id" type="hidden" />
+        <label for="item-title">Nama Item</label>
+        <input id="item-title" type="text" maxlength="120" placeholder="Contoh: Gmail" required />
+        <div class="form-grid">
+          <div>
+            <label for="item-username">Username atau Email</label>
+            <input id="item-username" type="text" maxlength="320" autocomplete="off" placeholder="nama@email.com" />
+          </div>
+          <div>
+            <label for="item-password">Password</label>
+            <div class="password-field">
+              <input id="item-password" type="password" maxlength="1024" autocomplete="new-password" required />
+              <button id="toggle-item-password" class="text-button" type="button">Lihat</button>
+            </div>
+          </div>
+        </div>
+        <label for="item-url">Alamat Situs</label>
+        <input id="item-url" type="text" maxlength="2048" placeholder="https://example.com" />
+        <div class="form-grid compact-grid">
+          <div>
+            <label for="item-group">Grup</label>
+            <input id="item-group" type="text" list="group-options" maxlength="80" placeholder="Internet/Coding" />
+            <datalist id="group-options"></datalist>
+          </div>
+          <div class="favorite-field">
+            <input id="item-favorite" type="checkbox" />
+            <label for="item-favorite">Tandai sebagai favorit</label>
+          </div>
+        </div>
+        <label for="item-notes">Deskripsi</label>
+        <textarea id="item-notes" maxlength="5000" rows="3" placeholder="Keterangan singkat item (opsional)"></textarea>
+        <label for="item-tags">Tags</label>
+        <input id="item-tags" type="text" maxlength="400" placeholder="kerja, penting, email" autocomplete="off" />
+        <div id="tag-suggestions" class="tag-suggestions hidden" role="listbox" aria-label="Rekomendasi tag"></div>
+        <small class="field-help">Pisahkan beberapa tag menggunakan koma.</small>
+        <p id="item-message" class="message" role="alert"></p>
+        <div class="modal-actions">
+          <button id="generate-password" class="secondary-button generator-button" type="button">Buat Password</button>
+          <button id="cancel-item" class="secondary-button" type="button">Batal</button>
+          <button id="save-item" class="primary-button compact" type="submit">Simpan Item</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="bulk-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="bulk-modal-title">
+      <form id="bulk-form" class="item-modal bulk-modal-card">
+        <div class="modal-header">
+          <div><p class="eyebrow">AKSI MASSAL</p><h2 id="bulk-modal-title">Edit Item Terpilih</h2></div>
+          <button id="close-bulk-modal" class="icon-button" type="button" aria-label="Tutup">×</button>
+        </div>
+        <p class="bulk-help">Kosongkan pilihan yang tidak ingin diubah. Username dan password setiap item tetap dipertahankan.</p>
+        <label for="bulk-group">Ubah Grup</label>
+        <input id="bulk-group" type="text" list="group-options" maxlength="80" placeholder="Tidak diubah" />
+        <label for="bulk-favorite">Status Favorit</label>
+        <select id="bulk-favorite">
+          <option value="unchanged">Tidak diubah</option>
+          <option value="true">Jadikan favorit</option>
+          <option value="false">Hapus dari favorit</option>
+        </select>
+        <label for="bulk-tag-mode">Aksi Tags</label>
+        <select id="bulk-tag-mode">
+          <option value="unchanged">Tidak diubah</option>
+          <option value="add">Tambahkan tags</option>
+          <option value="remove">Hapus tags tertentu</option>
+          <option value="replace">Ganti semua tags</option>
+        </select>
+        <label for="bulk-tags">Tags</label>
+        <input id="bulk-tags" type="text" maxlength="400" placeholder="kerja, penting" />
+        <p id="bulk-message" class="message" role="alert"></p>
+        <div class="modal-actions">
+          <button id="cancel-bulk" class="secondary-button" type="button">Batal</button>
+          <button class="primary-button compact" type="submit">Terapkan</button>
+        </div>
+      </form>
+    </div>
+
+    <div id="category-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="category-modal-title">
+      <form id="category-form" class="item-modal category-modal-card">
+        <div class="modal-header">
+          <div><p class="eyebrow">KATEGORI CUSTOM</p><h2 id="category-modal-title">Buat Kategori</h2></div>
+          <button id="close-category-modal" class="icon-button" type="button" aria-label="Tutup">×</button>
+        </div>
+        <input id="category-id" type="hidden" />
+        <label for="category-name">Nama Kategori</label>
+        <input id="category-name" type="text" maxlength="80" placeholder="Contoh: Project Kantor" required />
+        <label for="category-parent">Parent</label>
+        <select id="category-parent"></select>
+        <label>Pilih Ikon Font Awesome Free</label>
+        <input id="icon-search" type="search" placeholder="Cari ikon, misalnya home, work, game…" />
+        <p id="icon-result-count" class="field-help"></p>
+        <div id="icon-picker" class="icon-picker" role="radiogroup" aria-label="Ikon kategori"></div>
+        <p class="field-help">Hanya ikon dari paket resmi Font Awesome Free yang tersedia.</p>
+        <p id="category-message" class="message" role="alert"></p>
+        <div class="modal-actions">
+          <button id="delete-category" class="danger-button modal-danger hidden" type="button">Hapus Kategori</button>
+          <button id="cancel-category" class="secondary-button" type="button">Batal</button>
+          <button class="primary-button compact" type="submit">Simpan Kategori</button>
+        </div>
+      </form>
+    </div>
+
+    <script src="renderer.js"></script>
+  </body>
+</html>
