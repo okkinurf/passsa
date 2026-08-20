@@ -32,10 +32,15 @@
     "files": [
       "main.js",
       "preload.js",
+      "quick-access-preload.js",
+      "browser-extension/**/*",
       "scripts/**/*",
       "src/**/*",
       "THIRD_PARTY_NOTICES.md",
       "package.json"
+    ],
+    "asarUnpack": [
+      "scripts/windows-hello-helper.exe"
     ],
     "win": {
       "target": "nsis",

@@ -35,6 +35,12 @@ Set `PASSA_RESET_VAULT=true` untuk menghapus seluruh isi vault sebelum membuat d
 - Tags terenkripsi mendukung pencarian, filter sidebar, chip pada item, serta add/remove/replace secara bulk.
 - Statistik penggunaan terenkripsi mendukung urutan paling sering, paling baru, terakhir digunakan, dan nama.
 - Seluruh kategori mendukung parent, rename, delete, dan pencarian katalog ikon Solid dari paket resmi Font Awesome Free.
+- Pengaturan menyediakan export backup terenkripsi `.passsa` (AES-256-GCM dengan password backup terpisah) dan import dengan mode gabung atau ganti.
+- CSV tersedia untuk interoperabilitas; CSV berisi password plaintext dan selalu meminta konfirmasi eksplisit sebelum export/import.
+- Browser autofill tersedia melalui extension Chromium Manifest V3 di `browser-extension/`. Extension memakai Native Messaging, mencocokkan host/protocol/port secara ketat, dan meminta credential dari PassSa hanya setelah user memilih item.
+- Item mendukung tipe `Secure Note` untuk catatan terenkripsi tanpa password login.
+- Custom Fields mendukung Text, Secret, URL, Email, Angka, dan Ya/Tidak. Nilainya ikut dienkripsi dan hanya dibaca saat form edit dibuka; field Secret tidak dikirim dalam daftar item.
+- Windows Hello dapat diaktifkan dari Pengaturan setelah login password pertama. Helper native meminta verifikasi Hello dan kunci vault dibungkus dengan `safeStorage`/DPAPI pada perangkat Windows yang sama; password vault tetap menjadi fallback.
 - Hanya satu instance aplikasi yang dapat berjalan; penulisan JSON memakai lock file lintas proses, temporary file unik, dan backup.
 
 ## Google Drive sync
@@ -61,3 +67,4 @@ Lisensi dependency visual tersedia di `THIRD_PARTY_NOTICES.md`.
 
 - Google OAuth/Drive nyata memerlukan Desktop Client ID milik project Google Cloud pengguna.
 - Installer produksi memerlukan certificate Authenticode atau Azure Trusted Signing milik publisher.
+- Autofill production membutuhkan registrasi Native Messaging Host dan Extension ID resmi; lihat `docs/AUTOFILL_SETUP.md`.

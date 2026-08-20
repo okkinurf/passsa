@@ -22,3 +22,30 @@ test('Drive client me-refresh access token tanpa mengekspos refresh token ke URL
   assert.equal(calls[1].options.headers.authorization, 'Bearer new-access');
   assert.equal(calls[1].url.includes('refresh-secret'), false);
 });
+
+test('Drive client memakai folder PassSa yang sudah ada dan tidak membuat duplikat', async () => {
+  const calls = [];
+  const tokenStore = { load: async () => ({ access_token: 'access', expires_at: Date.now() + 3600_000 }) };
+  const fetchFn = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    return { ok: true, json: async () => ({ files: [{ id: 'folder-1', name: 'PassSa' }] }) };
+  };
+  const client = new GoogleDriveClient({ clientId: 'client.apps.googleusercontent.com', tokenStore, fetchFn });
+  const folder = await client.ensureFolder('okki@example.test');
+  assert.equal(folder.id, 'folder-1');
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].url, /mimeType/);
+});
+
+test('Drive client mencabut token Google saat logout tanpa memasukkan token ke URL', async () => {
+  const calls = [];
+  const tokenStore = { load: async () => ({ refresh_token: 'refresh-secret' }) };
+  const fetchFn = async (url, options = {}) => {
+    calls.push({ url: String(url), options });
+    return { ok: true, status: 200, json: async () => ({}) };
+  };
+  const client = new GoogleDriveClient({ clientId: 'client.apps.googleusercontent.com', tokenStore, fetchFn });
+  assert.equal(await client.revoke('okki@example.test'), true);
+  assert.equal(calls[0].url.includes('refresh-secret'), false);
+  assert.equal(calls[0].options.body.toString().includes('refresh-secret'), true);
+});

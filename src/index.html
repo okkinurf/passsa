@@ -12,7 +12,7 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="app-titlebar" aria-hidden="true"><img src="assets/passsa-mark.png" alt="" /><span>PassSa</span></div>
+    <div class="app-titlebar"><img src="assets/passsa-mark.png" alt="" /><span>PassSa</span><span id="titlebar-sync-status" class="titlebar-sync-status disconnected" role="status" aria-live="polite" title="Google Drive belum terhubung"><i class="fa-solid fa-cloud" aria-hidden="true"></i><span>Google Drive belum terhubung</span></span></div>
     <main id="auth-view" class="auth-layout">
       <section class="brand-panel">
         <img class="brand-logo" src="assets/passsa-mark.png" alt="PassSa" />
@@ -35,8 +35,8 @@
           </div>
 
           <div class="form-heading">
-            <h2 id="form-title">Selamat datang</h2>
-            <p id="form-subtitle">Masuk menggunakan akun testing Anda.</p>
+            <h2 id="form-title">Selamat datang kembali</h2>
+            <p id="form-subtitle">Masuk ke vault lokal Anda.</p>
           </div>
 
           <form id="auth-form" novalidate>
@@ -46,65 +46,75 @@
             <label for="password">Password</label>
             <div class="password-field">
               <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Minimal 8 karakter" minlength="8" required />
-              <button id="toggle-password" class="text-button" type="button" aria-label="Tampilkan password">Lihat</button>
+              <button id="toggle-password" class="text-button secret-toggle" type="button" aria-label="Tampilkan password" title="Tampilkan password"><i class="fa-solid fa-eye" aria-hidden="true"></i></button>
             </div>
 
             <p id="message" class="message" role="alert" aria-live="polite"></p>
             <button id="submit-button" class="primary-button" type="submit">Masuk</button>
+            <button id="hello-login-button" class="secondary-button hello-login-button hidden" type="button"><i class="fa-solid fa-fingerprint" aria-hidden="true"></i> Masuk dengan Windows Hello</button>
           </form>
 
-          <div class="future-login">
-            <span></span><p>Tahap berikutnya</p><span></span>
-          </div>
-          <button id="google-login-button" class="google-button" type="button" title="Login dengan Google">
-            <span class="google-g">G</span> Lanjutkan dengan Google
-          </button>
         </div>
       </section>
     </main>
 
     <main id="vault-view" class="vault-layout hidden">
-      <aside class="sidebar">
-        <button class="sidebar-brand workspace-switcher" type="button" title="Vault PassSa">
-          <img class="sidebar-brand-logo" src="assets/passsa-mark.png" alt="" />
-          <span><strong>PassSa</strong><small>Vault pribadi</small></span>
-          <i class="fa-solid fa-chevron-down" aria-hidden="true"></i>
-        </button>
+      <aside class="sidebar" data-sidebar>
+        <div class="sidebar-top">
+          <button class="sidebar-brand workspace-switcher" type="button" title="Vault PassSa">
+            <img class="sidebar-brand-logo" src="assets/passsa-mark.png" alt="" />
+            <span data-label><strong>PassSa</strong><small>Vault pribadi</small></span>
+          </button>
+          <button id="sidebar-collapse-button" class="sidebar-collapse" type="button" aria-label="Ciutkan sidebar" aria-expanded="true" title="Ciutkan sidebar" data-sidebar-tooltip="Ciutkan sidebar">
+            <i class="fa-solid fa-chevron-left" aria-hidden="true"></i>
+          </button>
+        </div>
+        <label class="sidebar-search" for="sidebar-navigation-search">
+          <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
+          <input id="sidebar-navigation-search" type="search" placeholder="Cari navigasi…" aria-label="Cari navigasi sidebar" data-label />
+        </label>
         <nav class="vault-tree" aria-label="Grup vault">
-          <p class="sidebar-section-label">VAULT</p>
-          <div class="tree-row level-0">
-            <span class="tree-spacer"></span>
-            <button class="tree-node active" type="button" data-filter="all" data-title="Semua Password"><i class="fa-solid fa-key"></i> <span>Semua Item</span></button>
-          </div>
-          <div class="tree-branch tree-root-categories">
-            <div id="custom-categories-tree" class="tree-branch"></div>
-            <p class="sidebar-section-label sidebar-section-organize">ORGANISASI</p>
-            <div class="tree-row level-1"><span class="tree-spacer"></span><button class="tree-node" type="button" data-filter="favorites" data-title="Favorit"><i class="fa-solid fa-star system-icon favorite-icon"></i><span>Favorit</span></button></div>
-            <div class="tree-row level-1"><span class="tree-spacer"></span><button class="tree-node" type="button" data-filter="trash" data-title="Recycle Bin">🗑️ <span>Recycle Bin</span></button></div>
-            <div class="tree-row level-1">
-              <button class="tree-toggle" type="button" data-target="tags-tree" aria-label="Buka atau tutup Tags" aria-expanded="true">▾</button>
-              <button class="tree-node" type="button" data-filter="tags" data-title="Semua Tags"><i class="fa-solid fa-tags system-icon tags-icon"></i><span>Tags</span></button>
+          <section class="sidebar-group">
+            <button class="sidebar-group-header" type="button" data-group="workspace-list" aria-controls="workspace-list" aria-expanded="true">
+              <span class="sidebar-group-title" data-label>Workspace</span>
+              <i class="fa-solid fa-chevron-down sidebar-group-caret" aria-hidden="true"></i>
+            </button>
+            <div id="workspace-list" class="sidebar-group-list">
+              <div class="tree-row level-0">
+                <span class="tree-spacer"></span>
+                <button class="tree-node sidebar-link active" type="button" data-filter="all" data-title="Semua Item"><i class="fa-solid fa-key"></i> <span data-label>Semua Item</span><span id="sidebar-all-count" class="sidebar-count" data-label>0</span></button>
+              </div>
+              <div class="tree-branch tree-root-categories">
+                <div id="custom-categories-tree" class="tree-branch"></div>
+              </div>
             </div>
-            <div id="tags-tree" class="tree-branch tags-panel">
-              <label class="tag-search" for="tag-search-input">
-                <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
-                <input id="tag-search-input" type="search" placeholder="Cari tag..." autocomplete="off" aria-label="Cari tag" />
-              </label>
-              <div id="tag-list" class="tag-list" aria-live="polite"></div>
-              <p id="tag-empty" class="tag-empty hidden">Tag tidak ditemukan.</p>
+          </section>
+          <section class="sidebar-group">
+            <button class="sidebar-group-header" type="button" data-group="insights-list" aria-controls="insights-list" aria-expanded="true">
+              <span class="sidebar-group-title" data-label>Insights</span>
+              <i class="fa-solid fa-chevron-down sidebar-group-caret" aria-hidden="true"></i>
+            </button>
+            <div id="insights-list" class="sidebar-group-list">
+              <div class="tree-row level-1"><span class="tree-spacer"></span><button class="tree-node sidebar-link" type="button" data-filter="favorites" data-title="Favorit"><i class="fa-solid fa-star system-icon favorite-icon"></i><span data-label>Favorit</span><span id="sidebar-favorites-count" class="sidebar-count" data-label>0</span></button></div>
+              <div class="tree-row level-1"><span class="tree-spacer"></span><button class="tree-node sidebar-link" type="button" data-filter="trash" data-title="Recycle Bin"><i class="fa-solid fa-trash-can"></i><span data-label>Recycle Bin</span><span id="sidebar-trash-count" class="sidebar-count" data-label>0</span></button></div>
+              <div class="tree-row level-1">
+                <span class="tree-spacer"></span>
+                <button class="tree-node sidebar-link" type="button" data-filter="tags" data-title="Semua Tags"><i class="fa-solid fa-tags system-icon tags-icon"></i><span data-label>Tags</span><span id="sidebar-tags-count" class="sidebar-count" data-label>0</span></button>
+              </div>
             </div>
-          </div>
+          </section>
         </nav>
         <div class="sidebar-fixed">
           <div class="sidebar-create-actions" aria-label="Buat baru">
-            <button id="sidebar-add-item-button" class="sidebar-create-button" type="button"><i class="fa-solid fa-plus"></i> New Credential</button>
-            <button id="sidebar-add-tag-button" class="sidebar-create-button" type="button" title="Buat tag melalui credential baru"><i class="fa-solid fa-plus"></i> New Tags</button>
-            <button id="add-category-button" class="sidebar-create-button" type="button"><i class="fa-solid fa-plus"></i> Kategori Custom</button>
+            <button id="sidebar-add-item-button" class="sidebar-create-button" type="button" data-sidebar-tooltip="New Credential"><i class="fa-solid fa-plus"></i><span data-label>New Credential</span></button>
+            <button id="sidebar-add-tag-button" class="sidebar-create-button" type="button" title="Buat tag melalui credential baru" data-sidebar-tooltip="New Tags"><i class="fa-solid fa-plus"></i><span data-label>New Tags</span></button>
+            <button id="add-category-button" class="sidebar-create-button" type="button" data-sidebar-tooltip="Kategori Custom"><i class="fa-solid fa-plus"></i><span data-label>Kategori Custom</span></button>
           </div>
           <div class="sidebar-user">
-            <div id="user-avatar" class="avatar">U</div>
-            <div><strong id="user-email">user@email.com</strong><small>Akun testing lokal</small></div>
+            <div id="user-avatar" class="avatar" data-sidebar-tooltip="Akun pengguna" aria-label="Akun pengguna">U</div>
+            <div data-label><strong id="user-email">user@email.com</strong><small>Akun testing lokal</small></div>
             <button id="sync-button" class="sync-button" title="Sinkronkan Google Drive" aria-label="Sinkronkan vault dengan Google Drive"><i class="fa-solid fa-cloud-arrow-up"></i></button>
+            <button id="settings-button" class="sync-button" title="Pengaturan" aria-label="Buka pengaturan"><i class="fa-solid fa-gear"></i></button>
             <button id="logout-button" class="logout-button" title="Keluar" aria-label="Keluar dan kunci vault">↪</button>
           </div>
         </div>
@@ -124,8 +134,8 @@
           <input id="search-input" type="search" placeholder="Cari nama, username, atau alamat situs…" />
           <div class="toolbar-meta">
             <span id="item-count">0 item</span>
-            <label class="sort-control" for="sort-select">Urutkan</label>
-            <select id="sort-select" aria-label="Urutkan item">
+            <label class="filter-control" for="sort-select">Filter</label>
+            <select id="sort-select" aria-label="Filter item">
               <option value="frequent">Paling sering digunakan</option>
               <option value="newest">Paling baru</option>
               <option value="recently-used">Terakhir digunakan</option>
@@ -134,7 +144,11 @@
             </select>
           </div>
         </div>
-        <div id="vault-notice" class="vault-notice hidden" role="status" aria-live="polite"></div>
+        <div id="vault-notice" class="vault-notice hidden" role="status" aria-live="polite">
+          <span class="vault-notice-icon" aria-hidden="true"><i class="fa-solid fa-circle-check"></i></span>
+          <span class="vault-notice-text"></span>
+          <button class="vault-notice-dismiss" type="button" aria-label="Tutup notifikasi"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+        </div>
         <div id="bulk-toolbar" class="bulk-toolbar hidden">
           <strong id="selected-count">0 dipilih</strong>
           <button id="bulk-edit-button" class="secondary-button compact-control" type="button">Edit Bulk</button>
@@ -155,9 +169,12 @@
             <span class="items-header-actions">Aksi</span>
           </div>
           <div id="items-list" class="items-list hidden"></div>
+          <div id="tags-overview" class="tags-overview hidden" aria-live="polite"></div>
         </div>
       </section>
     </main>
+
+    <div id="sidebar-tooltip" class="sidebar-tooltip" role="tooltip" aria-hidden="true"></div>
 
     <div id="item-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="modal-title">
       <form id="item-form" class="item-modal">
@@ -166,9 +183,14 @@
           <button id="close-modal" class="icon-button" type="button" aria-label="Tutup">×</button>
         </div>
         <input id="item-id" type="hidden" />
+        <label for="item-type">Jenis credential</label>
+        <select id="item-type">
+          <option value="login">Login / Password</option>
+          <option value="secure-note">Secure Note</option>
+        </select>
         <label for="item-title">Nama Item</label>
         <input id="item-title" type="text" maxlength="120" placeholder="Contoh: Gmail" required />
-        <div class="form-grid">
+        <div class="form-grid item-login-fields">
           <div>
             <label for="item-username">Username atau Email</label>
             <input id="item-username" type="text" maxlength="320" autocomplete="off" placeholder="nama@email.com" />
@@ -177,12 +199,14 @@
             <label for="item-password">Password</label>
             <div class="password-field">
               <input id="item-password" type="password" maxlength="1024" autocomplete="new-password" required />
-              <button id="toggle-item-password" class="text-button" type="button">Lihat</button>
+              <button id="toggle-item-password" class="text-button secret-toggle" type="button" aria-label="Tampilkan password" title="Tampilkan password"><i class="fa-solid fa-eye" aria-hidden="true"></i></button>
             </div>
           </div>
         </div>
-        <label for="item-url">Alamat Situs</label>
-        <input id="item-url" type="text" maxlength="2048" placeholder="https://example.com" />
+        <div class="item-login-fields">
+          <label for="item-url">Alamat Situs</label>
+          <input id="item-url" type="text" maxlength="2048" placeholder="https://example.com" />
+        </div>
         <div class="form-grid compact-grid">
           <div>
             <label for="item-group">Grup</label>
@@ -200,6 +224,21 @@
         <input id="item-tags" type="text" maxlength="400" placeholder="kerja, penting, email" autocomplete="off" />
         <div id="tag-suggestions" class="tag-suggestions hidden" role="listbox" aria-label="Rekomendasi tag"></div>
         <small class="field-help">Pisahkan beberapa tag menggunakan koma.</small>
+        <section id="custom-fields-section" class="custom-fields-section" aria-labelledby="custom-fields-title">
+          <div class="custom-fields-heading">
+            <div><span id="custom-fields-title"><i class="fa-solid fa-sliders" aria-hidden="true"></i> Custom Fields</span><small>Data tambahan terenkripsi di vault</small></div>
+            <button id="add-custom-field" class="secondary-button compact" type="button"><i class="fa-solid fa-plus" aria-hidden="true"></i> Tambah</button>
+          </div>
+          <div id="custom-fields-list" class="custom-fields-list"></div>
+          <p class="field-help">Simpan PIN, kode pemulihan, nomor tiket, atau data lain. Tipe Secret disembunyikan sampai Anda menekan ikon mata.</p>
+        </section>
+        <section id="password-history" class="password-history hidden" aria-labelledby="password-history-title">
+          <div class="password-history-heading">
+            <div><span id="password-history-title"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> Password History</span><small id="password-history-count"></small></div>
+            <span class="password-history-note">Versi lama tersimpan terenkripsi</span>
+          </div>
+          <div id="password-history-list" class="password-history-list"></div>
+        </section>
         <p id="item-message" class="message" role="alert"></p>
         <div class="modal-actions">
           <button id="generate-password" class="secondary-button generator-button" type="button">Buat Password</button>
@@ -264,6 +303,130 @@
           <button class="primary-button compact" type="submit">Simpan Kategori</button>
         </div>
       </form>
+    </div>
+
+    <div id="settings-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="settings-modal-title">
+      <section class="item-modal settings-modal-card">
+        <div class="modal-header">
+          <div><p class="eyebrow">PENGATURAN</p><h2 id="settings-modal-title">Pengaturan</h2></div>
+          <button id="close-settings" class="icon-button" type="button" aria-label="Tutup">×</button>
+        </div>
+        <section class="settings-section" aria-labelledby="settings-google-heading">
+          <p class="settings-label">CLOUD SYNC</p>
+          <h3 id="settings-google-heading"><i class="fa-brands fa-google" aria-hidden="true"></i> Google Drive</h3>
+          <p id="settings-google-status">Setiap pengguna dapat menghubungkan akun Google miliknya untuk sinkronisasi vault terenkripsi. Login dan password Google diproses langsung di halaman resmi Google.</p>
+          <label id="settings-google-password-label" for="settings-google-password">Password vault lokal</label>
+          <input id="settings-google-password" type="password" autocomplete="current-password" placeholder="Masukkan password vault lokal" />
+          <small class="field-help settings-google-help">Ini bukan password Google. Password ini digunakan untuk membuka kunci enkripsi vault lokal.</small>
+          <p id="settings-google-message" class="message" role="status" aria-live="polite"></p>
+          <div class="settings-actions">
+            <button id="settings-google-connect" class="primary-button compact" type="button">Hubungkan Google</button>
+            <button id="settings-google-disconnect" class="secondary-button compact hidden" type="button"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> Logout Google</button>
+          </div>
+        </section>
+        <section class="settings-section" aria-labelledby="settings-password-heading">
+          <p class="settings-label">KEAMANAN VAULT</p>
+          <h3 id="settings-password-heading"><i class="fa-solid fa-key" aria-hidden="true"></i> Ganti Password</h3>
+          <p>Password ini digunakan untuk membuka vault lokal dan mengenkripsi data Anda.</p>
+          <form id="change-password-form" class="settings-password-form">
+            <div class="form-grid">
+              <div>
+                <label for="settings-current-password">Password saat ini</label>
+                <input id="settings-current-password" type="password" autocomplete="current-password" required />
+              </div>
+              <div>
+                <label for="settings-new-password">Password baru</label>
+                <input id="settings-new-password" type="password" autocomplete="new-password" required />
+              </div>
+            </div>
+            <label for="settings-confirm-password">Konfirmasi password baru</label>
+            <input id="settings-confirm-password" type="password" autocomplete="new-password" required />
+            <p id="settings-password-message" class="message" role="status" aria-live="polite"></p>
+            <div class="settings-actions"><button id="settings-password-submit" class="primary-button compact" type="submit">Simpan Password</button></div>
+          </form>
+        </section>
+        <section class="settings-section" aria-labelledby="settings-hello-heading">
+          <p class="settings-label">UNLOCK PERANGKAT</p>
+          <h3 id="settings-hello-heading"><i class="fa-solid fa-fingerprint" aria-hidden="true"></i> Windows Hello</h3>
+          <p id="settings-hello-status">Gunakan PIN, sidik jari, atau Windows Hello untuk membuka vault di perangkat ini setelah login password pertama.</p>
+          <label for="settings-hello-password">Konfirmasi password vault</label>
+          <input id="settings-hello-password" type="password" autocomplete="current-password" placeholder="Masukkan password vault saat ini" />
+          <p id="settings-hello-message" class="message" role="status" aria-live="polite"></p>
+          <div class="settings-actions">
+            <button id="settings-hello-enable" class="primary-button compact" type="button"><i class="fa-solid fa-fingerprint" aria-hidden="true"></i> Aktifkan Windows Hello</button>
+            <button id="settings-hello-disable" class="secondary-button compact hidden" type="button">Nonaktifkan</button>
+          </div>
+          <small class="field-help">Kunci vault tetap terenkripsi dengan password. Windows Hello hanya memberi persetujuan lokal pada perangkat ini; jangan aktifkan di komputer bersama.</small>
+        </section>
+        <section class="settings-section" aria-labelledby="settings-app-heading">
+          <p class="settings-label">APLIKASI WINDOWS</p>
+          <h3 id="settings-app-heading"><i class="fa-solid fa-window-restore" aria-hidden="true"></i> Startup &amp; System Tray</h3>
+          <p>Atur bagaimana PassSa berjalan saat Windows dimulai atau ketika jendela ditutup.</p>
+          <label class="settings-check settings-app-option">
+            <input id="settings-startup" type="checkbox" />
+            <span><strong>Aktifkan startup Windows</strong><small>PassSa dibuka otomatis ketika Anda masuk ke Windows.</small></span>
+          </label>
+          <label class="settings-check settings-app-option">
+            <input id="settings-minimize-tray" type="checkbox" />
+            <span><strong>Aktifkan system tray</strong><small>Menutup atau meminimalkan jendela hanya menyembunyikan PassSa di tray.</small></span>
+          </label>
+          <label class="settings-check settings-app-option">
+            <input id="settings-quick-access" type="checkbox" checked />
+            <span><strong>Aktifkan Quick Access</strong><small>Gunakan <code>Alt + Shift + P</code> untuk membuka pencarian credential dekat cursor.</small></span>
+          </label>
+          <p id="settings-app-message" class="message" role="status" aria-live="polite"></p>
+        </section>
+        <section class="settings-section" aria-labelledby="settings-autofill-heading">
+          <p class="settings-label">BROWSER INTEGRATION</p>
+          <h3 id="settings-autofill-heading"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Autofill Browser</h3>
+          <p>Gunakan extension PassSa untuk mengisi username dan password pada Chrome atau Edge. Pencocokan default memakai host, protocol, dan port yang sama.</p>
+          <small class="field-help">Untuk testing, load folder <code>browser-extension</code> melalui menu Developer mode browser, lalu daftarkan Native Messaging Host dengan panduan <code>docs/AUTOFILL_SETUP.md</code>.</small>
+        </section>
+        <section class="settings-section" aria-labelledby="settings-transfer-heading">
+          <p class="settings-label">DATA VAULT</p>
+          <h3 id="settings-transfer-heading"><i class="fa-solid fa-arrow-right-arrow-left" aria-hidden="true"></i> Export &amp; Import</h3>
+          <p>Buat backup terenkripsi atau pindahkan credential dari file CSV.</p>
+          <div class="settings-transfer-grid">
+            <div class="settings-transfer-card">
+              <strong>Export vault</strong>
+              <label for="settings-export-format">Format</label>
+              <select id="settings-export-format">
+                <option value="passsa">Backup terenkripsi (.passsa)</option>
+                <option value="csv">CSV portable (plaintext)</option>
+              </select>
+              <div id="settings-export-password-fields">
+                <label for="settings-export-password">Password backup</label>
+                <input id="settings-export-password" type="password" autocomplete="new-password" placeholder="Minimal 8 karakter" />
+                <label for="settings-export-password-confirm">Konfirmasi password backup</label>
+                <input id="settings-export-password-confirm" type="password" autocomplete="new-password" />
+              </div>
+              <label id="settings-export-csv-confirm-label" class="settings-check hidden">
+                <input id="settings-export-csv-confirm" type="checkbox" />
+                <span>Saya memahami CSV berisi password plaintext.</span>
+              </label>
+              <button id="settings-export-button" class="primary-button compact" type="button"><i class="fa-solid fa-download" aria-hidden="true"></i> Export</button>
+            </div>
+            <div class="settings-transfer-card">
+              <strong>Import ke vault</strong>
+              <label for="settings-import-mode">Mode import</label>
+              <select id="settings-import-mode">
+                <option value="merge">Gabungkan dan lewati duplikat</option>
+                <option value="replace">Ganti item aktif</option>
+              </select>
+              <label for="settings-import-password">Password file .passsa</label>
+              <input id="settings-import-password" type="password" autocomplete="off" placeholder="Diperlukan untuk backup terenkripsi" />
+              <label class="settings-check">
+                <input id="settings-import-csv-confirm" type="checkbox" />
+                <span>Izinkan import CSV plaintext.</span>
+              </label>
+              <button id="settings-import-button" class="secondary-button compact" type="button"><i class="fa-solid fa-upload" aria-hidden="true"></i> Import File</button>
+            </div>
+          </div>
+          <p id="settings-transfer-message" class="message" role="status" aria-live="polite"></p>
+          <small class="field-help">File export tidak dikirim ke Google Drive secara otomatis. Hapus file plaintext setelah selesai digunakan.</small>
+        </section>
+        <div class="modal-actions"><button id="close-settings-secondary" class="secondary-button" type="button">Tutup</button></div>
+      </section>
     </div>
 
     <script src="renderer.js"></script>

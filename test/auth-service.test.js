@@ -83,3 +83,31 @@ test('akun Google dapat membuka vault lokal yang sudah dipetakan tanpa membuat a
   assert.equal(store.value.users.length, 1);
   assert.equal(store.value.users[0].googleSub, 'google-sub-okki');
 });
+
+test('sesi lokal yang sedang terbuka dapat menautkan Google tanpa meminta password ulang', async () => {
+  const store = new MemoryStore({ version: 1, users: [] });
+  const auth = new AuthService(store);
+  const registered = await auth.register({ email: 'okki@example.test', password: 'password-testing' });
+  const linked = await auth.linkGoogleToSession({ email: 'google@example.test', googleSub: 'google-sub-session' });
+  assert.equal(registered.ok, true);
+  assert.equal(linked.ok, true);
+  assert.equal(linked.user.provider, 'google');
+  assert.equal(linked.user.googleEmail, 'google@example.test');
+  assert.equal(store.value.users[0].googleSub, 'google-sub-session');
+});
+
+test('ganti password memverifikasi password lama dan mengenkripsi ulang vault', async () => {
+  const oldPassword = 'password-lama';
+  const newPassword = 'password-baru';
+  const authStore = new MemoryStore({ version: 1, users: [] });
+  const auth = new AuthService(authStore);
+  await auth.register({ email: 'okki@example.test', password: oldPassword });
+  const vaultStore = new MemoryStore({ version: 1, vaults: {} });
+  const vault = new VaultService(vaultStore, auth);
+  await vault.add({ title: 'Credential', username: 'okki', password: 'secret' });
+  const changed = await auth.changePassword({ currentPassword: oldPassword, newPassword }, (nextKey, kdf) => vault.rekey(nextKey, kdf));
+  assert.equal(changed.ok, true);
+  assert.equal((await vault.list())[0].password, 'secret');
+  assert.equal((await auth.login({ email: 'okki@example.test', password: oldPassword })).ok, false);
+  assert.equal((await auth.login({ email: 'okki@example.test', password: newPassword })).ok, true);
+});

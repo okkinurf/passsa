@@ -1,5 +1,10 @@
 const { app, net } = require('electron');
 
+// Keep the network-only QA runner usable on Windows hosts without a working GPU process.
+app.commandLine.appendSwitch('in-process-gpu');
+app.commandLine.appendSwitch('disable-gpu');
+app.disableHardwareAcceleration();
+
 const endpoints = [
   'https://oauth2.googleapis.com/token',
   'https://openidconnect.googleapis.com/v1/userinfo',

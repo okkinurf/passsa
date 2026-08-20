@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildEntry, normalizeEntry, normalizeTags, MAX_HISTORY } = require('../src/core/vault-entry');
+const { buildEntry, normalizeEntry, normalizeTags, normalizeCustomFields, MAX_HISTORY } = require('../src/core/vault-entry');
 
 test('entry lama dinormalisasi tanpa menghilangkan data', () => {
   const old = { id: '1', title: 'Lama', password: 'secret', username: '', url: '', notes: '' };
@@ -18,9 +18,30 @@ test('tags dinormalisasi, dideduplikasi, dan dibatasi', () => {
   assert.deepEqual(normalizeTags('Kerja, penting, kerja,  Email  '), ['Kerja', 'penting', 'Email']);
 });
 
+test('custom fields fleksibel dinormalisasi dan dibatasi tanpa menghilangkan tipe', () => {
+  const fields = normalizeCustomFields([
+    { id: 'pin', label: ' PIN ', type: 'secret', value: '1234' },
+    { id: 'enabled', label: 'Aktif', type: 'boolean', value: 'true' },
+    { id: 'pin-duplicate', label: 'pin', type: 'text', value: 'lain' },
+  ]);
+  assert.deepEqual(fields.map(({ label, type, value }) => ({ label, type, value })), [
+    { label: 'PIN', type: 'secret', value: '1234' },
+    { label: 'Aktif', type: 'boolean', value: true },
+  ]);
+});
+
+test('secure note tidak memerlukan password login dan tetap menyimpan fields', () => {
+  const note = buildEntry({ type: 'secure-note', title: 'Kode pemulihan', notes: 'Simpan offline.', fields: [{ label: 'Kode', type: 'secret', value: 'ABC' }] });
+  assert.equal(note.type, 'secure-note');
+  assert.equal(note.password, '');
+  assert.equal(note.fields[0].value, 'ABC');
+});
+
 test('perubahan entry menyimpan versi sebelumnya dalam history', () => {
   const first = buildEntry({ title: 'Gmail', password: 'first' });
-  const second = buildEntry({ ...first, title: 'Gmail Baru', password: 'second' }, first);
+  const metadataOnly = buildEntry({ ...first, title: 'Gmail Baru' }, first);
+  assert.equal(metadataOnly.history.length, 0);
+  const second = buildEntry({ ...metadataOnly, password: 'second' }, metadataOnly);
   assert.equal(second.history.length, 1);
   assert.equal(second.history[0].password, 'first');
   assert.equal(second.id, first.id);

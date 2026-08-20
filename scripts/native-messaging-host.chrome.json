@@ -1,0 +1,9 @@
+{
+  "name": "com.passsa.native",
+  "description": "PassSa secure autofill bridge",
+  "path": "C:\\Program Files\\PassSa\\PassSa.exe",
+  "type": "stdio",
+  "allowed_origins": [
+    "chrome-extension://REPLACE_WITH_PASS_SA_EXTENSION_ID/"
+  ]
+}

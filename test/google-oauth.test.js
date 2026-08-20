@@ -9,7 +9,7 @@ test('Google OAuth membuat verifier dan challenge PKCE yang valid', () => {
   assert.match(challenge, /^[A-Za-z0-9_-]+$/);
 });
 
-test('URL OAuth memakai loopback, state, PKCE, dan scope Drive appDataFolder', () => {
+test('URL OAuth memakai loopback, state, PKCE, dan scope Drive file terbatas', () => {
   const url = new URL(buildAuthorizationUrl({
     clientId: 'client.apps.googleusercontent.com',
     redirectUri: 'http://127.0.0.1:4567/oauth2callback',

@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "PassSa Autofill",
+  "version": "0.1.0",
+  "description": "Isi credential PassSa secara aman pada halaman web yang cocok.",
+  "permissions": ["activeTab", "scripting", "nativeMessaging", "commands"],
+  "background": { "service_worker": "background.js" },
+  "action": {
+    "default_title": "Isi dengan PassSa",
+    "default_popup": "popup.html"
+  },
+  "commands": {
+    "fill-current": {
+      "suggested_key": { "default": "Ctrl+Shift+L" },
+      "description": "Isi credential PassSa pada halaman aktif"
+    }
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'self'"
+  }
+}

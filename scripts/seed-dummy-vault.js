@@ -123,17 +123,50 @@ async function main() {
   const dummyItems = seedSamples.map(([title, itemUsername, url, group, tags, notes], index) => {
     const createdAt = new Date(Date.now() - index * 24 * 60 * 60 * 1000).toISOString();
     const usageCount = (index * 7 + 3) % 13;
+    const isSecureNote = index % 19 === 0;
+    const useHistory = Array.from({ length: Math.min(usageCount, 4) }, (_, historyIndex) => ({
+      field: ['password', 'username', 'url'][historyIndex % 3],
+      usedAt: new Date(Date.now() - (index * 3 + historyIndex) * 60 * 60 * 1000).toISOString(),
+    }));
+    const currentPassword = isSecureNote ? '' : randomPassword();
+    const passwordHistory = !isSecureNote && index % 6 === 0
+      ? [1, 2].map((version) => ({
+        title,
+        username: itemUsername,
+        password: `History-${index + 1}-${version}-Demo!`,
+        url,
+        notes,
+        group,
+        favorite: index % 7 === 0,
+        tags,
+        savedAt: new Date(Date.now() - (index + version) * 86_400_000).toISOString(),
+      }))
+      : [];
+    const customFields = index % 5 === 0
+      ? [
+        { id: `field-${index}-recovery`, label: 'Recovery Code', type: 'secret', value: `REC-${String(index + 1).padStart(3, '0')}-DEMO` },
+        { id: `field-${index}-owner`, label: 'Owner', type: 'text', value: 'PassSa QA Team' },
+        { id: `field-${index}-verified`, label: 'Verified', type: 'boolean', value: index % 2 === 0 },
+      ]
+      : index % 7 === 0
+        ? [{ id: `field-${index}-ticket`, label: 'Ticket', type: 'number', value: String(1000 + index) }]
+        : [];
     return {
     id: crypto.randomUUID(),
+    type: isSecureNote ? 'secure-note' : 'login',
     title,
-    username: itemUsername,
-    password: randomPassword(),
-    url,
+    username: isSecureNote ? '' : itemUsername,
+    password: currentPassword,
+    url: isSecureNote ? '' : url,
     group,
-    tags: [...tags, index % 3 === 0 ? 'penting' : 'demo'],
+    tags: [...tags, index % 3 === 0 ? 'penting' : 'demo', index % 4 === 0 ? 'quick-access' : 'qa'],
     favorite: index % 7 === 0,
+    quickPinned: index % 10 === 0,
     usageCount,
     lastUsedAt: usageCount ? new Date(Date.now() - index * 3 * 60 * 60 * 1000).toISOString() : null,
+    recentUseHistory: useHistory,
+    history: passwordHistory,
+    fields: customFields,
     notes: `${notes} Data dummy; jangan digunakan sebagai kredensial asli.`,
     source: 'passsa-dummy',
     createdAt,
@@ -154,6 +187,7 @@ async function main() {
   });
   key.fill(0);
   console.log(`Berhasil membuat ${dummyItems.length} item dummy untuk '${username}'.`);
+  console.log(`Fitur dummy: ${dummyItems.filter((item) => item.type === 'secure-note').length} secure note, ${dummyItems.filter((item) => item.fields?.length).length} custom fields, ${dummyItems.filter((item) => item.history?.length).length} password history, ${dummyItems.filter((item) => item.quickPinned).length} Quick Access pin, ${dummyItems.filter((item) => item.favorite).length} favorit, ${dummyItems.filter((item) => item.usageCount > 0).length} item ber-riwayat penggunaan.`);
   if (resetVault) console.log(`Vault lama dikosongkan (${removedCount} item dihapus).`);
 }
 

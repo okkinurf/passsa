@@ -1,5 +1,6 @@
 const authView = document.querySelector('#auth-view');
 const vaultView = document.querySelector('#vault-view');
+const titlebarSyncStatus = document.querySelector('#titlebar-sync-status');
 const form = document.querySelector('#auth-form');
 const loginTab = document.querySelector('#login-tab');
 const registerTab = document.querySelector('#register-tab');
@@ -10,12 +11,15 @@ const passwordInput = document.querySelector('#password');
 const message = document.querySelector('#message');
 const submitButton = document.querySelector('#submit-button');
 const togglePassword = document.querySelector('#toggle-password');
-const googleLoginButton = document.querySelector('#google-login-button');
+const helloLoginButton = document.querySelector('#hello-login-button');
+const helloLoginMessage = document.querySelector('#message');
 const syncButton = document.querySelector('#sync-button');
+const settingsButton = document.querySelector('#settings-button');
 const logoutButton = document.querySelector('#logout-button');
 const itemModal = document.querySelector('#item-modal');
 const itemForm = document.querySelector('#item-form');
 const itemsList = document.querySelector('#items-list');
+const tagsOverview = document.querySelector('#tags-overview');
 const itemsHeader = document.querySelector('#items-header');
 const emptyState = document.querySelector('#empty-state');
 const searchInput = document.querySelector('#search-input');
@@ -28,19 +32,72 @@ const selectAll = document.querySelector('#select-all');
 const bulkModal = document.querySelector('#bulk-modal');
 const bulkForm = document.querySelector('#bulk-form');
 const vaultNotice = document.querySelector('#vault-notice');
+const vaultNoticeText = vaultNotice.querySelector('.vault-notice-text');
+const vaultNoticeIcon = vaultNotice.querySelector('.vault-notice-icon i');
+const vaultNoticeDismiss = vaultNotice.querySelector('.vault-notice-dismiss');
 const sortSelect = document.querySelector('#sort-select');
 const categoryModal = document.querySelector('#category-modal');
 const categoryForm = document.querySelector('#category-form');
 const tagInput = document.querySelector('#item-tags');
 const tagSuggestions = document.querySelector('#tag-suggestions');
+const itemTypeInput = document.querySelector('#item-type');
+const itemLoginFields = [...document.querySelectorAll('.item-login-fields')];
+const customFieldsList = document.querySelector('#custom-fields-list');
+const addCustomFieldButton = document.querySelector('#add-custom-field');
+const passwordHistory = document.querySelector('#password-history');
+const passwordHistoryCount = document.querySelector('#password-history-count');
+const passwordHistoryList = document.querySelector('#password-history-list');
 const tagSearchInput = document.querySelector('#tag-search-input');
 const tagList = document.querySelector('#tag-list');
 const tagEmpty = document.querySelector('#tag-empty');
 const sidebarResizer = document.querySelector('#sidebar-resizer');
+const sidebar = document.querySelector('[data-sidebar]');
+const sidebarCollapseButton = document.querySelector('#sidebar-collapse-button');
+const sidebarNavigationSearch = document.querySelector('#sidebar-navigation-search');
+const sidebarTooltip = document.querySelector('#sidebar-tooltip');
 const sidebarAddItemButton = document.querySelector('#sidebar-add-item-button');
 const sidebarAddTagButton = document.querySelector('#sidebar-add-tag-button');
+const settingsModal = document.querySelector('#settings-modal');
+const closeSettingsButton = document.querySelector('#close-settings');
+const closeSettingsSecondaryButton = document.querySelector('#close-settings-secondary');
+const settingsGoogleConnect = document.querySelector('#settings-google-connect');
+const settingsGoogleDisconnect = document.querySelector('#settings-google-disconnect');
+const settingsGooglePassword = document.querySelector('#settings-google-password');
+const settingsGooglePasswordLabel = document.querySelector('#settings-google-password-label');
+const settingsGoogleStatus = document.querySelector('#settings-google-status');
+const settingsGoogleMessage = document.querySelector('#settings-google-message');
+const changePasswordForm = document.querySelector('#change-password-form');
+const settingsCurrentPassword = document.querySelector('#settings-current-password');
+const settingsNewPassword = document.querySelector('#settings-new-password');
+const settingsConfirmPassword = document.querySelector('#settings-confirm-password');
+const settingsPasswordSubmit = document.querySelector('#settings-password-submit');
+const settingsPasswordMessage = document.querySelector('#settings-password-message');
+const settingsHelloStatus = document.querySelector('#settings-hello-status');
+const settingsHelloPassword = document.querySelector('#settings-hello-password');
+const settingsHelloMessage = document.querySelector('#settings-hello-message');
+const settingsHelloEnable = document.querySelector('#settings-hello-enable');
+const settingsHelloDisable = document.querySelector('#settings-hello-disable');
+const settingsExportFormat = document.querySelector('#settings-export-format');
+const settingsExportPasswordFields = document.querySelector('#settings-export-password-fields');
+const settingsExportPassword = document.querySelector('#settings-export-password');
+const settingsExportPasswordConfirm = document.querySelector('#settings-export-password-confirm');
+const settingsExportCsvConfirmLabel = document.querySelector('#settings-export-csv-confirm-label');
+const settingsExportCsvConfirm = document.querySelector('#settings-export-csv-confirm');
+const settingsExportButton = document.querySelector('#settings-export-button');
+const settingsImportMode = document.querySelector('#settings-import-mode');
+const settingsImportPassword = document.querySelector('#settings-import-password');
+const settingsImportCsvConfirm = document.querySelector('#settings-import-csv-confirm');
+const settingsImportButton = document.querySelector('#settings-import-button');
+const settingsTransferMessage = document.querySelector('#settings-transfer-message');
+const settingsStartup = document.querySelector('#settings-startup');
+const settingsMinimizeTray = document.querySelector('#settings-minimize-tray');
+const settingsQuickAccess = document.querySelector('#settings-quick-access');
+const settingsAppMessage = document.querySelector('#settings-app-message');
 const SIDEBAR_WIDTH_KEY = 'passsa-sidebar-width';
-const MIN_SIDEBAR_WIDTH = 190;
+const SIDEBAR_EXPANDED_WIDTH_KEY = 'passsa-sidebar-expanded-width';
+const DEFAULT_SIDEBAR_WIDTH = 260;
+const COLLAPSED_SIDEBAR_WIDTH = 72;
+const MIN_SIDEBAR_WIDTH = 260;
 const MAX_SIDEBAR_WIDTH = 420;
 const IDLE_LOCK_MS = 5 * 60 * 1000;
 let items = [];
@@ -51,8 +108,8 @@ let visibleItems = [];
 const selectedIds = new Set();
 const collapsedBranches = new Set();
 let mode = 'login';
-let googleEmail = null;
-let googleChallengeId = null;
+let currentUser = null;
+let settingsGoogleChallengeId = null;
 let currentFilter = 'all';
 let currentGroup = null;
 let currentGroupPrefix = null;
@@ -66,16 +123,45 @@ function clampSidebarWidth(width) {
 }
 
 function setSidebarWidth(width, persist = false) {
-  const nextWidth = clampSidebarWidth(Number(width) || 210);
+  const requested = Number(width);
+  const collapsed = requested > 0 && requested <= COLLAPSED_SIDEBAR_WIDTH + 8;
+  const nextWidth = collapsed ? COLLAPSED_SIDEBAR_WIDTH : clampSidebarWidth(requested || DEFAULT_SIDEBAR_WIDTH);
   vaultView.style.setProperty('--sidebar-width', `${nextWidth}px`);
+  // Keep the explicit grid track in sync as well. This avoids a stale track
+  // in Chromium when the rail is toggled after a responsive media-query pass.
+  vaultView.style.setProperty('grid-template-columns', `${nextWidth}px minmax(0, 1fr)`, 'important');
+  vaultView.classList.toggle('sidebar-collapsed', collapsed);
+  sidebar?.classList.toggle('is-collapsed', collapsed);
+  sidebar?.setAttribute('data-collapsed', String(collapsed));
+  sidebarCollapseButton?.setAttribute('aria-expanded', String(!collapsed));
+  sidebarCollapseButton?.setAttribute('aria-label', collapsed ? 'Buka sidebar' : 'Ciutkan sidebar');
+  sidebarCollapseButton?.setAttribute('title', collapsed ? 'Buka sidebar' : 'Ciutkan sidebar');
+  if (sidebarCollapseButton) sidebarCollapseButton.dataset.sidebarTooltip = collapsed ? 'Buka sidebar' : 'Ciutkan sidebar';
   sidebarResizer.setAttribute('aria-valuemin', String(MIN_SIDEBAR_WIDTH));
   sidebarResizer.setAttribute('aria-valuemax', String(Math.min(MAX_SIDEBAR_WIDTH, Math.max(MIN_SIDEBAR_WIDTH, window.innerWidth - 520))));
   sidebarResizer.setAttribute('aria-valuenow', String(nextWidth));
-  if (persist) localStorage.setItem(SIDEBAR_WIDTH_KEY, String(nextWidth));
+  if (persist) {
+    localStorage.setItem(SIDEBAR_WIDTH_KEY, String(nextWidth));
+    if (!collapsed) localStorage.setItem(SIDEBAR_EXPANDED_WIDTH_KEY, String(nextWidth));
+  }
 }
 
 function setupSidebarResize() {
-  setSidebarWidth(localStorage.getItem(SIDEBAR_WIDTH_KEY) || 210);
+  const storedWidth = Number(localStorage.getItem(SIDEBAR_WIDTH_KEY));
+  setSidebarWidth(storedWidth || DEFAULT_SIDEBAR_WIDTH);
+
+  sidebarCollapseButton?.addEventListener('click', () => {
+    const collapsed = sidebar?.classList.contains('is-collapsed');
+    hideSidebarTooltip();
+    if (collapsed) {
+      const restored = Number(localStorage.getItem(SIDEBAR_EXPANDED_WIDTH_KEY)) || DEFAULT_SIDEBAR_WIDTH;
+      setSidebarWidth(restored, true);
+    } else {
+      const expanded = document.querySelector('.sidebar')?.offsetWidth || DEFAULT_SIDEBAR_WIDTH;
+      localStorage.setItem(SIDEBAR_EXPANDED_WIDTH_KEY, String(clampSidebarWidth(expanded)));
+      setSidebarWidth(COLLAPSED_SIDEBAR_WIDTH, true);
+    }
+  });
 
   sidebarResizer.addEventListener('pointerdown', (event) => {
     if (event.button !== 0) return;
@@ -103,6 +189,7 @@ function setupSidebarResize() {
   sidebarResizer.addEventListener('keydown', (event) => {
     if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
     event.preventDefault();
+    if (sidebar?.classList.contains('is-collapsed')) return;
     const currentWidth = document.querySelector('.sidebar').offsetWidth;
     const nextWidth = event.key === 'Home'
       ? MIN_SIDEBAR_WIDTH
@@ -112,15 +199,114 @@ function setupSidebarResize() {
     setSidebarWidth(nextWidth, true);
   });
 
-  window.addEventListener('resize', () => setSidebarWidth(document.querySelector('.sidebar').offsetWidth));
+  window.addEventListener('resize', () => {
+    if (sidebar?.classList.contains('is-collapsed')) return;
+    setSidebarWidth(document.querySelector('.sidebar').offsetWidth);
+  });
 }
 
 setupSidebarResize();
 
+function tooltipLabelFor(target) {
+  if (!target) return '';
+  return target.dataset.sidebarTooltip
+    || target.dataset.title
+    || target.getAttribute('aria-label')
+    || target.getAttribute('title')
+    || target.querySelector('[data-label]')?.textContent?.trim()
+    || '';
+}
+
+function hideSidebarTooltip() {
+  sidebarTooltip?.classList.remove('visible');
+  sidebarTooltip?.setAttribute('aria-hidden', 'true');
+}
+
+function showSidebarTooltip(target) {
+  if (!sidebarTooltip || !sidebar?.classList.contains('is-collapsed')) return;
+  const label = tooltipLabelFor(target);
+  if (!label) return;
+  const rect = target.getBoundingClientRect();
+  sidebarTooltip.textContent = label;
+  sidebarTooltip.style.left = `${Math.min(window.innerWidth - 232, rect.right + 10)}px`;
+  sidebarTooltip.style.top = `${Math.max(8, Math.min(window.innerHeight - 36, rect.top + (rect.height - 28) / 2))}px`;
+  sidebarTooltip.classList.add('visible');
+  sidebarTooltip.setAttribute('aria-hidden', 'false');
+}
+
+function sidebarTooltipTarget(eventTarget) {
+  return eventTarget?.closest?.('.tree-node, .sidebar-create-button, .sidebar-collapse, .sync-button, .logout-button, .avatar, .category-edit');
+}
+
+sidebar?.addEventListener('pointerover', (event) => {
+  const target = sidebarTooltipTarget(event.target);
+  if (target) showSidebarTooltip(target);
+});
+sidebar?.addEventListener('pointerout', (event) => {
+  const target = sidebarTooltipTarget(event.target);
+  const next = sidebarTooltipTarget(event.relatedTarget);
+  if (target && target !== next) hideSidebarTooltip();
+});
+sidebar?.addEventListener('focusin', (event) => {
+  const target = sidebarTooltipTarget(event.target);
+  if (target) showSidebarTooltip(target);
+});
+sidebar?.addEventListener('focusout', () => hideSidebarTooltip());
+window.addEventListener('resize', hideSidebarTooltip);
+
+function setSidebarGroupOpen(header, open) {
+  const listId = header?.dataset.group;
+  const list = listId ? document.getElementById(listId) : null;
+  if (!list) return;
+  const group = header.closest('.sidebar-group');
+  list.classList.toggle('hidden', !open);
+  group?.classList.toggle('is-collapsed', !open);
+  header.setAttribute('aria-expanded', String(open));
+}
+
+document.querySelectorAll('.sidebar-group-header').forEach((header) => {
+  header.addEventListener('click', () => {
+    setSidebarGroupOpen(header, header.getAttribute('aria-expanded') !== 'true');
+  });
+});
+
+function filterSidebarNavigation() {
+  const query = sidebarNavigationSearch?.value.trim().toLowerCase() || '';
+  const groups = [...document.querySelectorAll('.sidebar-group')];
+  for (const group of groups) {
+    const header = group.querySelector('.sidebar-group-header');
+    const list = header?.dataset.group ? document.getElementById(header.dataset.group) : null;
+    if (!list) continue;
+    const rows = [...list.querySelectorAll('.tree-row')];
+    if (!query) {
+      rows.forEach((row) => row.classList.remove('sidebar-nav-hidden'));
+      group.classList.remove('sidebar-search-empty');
+      continue;
+    }
+    let visible = false;
+    rows.forEach((row) => {
+      const node = row.querySelector('.tree-node');
+      const text = node?.textContent?.toLowerCase() || '';
+      const matches = text.includes(query);
+      row.classList.toggle('sidebar-nav-hidden', !matches);
+      visible ||= matches;
+    });
+    group.classList.toggle('sidebar-search-empty', !visible);
+    if (visible && header.getAttribute('aria-expanded') !== 'true') setSidebarGroupOpen(header, true);
+  }
+}
+
+sidebarNavigationSearch?.addEventListener('input', filterSidebarNavigation);
+document.addEventListener('keydown', (event) => {
+  if (event.key === '/' && !event.ctrlKey && !event.metaKey && !event.altKey
+      && !['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) {
+    event.preventDefault();
+    sidebarNavigationSearch?.focus();
+  }
+});
+
 function setMode(nextMode) {
   mode = nextMode;
-  googleEmail = null;
-  googleChallengeId = null;
   emailInput.readOnly = false;
   const registering = mode === 'register';
   document.querySelector('.tabs').dataset.mode = registering ? 'register' : 'login';
@@ -128,26 +314,108 @@ function setMode(nextMode) {
   registerTab.classList.toggle('active', registering);
   loginTab.setAttribute('aria-selected', String(!registering));
   registerTab.setAttribute('aria-selected', String(registering));
-  title.textContent = registering ? 'Buat akun testing' : 'Selamat datang';
+  title.textContent = registering ? 'Buat akun testing' : 'Selamat datang kembali';
   subtitle.textContent = registering
     ? 'Akun ini hanya tersimpan di komputer Anda.'
-    : 'Masuk menggunakan akun testing Anda.';
+    : 'Masuk ke vault lokal Anda.';
   submitButton.textContent = registering ? 'Buat Akun' : 'Masuk';
   passwordInput.autocomplete = registering ? 'new-password' : 'current-password';
   form.reset();
   setMessage('');
+  helloLoginButton?.classList.add('hidden');
   emailInput.focus();
 }
 
 function setMessage(text, success = false) {
-  message.textContent = text;
-  message.classList.toggle('success', success);
+  setInlineMessage(message, text, success);
+}
+
+async function refreshHelloLoginState() {
+  if (!helloLoginButton || mode !== 'login' || !window.passsa.helloStatus) return;
+  try {
+    const result = await window.passsa.helloStatus(emailInput.value);
+    helloLoginButton.classList.toggle('hidden', !result?.supported || !result.enabled);
+  } catch {
+    helloLoginButton.classList.add('hidden');
+  }
+}
+
+async function refreshHelloSettingsState() {
+  if (!settingsHelloStatus || !window.passsa.helloStatus) return;
+  try {
+    const result = await window.passsa.helloStatus(currentUser?.email);
+    if (!result.supported) {
+      settingsHelloStatus.textContent = 'Windows Hello hanya tersedia pada Windows 10/11 dengan perangkat autentikasi yang aktif.';
+      settingsHelloEnable.disabled = true;
+      settingsHelloDisable.classList.add('hidden');
+      return;
+    }
+    const enabled = Boolean(result.enabled);
+    settingsHelloStatus.textContent = enabled
+      ? 'Windows Hello aktif di perangkat ini. Anda dapat memakainya pada layar login setelah vault dikunci.'
+      : 'Gunakan PIN, sidik jari, atau Windows Hello untuk membuka vault di perangkat ini setelah login password pertama.';
+    settingsHelloEnable.classList.toggle('hidden', enabled);
+    settingsHelloDisable.classList.toggle('hidden', !enabled);
+    settingsHelloPassword.classList.toggle('hidden', enabled);
+  } catch (error) {
+    setInlineMessage(settingsHelloMessage, error.message || 'Status Windows Hello gagal dibaca.');
+  }
+}
+
+function setInlineMessage(element, text = '', success = false) {
+  element.textContent = text || '';
+  element.classList.toggle('success', Boolean(success));
+  element.classList.toggle('has-message', Boolean(text));
+}
+
+function updateSecretToggle(button, visible, label = 'password') {
+  if (!button) return;
+  const action = visible ? 'Sembunyikan' : 'Tampilkan';
+  const icon = button.querySelector('i');
+  if (icon) icon.className = `fa-solid fa-eye${visible ? '-slash' : ''}`;
+  button.setAttribute('aria-label', `${action} ${label}`);
+  button.title = `${action} ${label}`;
+  button.dataset.visible = String(Boolean(visible));
+}
+
+function updateTitlebarSyncStatus(user = currentUser) {
+  const connected = Boolean(user?.googleEmail);
+  titlebarSyncStatus.classList.toggle('connected', connected);
+  titlebarSyncStatus.classList.toggle('disconnected', !connected);
+  titlebarSyncStatus.title = connected ? `Google Drive terhubung sebagai ${user.googleEmail}` : 'Google Drive belum terhubung';
+  titlebarSyncStatus.querySelector('span').textContent = connected ? 'Google Drive terhubung' : 'Google Drive belum terhubung';
+}
+
+function userAvatarLabel(user) {
+  const source = String(user?.displayName || user?.name || user?.email || 'User')
+    .split('@')[0]
+    .replace(/[._-]+/g, ' ')
+    .trim();
+  const parts = source.split(/\s+/).filter(Boolean);
+  if (parts.length > 1) return `${parts[0][0]}${parts.at(-1)[0]}`.toUpperCase();
+  return (source.replace(/\s+/g, '').slice(0, 2) || 'U').toUpperCase();
+}
+
+function updateSidebarUser(user) {
+  const avatar = document.querySelector('#user-avatar');
+  const email = document.querySelector('#user-email');
+  const plan = document.querySelector('.sidebar-user small');
+  if (email) email.textContent = user?.email || 'user@email.com';
+  if (avatar) {
+    const initials = userAvatarLabel(user);
+    avatar.textContent = initials;
+    avatar.dataset.initials = String(initials.length);
+    avatar.dataset.sidebarTooltip = `Akun: ${user?.email || 'lokal'}`;
+    avatar.setAttribute('aria-label', `Akun ${user?.email || 'lokal'}`);
+  }
+  if (plan) plan.textContent = user?.provider === 'google' ? 'Google Drive terhubung' : 'Vault lokal';
 }
 
 async function showVault(user) {
-  document.querySelector('#user-email').textContent = user.email;
-  document.querySelector('#user-avatar').textContent = user.email.charAt(0).toUpperCase();
-  document.querySelector('.sidebar-user small').textContent = user.provider === 'google' ? 'Google Drive terhubung' : 'Vault lokal';
+  currentUser = user;
+  await window.passsa.setWindowMode?.('vault');
+  updateTitlebarSyncStatus(user);
+  updateSidebarUser(user);
   authView.classList.add('hidden');
   vaultView.classList.remove('hidden');
   initializeSidebarCollapsed = true;
@@ -157,6 +425,9 @@ async function showVault(user) {
 
 function clearVaultState() {
   clearTimeout(idleLockTimer);
+  currentUser = null;
+  updateTitlebarSyncStatus(null);
+  settingsGoogleChallengeId = null;
   items = [];
   categories = [];
   visibleItems = [];
@@ -168,37 +439,38 @@ function clearVaultState() {
   collapsedBranches.clear();
   initializeSidebarCollapsed = true;
   itemForm.reset();
+  renderPasswordHistory([], false);
   bulkForm.reset();
   categoryForm.reset();
   document.querySelector('#item-password').value = '';
   itemsList.replaceChildren();
+  tagsOverview.replaceChildren();
+  tagsOverview.classList.add('hidden');
   document.querySelector('#custom-categories-tree').replaceChildren();
   clearFilterButton.classList.add('hidden');
-  tagSearchInput.value = '';
-  tagList.replaceChildren();
-  tagEmpty.classList.add('hidden');
+  if (tagSearchInput) tagSearchInput.value = '';
+  tagList?.replaceChildren();
+  tagEmpty?.classList.add('hidden');
   itemModal.classList.add('hidden');
   bulkModal.classList.add('hidden');
   categoryModal.classList.add('hidden');
+  settingsModal.classList.add('hidden');
+  settingsGooglePassword.value = '';
+  setSettingsMessage('');
   vaultNotice.classList.add('hidden');
 }
 
 function collapseAllSidebarBranches() {
   collapsedBranches.clear();
-  collapsedBranches.add('tags-tree');
   const parentPaths = new Set(categories.map((category) => category.parentPath).filter(Boolean));
   for (const category of categories) {
     if (parentPaths.has(category.path)) collapsedBranches.add(`category-branch-${category.id}`);
   }
-  const tagsTree = document.querySelector('#tags-tree');
-  const tagsToggle = document.querySelector('.tree-toggle[data-target="tags-tree"]');
-  tagsTree.classList.add('collapsed');
-  tagsToggle?.classList.add('collapsed');
-  tagsToggle?.setAttribute('aria-expanded', 'false');
 }
 
 function showAuth(reason = '') {
   clearVaultState();
+  window.passsa.setWindowMode?.('auth');
   vaultView.classList.add('hidden');
   authView.classList.remove('hidden');
   setMode('login');
@@ -226,6 +498,16 @@ function tagTone(tag) {
 }
 
 function renderItems() {
+  renderSidebarCounts();
+  filterSidebarNavigation();
+  if (currentFilter === 'tags' && !currentTag) {
+    renderTagsOverview();
+    syncBulkToolbar();
+    renderTagTree();
+    renderCustomCategories();
+    filterSidebarNavigation();
+    return;
+  }
   const query = searchInput.value.trim().toLowerCase();
   const filtered = items.filter((item) => {
     const belongsToView = currentFilter === 'trash'
@@ -236,11 +518,12 @@ function renderItems() {
         && (!currentGroup || item.group === currentGroup)
         && (!currentGroupPrefix || item.group === currentGroupPrefix || item.group.startsWith(`${currentGroupPrefix}/`))
         && (!currentTag || (item.tags ?? []).some((tag) => tag.toLowerCase() === currentTag.toLowerCase()));
-    const matchesSearch = [item.title, item.username, item.url, item.notes, item.group, ...(item.tags ?? [])]
+    const matchesSearch = [item.title, item.username, item.url, item.notes, item.group, ...(item.tags ?? []), ...(item.fields ?? []).map((field) => field.label)]
       .some((value) => String(value).toLowerCase().includes(query));
     return belongsToView && matchesSearch;
   }).sort(compareItems);
   visibleItems = filtered;
+  tagsOverview.classList.add('hidden');
   itemCount.textContent = `${filtered.length} item`;
   emptyState.classList.toggle('hidden', filtered.length > 0);
   itemsList.classList.toggle('hidden', filtered.length === 0);
@@ -252,21 +535,21 @@ function renderItems() {
       : 'Tambahkan login pertama Anda. Data akan dienkripsi dan disimpan hanya di komputer ini.';
   }
   itemsList.innerHTML = filtered.map((item, index) => `
-    <article class="vault-item ${selectedIds.has(item.id) ? 'selected' : ''}" data-id="${escapeHtml(item.id)}" style="--item-index: ${Math.min(index, 10)}">
+    <article class="vault-item ${selectedIds.has(item.id) ? 'selected' : ''}" data-id="${escapeHtml(item.id)}" data-item-index="${Math.min(index, 10)}">
       <input class="item-select" type="checkbox" data-select-id="${escapeHtml(item.id)}" aria-label="Pilih ${escapeHtml(item.title)}" ${selectedIds.has(item.id) ? 'checked' : ''} />
-      <div class="item-logo">${escapeHtml(item.title.charAt(0).toUpperCase())}</div>
-      <div class="item-main"><strong>${item.favorite ? '★ ' : ''}${escapeHtml(item.title)}</strong><small>${escapeHtml(item.group || 'Umum')} · ${escapeHtml(item.url || 'Login lokal')}</small></div>
+      <div class="item-main"><strong>${item.favorite ? '★ ' : ''}${item.type === 'secure-note' ? '<i class="fa-solid fa-note-sticky item-type-icon" aria-hidden="true"></i> ' : ''}${escapeHtml(item.title)}</strong><small>${item.type === 'secure-note' ? 'Secure Note' : escapeHtml(item.group || 'Umum')} · ${escapeHtml(item.type === 'secure-note' ? 'Catatan terenkripsi' : (item.url || 'Login lokal'))}</small></div>
       <div class="item-tags-cell">${(item.tags ?? []).length ? `<div class="item-tags">${item.tags.slice(0, 2).map((tag) => `<button class="tag-chip tone-${tagTone(tag)}" type="button" data-tag-filter="${escapeHtml(tag)}"><span class="tag-dot" aria-hidden="true"></span>#${escapeHtml(tag)}</button>`).join('')}${item.tags.length > 2 ? `<button class="tag-overflow-toggle" type="button" data-tag-overflow="true" aria-expanded="false" aria-label="Lihat ${item.tags.length - 2} tags lainnya">+${item.tags.length - 2}</button><span class="tag-overflow-menu" role="listbox">${item.tags.slice(2).map((tag) => `<button class="tag-chip tone-${tagTone(tag)}" type="button" data-tag-filter="${escapeHtml(tag)}"><span class="tag-dot" aria-hidden="true"></span>#${escapeHtml(tag)}</button>`).join('')}</span>` : ''}</div>` : '<span class="item-muted">—</span>'}</div>
-      <div class="item-login"><span>${escapeHtml(item.username || 'Tanpa username')}</span><small class="item-usage">Dipakai ${item.usageCount ?? 0} kali</small></div>
+      <div class="item-login"><span>${escapeHtml(item.type === 'secure-note' ? 'Catatan aman' : (item.username || 'Tanpa username'))}</span><small class="item-usage">${item.type === 'secure-note' ? 'Terenkripsi di vault' : `Dipakai ${item.usageCount ?? 0} kali`}</small></div>
       <div class="item-actions">
         ${item.deletedAt ? `
           <button class="item-action" data-action="restore" title="Pulihkan" aria-label="Pulihkan ${escapeHtml(item.title)}"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i></button>
           <button class="item-action danger" data-action="purge" title="Hapus permanen" aria-label="Hapus permanen ${escapeHtml(item.title)}"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
         ` : `
           <button class="item-action" data-action="favorite" title="Favorit" aria-label="${item.favorite ? 'Hapus dari' : 'Tambahkan ke'} favorit: ${escapeHtml(item.title)}"><i class="fa-${item.favorite ? 'solid' : 'regular'} fa-star" aria-hidden="true"></i></button>
+          ${item.type === 'secure-note' ? '' : `
           <button class="item-action" data-action="copy-user" title="Salin username" aria-label="Salin username ${escapeHtml(item.title)}"><i class="fa-solid fa-user" aria-hidden="true"></i></button>
           <button class="item-action" data-action="copy-password" title="Salin password" aria-label="Salin password ${escapeHtml(item.title)}"><i class="fa-solid fa-key" aria-hidden="true"></i></button>
-          <button class="item-action" data-action="copy-url" title="Salin alamat situs" aria-label="Salin alamat situs ${escapeHtml(item.title)}"><i class="fa-solid fa-link" aria-hidden="true"></i></button>
+          <button class="item-action" data-action="copy-url" title="Salin alamat situs" aria-label="Salin alamat situs ${escapeHtml(item.title)}"><i class="fa-solid fa-link" aria-hidden="true"></i></button>`}
           <button class="item-action" data-action="edit" title="Edit" aria-label="Edit ${escapeHtml(item.title)}"><i class="fa-solid fa-pen" aria-hidden="true"></i></button>
           <button class="item-action danger" data-action="delete" title="Pindah ke Sampah" aria-label="Pindahkan ${escapeHtml(item.title)} ke Sampah"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
         `}
@@ -279,6 +562,34 @@ function renderItems() {
   syncBulkToolbar();
   renderTagTree();
   renderCustomCategories();
+  filterSidebarNavigation();
+}
+
+function renderTagsOverview() {
+  const query = searchInput.value.trim().toLowerCase();
+  const counts = new Map();
+  for (const item of items) {
+    if (item.deletedAt) continue;
+    for (const tag of item.tags ?? []) counts.set(tag, (counts.get(tag) ?? 0) + 1);
+  }
+  const matches = [...counts.entries()]
+    .filter(([tag]) => !query || tag.toLowerCase().includes(query))
+    .sort(([left], [right]) => left.localeCompare(right, 'id', { sensitivity: 'base' }));
+  itemCount.textContent = `${matches.length} tag`;
+  clearFilterButton.classList.add('hidden');
+  emptyState.classList.add('hidden');
+  itemsHeader.classList.add('hidden');
+  itemsList.classList.add('hidden');
+  tagsOverview.classList.remove('hidden');
+  tagsOverview.innerHTML = matches.length
+    ? `<div class="tags-overview-grid">${matches.map(([tag, count]) => `
+        <button class="tag-overview-card tone-${tagTone(tag)}" type="button" data-tag-filter="${escapeHtml(tag)}" title="Buka item dengan tag #${escapeHtml(tag)}">
+          <span class="tag-overview-icon"><i class="fa-solid fa-tag" aria-hidden="true"></i></span>
+          <span class="tag-overview-name">#${escapeHtml(tag)}</span>
+          <span class="tag-overview-count">${count} item</span>
+          <i class="fa-solid fa-arrow-right tag-overview-arrow" aria-hidden="true"></i>
+        </button>`).join('')}</div>`
+    : `<div class="tags-overview-empty"><i class="fa-solid fa-tags" aria-hidden="true"></i><strong>${counts.size ? 'Tag tidak ditemukan' : 'Belum ada tag'}</strong><span>${counts.size ? 'Coba kata pencarian lain.' : 'Tambahkan tag pada credential untuk melihatnya di sini.'}</span></div>`;
 }
 
 function compareItems(left, right) {
@@ -303,6 +614,7 @@ function compareItems(left, right) {
 }
 
 function renderTagTree() {
+  if (!tagSearchInput || !tagList || !tagEmpty) return;
   const counts = new Map();
   for (const item of items) {
     if (item.deletedAt) continue;
@@ -317,6 +629,20 @@ function renderTagTree() {
     .join('');
   tagEmpty.textContent = counts.size === 0 ? 'Belum ada tag.' : 'Tag tidak ditemukan.';
   tagEmpty.classList.toggle('hidden', matches.length > 0);
+}
+
+function renderSidebarCounts() {
+  const activeItems = items.filter((item) => !item.deletedAt);
+  const setCount = (id, value) => {
+    const element = document.querySelector(`#${id}`);
+    if (!element) return;
+    element.textContent = value > 0 ? String(value) : '';
+    element.dataset.zero = String(value <= 0);
+  };
+  setCount('sidebar-all-count', activeItems.length);
+  setCount('sidebar-favorites-count', activeItems.filter((item) => item.favorite).length);
+  setCount('sidebar-trash-count', items.filter((item) => item.deletedAt).length);
+  setCount('sidebar-tags-count', new Set(activeItems.flatMap((item) => item.tags ?? [])).size);
 }
 
 function knownTags() {
@@ -336,6 +662,82 @@ function renderTagSuggestions() {
     .slice(0, 8);
   tagSuggestions.innerHTML = matches.map((tag) => `<button class="tag-suggestion" type="button" role="option" data-tag-suggestion="${escapeHtml(tag)}">#${escapeHtml(tag)}</button>`).join('');
   tagSuggestions.classList.toggle('hidden', matches.length === 0);
+}
+
+function formatHistoryDate(value) {
+  const timestamp = Date.parse(value ?? '');
+  if (!timestamp) return 'Waktu tidak diketahui';
+  return new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(timestamp);
+}
+
+function renderPasswordHistory(history, showSection = true) {
+  const entries = Array.isArray(history)
+    ? history.filter((entry) => typeof entry?.password === 'string').slice().reverse()
+    : [];
+  passwordHistory.classList.toggle('hidden', !showSection);
+  passwordHistoryCount.textContent = entries.length ? `(${entries.length} versi)` : '';
+  passwordHistoryList.innerHTML = entries.length ? entries.map((entry, index) => `
+    <div class="password-history-entry">
+      <div class="password-history-meta"><strong>Versi ${entries.length - index}</strong><small>${escapeHtml(formatHistoryDate(entry.savedAt))}</small></div>
+      <div class="password-history-value">
+        <input type="password" value="${escapeHtml(entry.password)}" readonly autocomplete="off" aria-label="Password versi ${entries.length - index}" />
+        <button class="text-button history-toggle secret-toggle" type="button" data-history-toggle="true" aria-label="Tampilkan password versi ${entries.length - index}" title="Tampilkan password versi ${entries.length - index}"><i class="fa-solid fa-eye" aria-hidden="true"></i></button>
+      </div>
+    </div>
+  `).join('') : '<p class="password-history-empty">Belum ada perubahan password.</p>';
+}
+
+const customFieldTypes = [
+  ['text', 'Text'],
+  ['secret', 'Secret'],
+  ['url', 'URL'],
+  ['email', 'Email'],
+  ['number', 'Angka'],
+  ['boolean', 'Ya / Tidak'],
+];
+
+function customFieldTypeOptions(selected) {
+  return customFieldTypes.map(([value, label]) => `<option value="${value}" ${value === selected ? 'selected' : ''}>${label}</option>`).join('');
+}
+
+function renderCustomFields(fields = []) {
+  if (!customFieldsList) return;
+  const normalized = Array.isArray(fields) ? fields : [];
+  customFieldsList.innerHTML = normalized.map((field, index) => {
+    const type = customFieldTypes.some(([value]) => value === field?.type) ? field.type : 'text';
+    const boolean = type === 'boolean';
+    const value = boolean ? (field.value === true || String(field.value).toLowerCase() === 'true') : String(field?.value ?? '');
+    return `<div class="custom-field-row" data-field-row data-field-id="${escapeHtml(field?.id || `field-${index}`)}">
+      <div class="custom-field-label"><input data-field-label type="text" maxlength="80" value="${escapeHtml(field?.label ?? '')}" placeholder="Nama field (contoh: PIN)" aria-label="Nama custom field" /></div>
+      <select data-field-type aria-label="Tipe custom field">${customFieldTypeOptions(type)}</select>
+      <div class="custom-field-value">${boolean
+        ? `<label class="custom-field-check"><input data-field-value type="checkbox" ${value ? 'checked' : ''} /> Aktif</label>`
+        : `<input data-field-value type="${type === 'secret' ? 'password' : 'text'}" maxlength="5000" value="${escapeHtml(value)}" placeholder="Nilai field" aria-label="Nilai custom field" />${type === 'secret' ? '<button class="text-button custom-field-toggle secret-toggle" type="button" data-custom-toggle aria-label="Tampilkan secret field" title="Tampilkan secret field"><i class="fa-solid fa-eye" aria-hidden="true"></i></button>' : ''}`}</div>
+      <button class="icon-button custom-field-remove" type="button" data-remove-custom-field aria-label="Hapus custom field"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
+    </div>`;
+  }).join('');
+}
+
+function collectCustomFields() {
+  return [...(customFieldsList?.querySelectorAll('[data-field-row]') ?? [])].map((row) => {
+    const type = row.querySelector('[data-field-type]')?.value || 'text';
+    const valueInput = row.querySelector('[data-field-value]');
+    return {
+      id: row.dataset.fieldId || crypto.randomUUID(),
+      label: row.querySelector('[data-field-label]')?.value || '',
+      type,
+      value: type === 'boolean' ? Boolean(valueInput?.checked) : (valueInput?.value || ''),
+    };
+  }).filter((field) => field.label.trim());
+}
+
+function updateItemTypeUi() {
+  const secureNote = itemTypeInput?.value === 'secure-note';
+  itemLoginFields.forEach((field) => field.classList.toggle('hidden', secureNote));
+  const password = document.querySelector('#item-password');
+  password.required = !secureNote;
+  document.querySelector('#generate-password').classList.toggle('hidden', secureNote);
+  document.querySelector('#item-notes').placeholder = secureNote ? 'Tulis catatan rahasia Anda…' : 'Keterangan singkat item (opsional)';
 }
 
 function renderCustomCategories() {
@@ -361,7 +763,7 @@ function renderCustomCategories() {
             ${children.length
               ? `<button class="tree-toggle ${collapsed ? 'collapsed' : ''}" type="button" data-target="${escapeHtml(branchId)}" aria-label="Buka atau tutup ${escapeHtml(category.name)}" aria-expanded="${String(!collapsed)}">▾</button>`
               : '<span class="tree-spacer"></span>'}
-            <button class="tree-node ${active}" type="button" data-group-prefix="${escapeHtml(category.path)}" data-title="${escapeHtml(category.name)}"><i class="fa-solid fa-${escapeHtml(category.icon)}"></i><span>${escapeHtml(category.name)}</span></button>
+            <button class="tree-node sidebar-link ${active}" type="button" data-group-prefix="${escapeHtml(category.path)}" data-title="${escapeHtml(category.name)}"><i class="fa-solid fa-${escapeHtml(category.icon)}"></i><span data-label>${escapeHtml(category.name)}</span></button>
             <button class="category-edit" type="button" data-category-id="${escapeHtml(category.id)}" title="Edit kategori" aria-label="Edit kategori ${escapeHtml(category.name)}"><i class="fa-solid fa-ellipsis"></i></button>
           </div>
           ${children.length ? `<div id="${escapeHtml(branchId)}" class="custom-category-children ${collapsed ? 'collapsed' : ''}">${renderBranch(category.path)}</div>` : ''}
@@ -401,13 +803,115 @@ function clearSelection() {
 let noticeTimer;
 function showVaultNotice(text, isError = false) {
   clearTimeout(noticeTimer);
-  vaultNotice.textContent = text;
+  vaultNoticeText.textContent = text || '';
+  vaultNoticeIcon.className = isError ? 'fa-solid fa-circle-exclamation' : 'fa-solid fa-circle-check';
   vaultNotice.classList.remove('notice-pop');
   void vaultNotice.offsetWidth;
   vaultNotice.classList.remove('hidden');
   vaultNotice.classList.toggle('error', isError);
   vaultNotice.classList.add('notice-pop');
   noticeTimer = setTimeout(() => vaultNotice.classList.add('hidden'), 4000);
+}
+
+function setSettingsMessage(text, success = false) {
+  setInlineMessage(settingsGoogleMessage, text, success);
+}
+
+vaultNoticeDismiss.addEventListener('click', () => {
+  clearTimeout(noticeTimer);
+  vaultNotice.classList.add('hidden');
+});
+
+function refreshSettingsGoogleState() {
+  const connected = Boolean(currentUser?.googleEmail);
+  const pending = Boolean(settingsGoogleChallengeId);
+  settingsGoogleStatus.textContent = pending
+    ? 'Identitas Google terverifikasi. Masukkan password vault lokal untuk menyelesaikan koneksi.'
+    : connected
+      ? `Terhubung sebagai ${currentUser.googleEmail}. Vault tetap dibuka dengan password lokal.`
+      : 'Setiap pengguna dapat menghubungkan akun Google miliknya. Login Google dilakukan langsung di halaman resmi Google.';
+  settingsGooglePasswordLabel.classList.toggle('hidden', connected && !pending);
+  settingsGooglePassword.classList.toggle('hidden', connected && !pending);
+  settingsGoogleConnect.classList.toggle('hidden', connected && !pending);
+  settingsGoogleDisconnect.classList.toggle('hidden', !connected || pending);
+  settingsGoogleConnect.textContent = pending ? 'Selesaikan koneksi' : 'Hubungkan Google';
+}
+
+async function loadAppSettings() {
+  if (!window.passsa.getAppSettings || !settingsStartup || !settingsMinimizeTray || !settingsQuickAccess) return;
+  try {
+    const settings = await window.passsa.getAppSettings();
+    settingsStartup.checked = Boolean(settings.startWithWindows);
+    settingsMinimizeTray.checked = Boolean(settings.minimizeToTray);
+    settingsQuickAccess.checked = settings.quickAccessEnabled !== false;
+    setInlineMessage(settingsAppMessage, '');
+  } catch (error) {
+    setInlineMessage(settingsAppMessage, error.message || 'Pengaturan aplikasi gagal dibaca.');
+  }
+}
+
+async function saveAppSettings() {
+  if (!window.passsa.setAppSettings || !settingsStartup || !settingsMinimizeTray || !settingsQuickAccess) return;
+  settingsStartup.disabled = true;
+  settingsMinimizeTray.disabled = true;
+  settingsQuickAccess.disabled = true;
+  try {
+    const result = await window.passsa.setAppSettings({
+      startWithWindows: settingsStartup.checked,
+      minimizeToTray: settingsMinimizeTray.checked,
+      quickAccessEnabled: settingsQuickAccess.checked,
+    });
+    if (!result.ok) throw new Error(result.message || 'Pengaturan aplikasi gagal disimpan.');
+    setInlineMessage(settingsAppMessage, 'Pengaturan aplikasi disimpan.', true);
+  } catch (error) {
+    setInlineMessage(settingsAppMessage, error.message || 'Pengaturan aplikasi gagal disimpan.');
+  } finally {
+    settingsStartup.disabled = false;
+    settingsMinimizeTray.disabled = false;
+    settingsQuickAccess.disabled = false;
+  }
+}
+
+function openSettings() {
+  settingsGoogleChallengeId = null;
+  settingsGooglePassword.value = '';
+  changePasswordForm.reset();
+  setInlineMessage(settingsPasswordMessage, '');
+  settingsExportFormat.value = 'passsa';
+  settingsExportPassword.value = '';
+  settingsExportPasswordConfirm.value = '';
+  settingsExportCsvConfirm.checked = false;
+  settingsImportMode.value = 'merge';
+  settingsImportPassword.value = '';
+  settingsImportCsvConfirm.checked = false;
+  setInlineMessage(settingsTransferMessage, '');
+  setInlineMessage(settingsAppMessage, '');
+  updateTransferFormatFields();
+  setSettingsMessage('');
+  refreshSettingsGoogleState();
+  settingsModal.classList.remove('hidden');
+  loadAppSettings();
+  refreshHelloSettingsState();
+}
+
+function closeSettings() {
+  settingsGoogleChallengeId = null;
+  settingsGooglePassword.value = '';
+  settingsHelloPassword.value = '';
+  changePasswordForm.reset();
+  setInlineMessage(settingsPasswordMessage, '');
+  setInlineMessage(settingsTransferMessage, '');
+  setInlineMessage(settingsAppMessage, '');
+  setSettingsMessage('');
+  settingsModal.classList.add('hidden');
+}
+
+function updateTransferFormatFields() {
+  const csv = settingsExportFormat.value === 'csv';
+  settingsExportPasswordFields.classList.toggle('hidden', csv);
+  settingsExportCsvConfirmLabel.classList.toggle('hidden', !csv);
+  settingsExportPassword.required = !csv;
+  settingsExportPasswordConfirm.required = !csv;
 }
 
 function showAllItems() {
@@ -419,15 +923,52 @@ function showAllItems() {
   document.querySelector('.tree-node[data-filter="all"]').classList.add('active');
   document.querySelector('.vault-content h2').textContent = 'Semua Item';
   clearFilterButton.classList.add('hidden');
+  searchInput.placeholder = 'Cari nama, username, atau alamat situs…';
+}
+
+function showAllTags() {
+  currentFilter = 'tags';
+  currentGroup = null;
+  currentGroupPrefix = null;
+  currentTag = null;
+  selectedIds.clear();
+  const tagsButton = document.querySelector('.tree-node[data-filter="tags"]');
+  document.querySelectorAll('.tree-node').forEach((node) => node.classList.toggle('active', node === tagsButton));
+  document.querySelector('.vault-content h2').textContent = 'Semua Tags';
+  clearFilterButton.classList.add('hidden');
+  searchInput.value = '';
+  searchInput.placeholder = 'Cari tag...';
+}
+
+function showTagItems(tag) {
+  currentFilter = 'tag';
+  currentGroup = null;
+  currentGroupPrefix = null;
+  currentTag = tag;
+  selectedIds.clear();
+  document.querySelectorAll('.sidebar-link').forEach((node) => node.classList.toggle('active', node.dataset.filter === 'tags'));
+  document.querySelector('.vault-content h2').textContent = `Tag: ${currentTag}`;
+  clearFilterButton.textContent = '← Semua Tags';
+  clearFilterButton.setAttribute('aria-label', 'Kembali ke semua tags');
+  clearFilterButton.classList.remove('hidden');
+  searchInput.placeholder = 'Cari nama, username, atau alamat situs…';
 }
 
 async function loadItems() {
   try {
-    [items, categories, categoryIcons] = await Promise.all([
+    const [loadedItems, loadedCategories, loadedIcons] = await Promise.all([
       window.passsa.listItems(),
       window.passsa.listCategories(),
       categoryIcons.length ? Promise.resolve(categoryIcons) : window.passsa.listCategoryIcons(),
     ]);
+    items = loadedItems.map((item) => ({
+      ...item,
+      tags: Array.isArray(item.tags)
+        ? item.tags
+        : String(item.tags ?? '').split(',').map((tag) => tag.trim()).filter(Boolean),
+    }));
+    categories = loadedCategories;
+    categoryIcons = loadedIcons;
     if (initializeSidebarCollapsed) {
       collapseAllSidebarBranches();
       initializeSidebarCollapsed = false;
@@ -441,19 +982,23 @@ async function loadItems() {
 
 function openItemModal(item = null) {
   itemForm.reset();
-  itemMessage.textContent = '';
+  setInlineMessage(itemMessage, '');
   document.querySelector('#modal-title').textContent = item ? 'Edit Item' : 'Tambah Item';
   document.querySelector('#item-id').value = item?.id ?? '';
+  itemTypeInput.value = item?.type ?? 'login';
   document.querySelector('#item-title').value = item?.title ?? '';
   document.querySelector('#item-username').value = item?.username ?? '';
   document.querySelector('#item-password').value = item?.password ?? '';
   document.querySelector('#item-password').type = 'password';
-  document.querySelector('#toggle-item-password').textContent = 'Lihat';
+  updateSecretToggle(document.querySelector('#toggle-item-password'), false);
   document.querySelector('#item-url').value = item?.url ?? '';
   document.querySelector('#item-group').value = item?.group ?? currentGroup ?? currentGroupPrefix ?? 'Internet/Coding';
   document.querySelector('#item-favorite').checked = item ? Boolean(item.favorite) : currentFilter === 'favorites';
   document.querySelector('#item-notes').value = item?.notes ?? '';
   document.querySelector('#item-tags').value = item ? (item.tags ?? []).join(', ') : (currentTag ?? '');
+  renderCustomFields(item?.fields ?? []);
+  updateItemTypeUi();
+  renderPasswordHistory(item?.passwordHistory ?? [], Boolean(item));
   itemModal.classList.remove('hidden');
   document.querySelector('#item-title').focus();
 }
@@ -463,47 +1008,36 @@ function closeItemModal() {
   tagSuggestions.classList.add('hidden');
   itemModal.classList.add('hidden');
   itemForm.reset();
+  renderCustomFields([]);
+  updateItemTypeUi();
+  renderPasswordHistory([], false);
 }
 
 loginTab.addEventListener('click', () => setMode('login'));
 registerTab.addEventListener('click', () => setMode('register'));
-
-googleLoginButton.addEventListener('click', async () => {
-  googleLoginButton.disabled = true;
-  googleLoginButton.textContent = 'Membuka Google…';
-  setMessage('');
+emailInput.addEventListener('input', () => { refreshHelloLoginState(); });
+helloLoginButton?.addEventListener('click', async () => {
+  helloLoginButton.disabled = true;
+  setMessage('Memverifikasi Windows Hello…');
   try {
-    const result = await window.passsa.googleLogin();
+    const result = await window.passsa.helloUnlock(emailInput.value);
     if (!result.ok) {
-      setMessage(result.message);
+      setMessage(result.message || 'Windows Hello gagal membuka vault.');
       return;
     }
-    if (result.autoCompleted) {
-      await showVault(result.user);
-      if (result.sync?.message) showVaultNotice(result.sync.message, !result.sync.ok);
-      return;
-    }
-    googleEmail = result.profile.email;
-    googleChallengeId = result.challengeId;
-    emailInput.value = googleEmail;
-    emailInput.readOnly = true;
-    title.textContent = 'Buka vault';
-    subtitle.textContent = 'Google terverifikasi. Masukkan password vault lokal Anda.';
-    submitButton.textContent = 'Buka Vault';
-    setMessage('Identitas Google terverifikasi.', true);
-    passwordInput.focus();
-  } catch {
-    setMessage('Login Google gagal. Silakan coba lagi.');
+    passwordInput.value = '';
+    await showVault(result.user);
+  } catch (error) {
+    setMessage(error.message || 'Windows Hello gagal membuka vault.');
   } finally {
-    googleLoginButton.disabled = false;
-    googleLoginButton.innerHTML = '<span class="google-g">G</span> Lanjutkan dengan Google';
+    helloLoginButton.disabled = false;
   }
 });
 
 togglePassword.addEventListener('click', () => {
   const visible = passwordInput.type === 'text';
   passwordInput.type = visible ? 'password' : 'text';
-  togglePassword.textContent = visible ? 'Lihat' : 'Sembunyi';
+  updateSecretToggle(togglePassword, !visible);
 });
 
 form.addEventListener('submit', async (event) => {
@@ -512,11 +1046,9 @@ form.addEventListener('submit', async (event) => {
   if (!form.reportValidity()) return;
 
   submitButton.disabled = true;
-  submitButton.textContent = mode === 'register' ? 'Membuat akun…' : googleEmail ? 'Membuka vault…' : 'Memeriksa…';
+  submitButton.textContent = mode === 'register' ? 'Membuat akun…' : 'Memeriksa…';
   try {
-    const result = googleEmail
-      ? await window.passsa.googleComplete(googleChallengeId, passwordInput.value)
-      : await (mode === 'register' ? window.passsa.register : window.passsa.login)(emailInput.value, passwordInput.value);
+    const result = await (mode === 'register' ? window.passsa.register : window.passsa.login)(emailInput.value, passwordInput.value);
     passwordInput.value = '';
     if (result.ok) {
       await showVault(result.user);
@@ -528,11 +1060,15 @@ form.addEventListener('submit', async (event) => {
     setMessage('Terjadi kesalahan. Silakan coba lagi.');
   } finally {
     submitButton.disabled = false;
-    submitButton.textContent = mode === 'register' ? 'Buat Akun' : googleEmail ? 'Buka Vault' : 'Masuk';
+    submitButton.textContent = mode === 'register' ? 'Buat Akun' : 'Masuk';
   }
 });
 
 syncButton.addEventListener('click', async () => {
+  if (!currentUser?.googleEmail) {
+    showVaultNotice('Hubungkan Google Drive melalui Pengaturan terlebih dahulu.', true);
+    return;
+  }
   syncButton.disabled = true;
   try {
     const result = await window.passsa.syncNow();
@@ -542,6 +1078,216 @@ syncButton.addEventListener('click', async () => {
     showVaultNotice(error.message || 'Sinkronisasi Google Drive gagal.', true);
   } finally {
     syncButton.disabled = false;
+  }
+});
+
+settingsButton.addEventListener('click', openSettings);
+closeSettingsButton.addEventListener('click', closeSettings);
+closeSettingsSecondaryButton.addEventListener('click', closeSettings);
+settingsModal.addEventListener('click', (event) => {
+  if (event.target === settingsModal) closeSettings();
+});
+
+settingsGoogleConnect.addEventListener('click', async () => {
+  settingsGoogleConnect.disabled = true;
+  setSettingsMessage('');
+  try {
+    if (settingsGoogleChallengeId) {
+      const password = settingsGooglePassword.value;
+      if (!password) {
+        setSettingsMessage('Masukkan password vault lokal terlebih dahulu.');
+        return;
+      }
+      const result = await window.passsa.googleComplete(settingsGoogleChallengeId, password, currentUser?.email);
+      if (!result.ok) {
+        setSettingsMessage(result.message || 'Google gagal dihubungkan.');
+        return;
+      }
+      settingsGoogleChallengeId = null;
+      await showVault(result.user);
+      closeSettings();
+      if (result.sync?.message) showVaultNotice(result.sync.message, !result.sync.ok);
+      return;
+    }
+
+    const result = await window.passsa.googleLogin();
+    if (!result.ok) {
+      setSettingsMessage(result.message || 'Login Google gagal.');
+      return;
+    }
+    if (result.autoCompleted) {
+      await showVault(result.user);
+      closeSettings();
+      if (result.sync?.message) showVaultNotice(result.sync.message, !result.sync.ok);
+      return;
+    }
+    settingsGoogleChallengeId = result.challengeId;
+    settingsGooglePassword.value = '';
+    refreshSettingsGoogleState();
+    setSettingsMessage('Identitas Google terverifikasi.', true);
+    settingsGooglePassword.focus();
+  } catch (error) {
+    setSettingsMessage(error.message || 'Google gagal dihubungkan.');
+  } finally {
+    settingsGoogleConnect.disabled = false;
+  }
+});
+
+settingsGoogleDisconnect.addEventListener('click', async () => {
+  settingsGoogleDisconnect.disabled = true;
+  try {
+    const result = await window.passsa.disconnectGoogle();
+    if (!result.ok) {
+      setSettingsMessage(result.message || 'Google gagal diputuskan.');
+      return;
+    }
+    currentUser = { ...currentUser, provider: 'local', googleEmail: undefined };
+    updateTitlebarSyncStatus(currentUser);
+    document.querySelector('.sidebar-user small').textContent = 'Vault lokal';
+    refreshSettingsGoogleState();
+    showVaultNotice('Logout Google berhasil. Token lokal dihapus dan vault kembali menjadi lokal.');
+  } catch (error) {
+    setSettingsMessage(error.message || 'Google gagal diputuskan.');
+  } finally {
+    settingsGoogleDisconnect.disabled = false;
+  }
+});
+
+changePasswordForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  setInlineMessage(settingsPasswordMessage, '');
+  if (!changePasswordForm.reportValidity()) return;
+  if (settingsNewPassword.value !== settingsConfirmPassword.value) {
+    setInlineMessage(settingsPasswordMessage, 'Konfirmasi password baru tidak cocok.');
+    settingsConfirmPassword.focus();
+    return;
+  }
+  settingsPasswordSubmit.disabled = true;
+  settingsPasswordSubmit.textContent = 'Menyimpan…';
+  try {
+    const result = await window.passsa.changePassword({
+      currentPassword: settingsCurrentPassword.value,
+      newPassword: settingsNewPassword.value,
+    });
+    if (!result.ok) {
+      setInlineMessage(settingsPasswordMessage, result.message || 'Password gagal diubah.');
+      return;
+    }
+    changePasswordForm.reset();
+    setInlineMessage(settingsPasswordMessage, 'Password berhasil diubah dan vault sudah dienkripsi ulang.', true);
+    if (result.sync?.message) showVaultNotice(result.sync.message, !result.sync.ok);
+  } catch (error) {
+    setInlineMessage(settingsPasswordMessage, error.message || 'Password gagal diubah.');
+  } finally {
+    settingsPasswordSubmit.disabled = false;
+    settingsPasswordSubmit.textContent = 'Simpan Password';
+  }
+});
+
+settingsExportFormat.addEventListener('change', updateTransferFormatFields);
+settingsStartup?.addEventListener('change', saveAppSettings);
+settingsMinimizeTray?.addEventListener('change', saveAppSettings);
+settingsQuickAccess?.addEventListener('change', saveAppSettings);
+
+settingsHelloEnable?.addEventListener('click', async () => {
+  settingsHelloEnable.disabled = true;
+  setInlineMessage(settingsHelloMessage, 'Memverifikasi Windows Hello…');
+  try {
+    const result = await window.passsa.helloEnable(settingsHelloPassword.value);
+    if (!result.ok) {
+      setInlineMessage(settingsHelloMessage, result.message || 'Windows Hello gagal diaktifkan.');
+      return;
+    }
+    settingsHelloPassword.value = '';
+    setInlineMessage(settingsHelloMessage, result.message, true);
+    await refreshHelloSettingsState();
+  } catch (error) {
+    setInlineMessage(settingsHelloMessage, error.message || 'Windows Hello gagal diaktifkan.');
+  } finally {
+    settingsHelloEnable.disabled = false;
+  }
+});
+
+settingsHelloDisable?.addEventListener('click', async () => {
+  settingsHelloDisable.disabled = true;
+  try {
+    const result = await window.passsa.helloDisable();
+    if (!result.ok) {
+      setInlineMessage(settingsHelloMessage, result.message || 'Windows Hello gagal dinonaktifkan.');
+      return;
+    }
+    setInlineMessage(settingsHelloMessage, result.message, true);
+    await refreshHelloSettingsState();
+    await refreshHelloLoginState();
+  } catch (error) {
+    setInlineMessage(settingsHelloMessage, error.message || 'Windows Hello gagal dinonaktifkan.');
+  } finally {
+    settingsHelloDisable.disabled = false;
+  }
+});
+
+settingsExportButton.addEventListener('click', async () => {
+  setInlineMessage(settingsTransferMessage, '');
+  const format = settingsExportFormat.value;
+  if (format === 'passsa' && settingsExportPassword.value !== settingsExportPasswordConfirm.value) {
+    setInlineMessage(settingsTransferMessage, 'Konfirmasi password backup tidak cocok.');
+    settingsExportPasswordConfirm.focus();
+    return;
+  }
+  if (format === 'csv' && !settingsExportCsvConfirm.checked) {
+    setInlineMessage(settingsTransferMessage, 'Centang konfirmasi bahwa CSV berisi password plaintext.');
+    return;
+  }
+  settingsExportButton.disabled = true;
+  settingsExportButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Menyiapkan…';
+  try {
+    const result = await window.passsa.exportVault({
+      format,
+      password: settingsExportPassword.value,
+      allowPlaintext: settingsExportCsvConfirm.checked,
+    });
+    if (result.canceled) return;
+    if (!result.ok) {
+      setInlineMessage(settingsTransferMessage, result.message || 'Export vault gagal.');
+      return;
+    }
+    setInlineMessage(settingsTransferMessage, `${result.message} ${result.itemCount} item diproses.`, true);
+    showVaultNotice(result.message, false);
+    settingsExportPassword.value = '';
+    settingsExportPasswordConfirm.value = '';
+  } catch (error) {
+    setInlineMessage(settingsTransferMessage, error.message || 'Export vault gagal.');
+  } finally {
+    settingsExportButton.disabled = false;
+    settingsExportButton.innerHTML = '<i class="fa-solid fa-download" aria-hidden="true"></i> Export';
+  }
+});
+
+settingsImportButton.addEventListener('click', async () => {
+  setInlineMessage(settingsTransferMessage, '');
+  if (settingsImportMode.value === 'replace' && !confirm('Mode “Ganti item aktif” akan mengganti item aktif yang ada. Lanjutkan?')) return;
+  settingsImportButton.disabled = true;
+  settingsImportButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Memeriksa…';
+  try {
+    const result = await window.passsa.importVault({
+      mode: settingsImportMode.value,
+      password: settingsImportPassword.value,
+      allowPlaintext: settingsImportCsvConfirm.checked,
+    });
+    if (result.canceled) return;
+    if (!result.ok) {
+      setInlineMessage(settingsTransferMessage, result.message || 'Import vault gagal.');
+      return;
+    }
+    await loadItems();
+    setInlineMessage(settingsTransferMessage, result.message, true);
+    showVaultNotice(result.sync?.message || result.message, result.sync ? !result.sync.ok : false);
+    settingsImportPassword.value = '';
+  } catch (error) {
+    setInlineMessage(settingsTransferMessage, error.message || 'Import vault gagal.');
+  } finally {
+    settingsImportButton.disabled = false;
+    settingsImportButton.innerHTML = '<i class="fa-solid fa-upload" aria-hidden="true"></i> Import File';
   }
 });
 
@@ -556,16 +1302,16 @@ sidebarAddItemButton.addEventListener('click', () => openItemModal());
 sidebarAddTagButton.addEventListener('click', () => {
   openItemModal();
   requestAnimationFrame(() => {
-    itemMessage.textContent = 'Tambahkan tag baru pada credential ini.';
+    setInlineMessage(itemMessage, 'Tambahkan tag baru pada credential ini.', true);
     tagInput.focus();
   });
 });
 searchInput.addEventListener('input', renderItems);
-tagSearchInput.addEventListener('input', renderTagTree);
+tagSearchInput?.addEventListener('input', renderTagTree);
 sortSelect.addEventListener('change', renderItems);
 clearFilterButton.addEventListener('click', () => {
-  showAllItems();
-  searchInput.value = '';
+  if (currentFilter === 'tag') showAllTags();
+  else showAllItems();
   document.querySelector('.items-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
   renderItems();
 });
@@ -602,8 +1348,18 @@ document.querySelector('.vault-tree').addEventListener('click', (event) => {
     selectedIds.clear();
     document.querySelectorAll('.tree-node').forEach((item) => item.classList.toggle('active', item === button));
     document.querySelector('.vault-content h2').textContent = button.dataset.title;
-    clearFilterButton.classList.toggle('hidden', currentFilter === 'all');
+    clearFilterButton.textContent = '← Semua item';
+    clearFilterButton.setAttribute('aria-label', 'Kembali ke semua item');
+    clearFilterButton.classList.toggle('hidden', currentFilter === 'all' || currentFilter === 'tags');
+    searchInput.placeholder = currentFilter === 'tags' ? 'Cari tag...' : 'Cari nama, username, atau alamat situs…';
     renderItems();
+});
+
+tagsOverview.addEventListener('click', (event) => {
+  const tagButton = event.target.closest('[data-tag-filter]');
+  if (!tagButton) return;
+  showTagItems(tagButton.dataset.tagFilter);
+  renderItems();
 });
 
 function populateCategoryParents(category = null) {
@@ -618,7 +1374,7 @@ function populateCategoryParents(category = null) {
 
 function openCategoryModal(category = null) {
   categoryForm.reset();
-  document.querySelector('#category-message').textContent = '';
+  setInlineMessage(document.querySelector('#category-message'), '');
   document.querySelector('#category-modal-title').textContent = category ? 'Edit Kategori' : 'Buat Kategori';
   document.querySelector('#category-id').value = category?.id ?? '';
   document.querySelector('#category-name').value = category?.name ?? '';
@@ -680,7 +1436,7 @@ categoryForm.addEventListener('submit', async (event) => {
     await loadItems();
     showVaultNotice(`Kategori “${payload.name}” berhasil disimpan.`);
   } catch (error) {
-    document.querySelector('#category-message').textContent = error.message || 'Kategori gagal disimpan.';
+    setInlineMessage(document.querySelector('#category-message'), error.message || 'Kategori gagal disimpan.');
   }
 });
 
@@ -695,7 +1451,7 @@ document.querySelector('#delete-category').addEventListener('click', async () =>
     await loadItems();
     showVaultNotice(`Kategori “${category.name}” dihapus.`);
   } catch (error) {
-    document.querySelector('#category-message').textContent = error.message || 'Kategori gagal dihapus.';
+    setInlineMessage(document.querySelector('#category-message'), error.message || 'Kategori gagal dihapus.');
   }
 });
 
@@ -719,7 +1475,7 @@ document.querySelector('#clear-selection').addEventListener('click', clearSelect
 
 function openBulkModal() {
   bulkForm.reset();
-  document.querySelector('#bulk-message').textContent = '';
+  setInlineMessage(document.querySelector('#bulk-message'), '');
   bulkModal.classList.remove('hidden');
   document.querySelector('#bulk-group').focus();
 }
@@ -746,11 +1502,11 @@ bulkForm.addEventListener('submit', async (event) => {
     tags: document.querySelector('#bulk-tags').value,
   };
   if (changes.group === undefined && changes.favorite === undefined && changes.tagMode === 'unchanged') {
-    document.querySelector('#bulk-message').textContent = 'Pilih minimal satu perubahan.';
+    setInlineMessage(document.querySelector('#bulk-message'), 'Pilih minimal satu perubahan.');
     return;
   }
   if (['add', 'remove'].includes(changes.tagMode) && !changes.tags.trim()) {
-    document.querySelector('#bulk-message').textContent = 'Isi tags yang ingin ditambah atau dihapus.';
+    setInlineMessage(document.querySelector('#bulk-message'), 'Isi tags yang ingin ditambah atau dihapus.');
     return;
   }
   try {
@@ -758,7 +1514,7 @@ bulkForm.addEventListener('submit', async (event) => {
     closeBulkModal();
     await loadItems();
   } catch (error) {
-    document.querySelector('#bulk-message').textContent = error.message || 'Edit bulk gagal.';
+    setInlineMessage(document.querySelector('#bulk-message'), error.message || 'Edit bulk gagal.');
   }
 });
 
@@ -794,7 +1550,7 @@ document.querySelector('#toggle-item-password').addEventListener('click', (event
   const input = document.querySelector('#item-password');
   const visible = input.type === 'text';
   input.type = visible ? 'password' : 'text';
-  event.currentTarget.textContent = visible ? 'Lihat' : 'Sembunyi';
+  updateSecretToggle(event.currentTarget, !visible);
 });
 
 document.querySelector('#generate-password').addEventListener('click', () => {
@@ -803,7 +1559,43 @@ document.querySelector('#generate-password').addEventListener('click', () => {
   crypto.getRandomValues(bytes);
   document.querySelector('#item-password').value = Array.from(bytes, (value) => alphabet[value % alphabet.length]).join('');
   document.querySelector('#item-password').type = 'text';
-  document.querySelector('#toggle-item-password').textContent = 'Sembunyi';
+  updateSecretToggle(document.querySelector('#toggle-item-password'), true);
+});
+
+itemTypeInput.addEventListener('change', updateItemTypeUi);
+addCustomFieldButton.addEventListener('click', () => {
+  const fields = collectCustomFields();
+  fields.push({ id: crypto.randomUUID(), label: '', type: 'text', value: '' });
+  renderCustomFields(fields);
+  customFieldsList.querySelector('[data-field-row]:last-child [data-field-label]')?.focus();
+});
+
+customFieldsList.addEventListener('click', (event) => {
+  const remove = event.target.closest('[data-remove-custom-field]');
+  if (remove) {
+    remove.closest('[data-field-row]')?.remove();
+    return;
+  }
+  const toggle = event.target.closest('[data-custom-toggle]');
+  if (toggle) {
+    const input = toggle.closest('.custom-field-value')?.querySelector('[data-field-value]');
+    if (!input) return;
+    const visible = input.type === 'text';
+    input.type = visible ? 'password' : 'text';
+    updateSecretToggle(toggle, !visible, 'secret field');
+  }
+});
+
+customFieldsList.addEventListener('change', (event) => {
+  const select = event.target.closest('[data-field-type]');
+  if (!select) return;
+  const fields = collectCustomFields();
+  const row = select.closest('[data-field-row]');
+  const index = [...customFieldsList.querySelectorAll('[data-field-row]')].indexOf(row);
+  if (index < 0) return;
+  fields[index].type = select.value;
+  if (select.value === 'boolean') fields[index].value = Boolean(fields[index].value);
+  renderCustomFields(fields);
 });
 
 tagInput.addEventListener('input', renderTagSuggestions);
@@ -820,6 +1612,17 @@ tagSuggestions.addEventListener('pointerdown', (event) => {
   renderTagSuggestions();
 });
 
+passwordHistoryList.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-history-toggle]');
+  if (!button) return;
+  const input = button.parentElement?.querySelector('input');
+  if (!input) return;
+  const visible = input.type === 'text';
+  input.type = visible ? 'password' : 'text';
+  const version = button.closest('.password-history-entry')?.querySelector('.password-history-meta strong')?.textContent || 'password';
+  updateSecretToggle(button, !visible, version.toLowerCase());
+});
+
 itemModal.addEventListener('click', (event) => {
   if (event.target === itemModal) closeItemModal();
 });
@@ -827,10 +1630,11 @@ itemModal.addEventListener('click', (event) => {
 itemForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (!itemForm.reportValidity()) return;
-  itemMessage.textContent = '';
+  setInlineMessage(itemMessage, '');
   const saveButton = document.querySelector('#save-item');
   const payload = {
     id: document.querySelector('#item-id').value,
+    type: itemTypeInput.value,
     title: document.querySelector('#item-title').value,
     username: document.querySelector('#item-username').value,
     password: document.querySelector('#item-password').value,
@@ -839,6 +1643,7 @@ itemForm.addEventListener('submit', async (event) => {
     favorite: document.querySelector('#item-favorite').checked,
     notes: document.querySelector('#item-notes').value,
     tags: document.querySelector('#item-tags').value,
+    fields: collectCustomFields(),
   };
   const creating = !payload.id;
   saveButton.disabled = true;
@@ -848,13 +1653,22 @@ itemForm.addEventListener('submit', async (event) => {
       ? await window.passsa.updateItem(payload)
       : await window.passsa.addItem(payload);
     closeItemModal();
-    if (creating) showAllItems();
+    const updatedIndex = items.findIndex((item) => item.id === result.item.id);
+    if (creating) {
+      showAllItems();
+      items.push(result.item);
+    } else if (updatedIndex >= 0) {
+      // Reflect the successful IPC response immediately. A subsequent reload
+      // still refreshes the encrypted vault and categories from disk.
+      items[updatedIndex] = { ...items[updatedIndex], ...result.item };
+    }
+    renderItems();
     await loadItems();
     showVaultNotice(creating
       ? `Item “${result.item.title}” berhasil ditambahkan.`
       : `Item “${result.item.title}” berhasil diperbarui.`);
   } catch (error) {
-    itemMessage.textContent = error.message || 'Item gagal disimpan.';
+    setInlineMessage(itemMessage, error.message || 'Item gagal disimpan.');
     showVaultNotice(itemMessage.textContent, true);
     itemMessage.scrollIntoView({ block: 'nearest' });
   } finally {
@@ -892,14 +1706,7 @@ itemsList.addEventListener('click', async (event) => {
   }
   const tagButton = event.target.closest('[data-tag-filter]');
   if (tagButton) {
-    currentFilter = 'tag';
-    currentGroup = null;
-    currentGroupPrefix = null;
-    currentTag = tagButton.dataset.tagFilter;
-    selectedIds.clear();
-    document.querySelectorAll('.tree-node').forEach((node) => node.classList.remove('active'));
-    document.querySelector('.vault-content h2').textContent = `Tag: ${currentTag}`;
-    clearFilterButton.classList.remove('hidden');
+    showTagItems(tagButton.dataset.tagFilter);
     renderItems();
     return;
   }
@@ -932,7 +1739,9 @@ itemsList.addEventListener('click', async (event) => {
         showVaultNotice('Item ini belum memiliki alamat situs.', true);
         return;
       }
-      await window.passsa.copySecret(url);
+      const usage = await window.passsa.copyEntrySecret(item.id, 'url');
+      item.usageCount = usage.usageCount;
+      item.lastUsedAt = usage.lastUsedAt;
       button.classList.add('copy-success');
       button.innerHTML = '✓';
       button.setAttribute('aria-label', `Alamat situs berhasil disalin untuk ${item.title}`);
@@ -979,7 +1788,8 @@ document.addEventListener('keydown', (event) => {
     return;
   }
   if (event.key !== 'Escape') return;
-  if (!categoryModal.classList.contains('hidden')) closeCategoryModal();
+  if (!settingsModal.classList.contains('hidden')) closeSettings();
+  else if (!categoryModal.classList.contains('hidden')) closeCategoryModal();
   else if (!bulkModal.classList.contains('hidden')) closeBulkModal();
   else if (!itemModal.classList.contains('hidden')) closeItemModal();
 });

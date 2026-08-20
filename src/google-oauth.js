@@ -6,7 +6,9 @@ const { URL } = require('node:url');
 const AUTH_ENDPOINT = 'https://accounts.google.com/o/oauth2/v2/auth';
 const TOKEN_ENDPOINT = 'https://oauth2.googleapis.com/token';
 const USERINFO_ENDPOINT = 'https://openidconnect.googleapis.com/v1/userinfo';
-const SCOPES = ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/drive.appdata'];
+// drive.file lets PassSa create and manage only the files/folders it owns,
+// without requesting broad access to the user's entire Drive.
+const SCOPES = ['openid', 'email', 'profile', 'https://www.googleapis.com/auth/drive.file'];
 
 function base64Url(value) {
   return Buffer.from(value).toString('base64').replaceAll('+', '-').replaceAll('/', '_').replace(/=+$/g, '');
@@ -79,7 +81,7 @@ function waitForCallback(server, expectedState, timeoutMs = 180000) {
         return;
       }
       response.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
-      response.end('<h3>Otorisasi Google diterima.</h3><p>Kembali ke PassSa untuk menyelesaikan login.</p>');
+      response.end('<h3>Otorisasi Google diterima.</h3><p>Kembali ke PassSa. Koneksi dan sinkronisasi akan dilanjutkan otomatis.</p>');
       clearTimeout(timer);
       server.close();
       resolve(code);

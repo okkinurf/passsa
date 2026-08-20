@@ -25,7 +25,7 @@ npm start
 
 Jika environment variable belum diisi, tombol Google tetap tampil tetapi memberikan pesan konfigurasi yang jelas.
 
-Scope Drive yang diminta adalah `https://www.googleapis.com/auth/drive.appdata`. PassSa menyimpan envelope vault terenkripsi di folder tersembunyi `appDataFolder`, bukan membaca seluruh Drive pengguna.
+Scope Drive yang diminta adalah `https://www.googleapis.com/auth/drive.file`. PassSa hanya membuat dan mengelola folder `PassSa` beserta file yang dibuatnya sendiri; aplikasi tidak membaca seluruh Drive pengguna.
 
 Token OAuth tidak dikirim ke renderer. Refresh token dipersistenkan dalam bentuk terenkripsi menggunakan Electron `safeStorage`/Windows DPAPI; jika penyimpanan aman tidak tersedia, login Google gagal dengan aman dan token tidak ditulis sebagai plaintext.
 

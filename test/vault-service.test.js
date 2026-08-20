@@ -28,6 +28,22 @@ test('vault service menjalankan lifecycle entry dan soft delete', async () => {
   assert.equal((await service.list()).length, 0);
 });
 
+test('setiap perubahan password menyimpan versi sebelumnya, tanpa duplikasi saat metadata berubah', async () => {
+  const service = createService();
+  const added = await service.add({ title: 'Riwayat', password: 'password-awal' });
+  const metadataUpdate = await service.update({ ...added.item, title: 'Riwayat diperbarui' });
+  assert.equal(metadataUpdate.item.history.length, 0);
+  const passwordUpdate = await service.update({ ...metadataUpdate.item, password: 'password-baru' });
+  assert.equal(passwordUpdate.item.history.length, 1);
+  assert.equal(passwordUpdate.item.history[0].password, 'password-awal');
+  const secondPasswordUpdate = await service.update({ ...passwordUpdate.item, password: 'password-terakhir' });
+  assert.equal(secondPasswordUpdate.item.history.length, 2);
+  assert.deepEqual(secondPasswordUpdate.item.history.map((entry) => entry.password), ['password-awal', 'password-baru']);
+  const editable = await service.getForEditing(added.item.id);
+  assert.deepEqual(editable.passwordHistory.map((entry) => entry.password), ['password-awal', 'password-baru']);
+  assert.equal(editable.history, undefined);
+});
+
 test('bulk update, delete, restore, dan purge bekerja untuk banyak entry', async () => {
   const service = createService();
   const first = await service.add({ title: 'Satu', password: 'secret-1' });
@@ -66,6 +82,19 @@ test('menyalin secret memperbarui statistik penggunaan', async () => {
   assert.equal(second.value, 'user');
   assert.equal(second.usage.usageCount, 2);
   assert.ok(second.usage.lastUsedAt);
+  assert.deepEqual(second.usage.recentUseHistory.map((entry) => entry.field), ['password', 'username']);
+});
+
+test('Quick Access dapat menyematkan credential dan mencatat aksi copy tanpa menyimpan secret di history', async () => {
+  const service = createService();
+  const added = await service.add({ title: 'Quick', username: 'user', password: 'secret', url: 'https://example.test' });
+  const pinned = await service.toggleQuickPinned(added.item.id);
+  assert.equal(pinned.item.quickPinned, true);
+  await service.useSecret(added.item.id, 'url');
+  const item = (await service.list())[0];
+  assert.equal(item.quickPinned, true);
+  assert.deepEqual(item.recentUseHistory.map((entry) => entry.field), ['url']);
+  assert.ok(item.recentUseHistory.every((entry) => !Object.hasOwn(entry, 'value')));
 });
 
 test('kategori custom dapat dibuat, diubah, dan dihapus tanpa menghapus entry', async () => {

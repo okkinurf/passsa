@@ -12,19 +12,23 @@ function snapshot(ciphertext = 'local') {
   return { schemaVersion: 1, email: 'okki@example.test', vaultSalt: 'c2FsdA==', envelope: { ciphertext, nonce: 'n', tag: 't', kdf: { version: 2 } } };
 }
 
-test('sync pertama mengunggah snapshot terenkripsi ke appDataFolder', async () => {
+test('sync pertama membuat atau memakai folder PassSa dan mengunggah snapshot terenkripsi', async () => {
   let uploaded;
+  let listedParent;
   const service = new DriveSyncService({
     driveClient: {
-      listVaultFiles: async () => [],
-      createJson: async (_email, name, value) => { uploaded = { name, value }; return { id: 'drive-1' }; },
+      ensureFolder: async () => ({ id: 'folder-passsa', name: 'PassSa' }),
+      listVaultFiles: async (_email, parentId) => { listedParent = parentId; return []; },
+      createJson: async (_email, name, value, parentId) => { uploaded = { name, value, parentId }; return { id: 'drive-1' }; },
     },
     vaultService: { exportEncryptedSnapshot: async () => snapshot(), isEmpty: async () => false },
     stateStore: new MemoryStore({ users: {} }),
   });
   const result = await service.sync({ password: 'password' });
   assert.equal(result.status, 'uploaded');
+  assert.equal(listedParent, 'folder-passsa');
   assert.equal(uploaded.name, 'passsa-vault.json');
+  assert.equal(uploaded.parentId, 'folder-passsa');
   assert.equal(uploaded.value.envelope.ciphertext, 'local');
 });
 

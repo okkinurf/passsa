@@ -44,9 +44,14 @@ class VaultService {
 
   async writeDocument(document) {
     const { user, key } = this.authService.context();
+    return this.writeDocumentWithKey(document, key, this.authService.vaultKdf?.() ?? CURRENT_KDF);
+  }
+
+  async writeDocumentWithKey(document, key, kdf = CURRENT_KDF) {
+    const { user } = this.authService.context();
     const envelope = {
       ...encryptVaultData(document, key),
-      kdf: this.authService.vaultKdf?.() ?? CURRENT_KDF,
+      kdf: normalizeKdfParams(kdf, CURRENT_KDF),
       updatedAt: new Date().toISOString(),
     };
     await this.store.update((file) => {
@@ -54,6 +59,11 @@ class VaultService {
       file.vaults[user.id] = envelope;
       return file;
     });
+  }
+
+  async rekey(nextKey, kdf = CURRENT_KDF) {
+    const document = await this.document();
+    await this.writeDocumentWithKey(document, nextKey, kdf);
   }
 
   async list() {
@@ -87,11 +97,19 @@ class VaultService {
   }
 
   async importEncryptedSnapshot(snapshot, password) {
-    if (!snapshot?.envelope || !snapshot?.vaultSalt || typeof password !== 'string') {
-      throw new Error('Snapshot Drive atau password vault tidak valid.');
-    }
+    if (!snapshot?.envelope || !snapshot?.vaultSalt) throw new Error('Snapshot Drive tidak valid.');
     const kdf = normalizeKdfParams(snapshot.envelope.kdf, LEGACY_KDF);
-    const remoteKey = await deriveVaultKey(password, Buffer.from(snapshot.vaultSalt, 'base64'), kdf);
+    const remoteSalt = Buffer.from(snapshot.vaultSalt, 'base64');
+    let remoteKey;
+    if (typeof password === 'string') {
+      remoteKey = await deriveVaultKey(password, remoteSalt, kdf);
+    } else {
+      const localSalt = Buffer.from(this.authService.vaultSalt(), 'base64');
+      if (localSalt.length !== remoteSalt.length || !crypto.timingSafeEqual(localSalt, remoteSalt)) {
+        throw new Error('Password vault diperlukan untuk membuka data Google Drive.');
+      }
+      remoteKey = Buffer.from(this.authService.context().key);
+    }
     let document;
     try {
       document = decryptVaultData(snapshot.envelope, remoteKey);
@@ -107,8 +125,13 @@ class VaultService {
   async getForEditing(id) {
     const item = (await this.list()).find((candidate) => candidate.id === id && !candidate.deletedAt);
     if (!item) throw new Error('Item tidak ditemukan.');
-    const { history: _history, ...editable } = item;
-    return editable;
+    const { history = [], ...editable } = item;
+    return {
+      ...editable,
+      passwordHistory: history
+        .filter((entry) => typeof entry?.password === 'string')
+        .map(({ password, savedAt }) => ({ password, savedAt })),
+    };
   }
 
   async save(items) {
@@ -229,18 +252,33 @@ class VaultService {
     return { ok: true, item };
   }
 
+  async toggleQuickPinned(id) {
+    const items = await this.list();
+    const item = items.find((candidate) => candidate.id === id && !candidate.deletedAt);
+    if (!item) throw new Error('Item tidak ditemukan.');
+    item.quickPinned = !item.quickPinned;
+    item.updatedAt = new Date().toISOString();
+    await this.save(items);
+    return { ok: true, item };
+  }
+
   async useSecret(id, field) {
-    if (!['username', 'password'].includes(field)) throw new Error('Field rahasia tidak valid.');
+    if (!['username', 'password', 'url'].includes(field)) throw new Error('Field credential tidak valid.');
     const items = await this.list();
     const item = items.find((candidate) => candidate.id === id && !candidate.deletedAt);
     if (!item) throw new Error('Item tidak ditemukan.');
     const value = String(item[field] ?? '');
+    const usedAt = new Date().toISOString();
     item.usageCount = (item.usageCount ?? 0) + 1;
-    item.lastUsedAt = new Date().toISOString();
+    item.lastUsedAt = usedAt;
+    item.recentUseHistory = [
+      ...(item.recentUseHistory ?? []),
+      { field, usedAt },
+    ].slice(-12);
     await this.save(items);
     return {
       value,
-      usage: { id: item.id, usageCount: item.usageCount, lastUsedAt: item.lastUsedAt },
+      usage: { id: item.id, field, usageCount: item.usageCount, lastUsedAt: item.lastUsedAt, recentUseHistory: item.recentUseHistory },
     };
   }
 
