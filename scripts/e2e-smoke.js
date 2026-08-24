@@ -40,6 +40,8 @@ app.whenReady().then(async () => {
     return layoutStyle.display === 'flex'
       && layoutStyle.flexDirection === 'column'
       && brandStyle.display !== 'none'
+      && document.querySelector('.auth-mark img')?.getAttribute('src') === 'assets/passsa-mark.png'
+      && !document.querySelector('.auth-mark .fa-lock')
       && card.getBoundingClientRect().width <= 420;
   })()`), 'Layout login sederhana vertikal tidak sesuai.');
   await win.webContents.executeJavaScript(`

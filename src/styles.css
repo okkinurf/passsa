@@ -681,17 +681,21 @@ select { width: 100%; height: 48px; padding: 0 12px; border: 1px solid #d9dfeb; 
   -webkit-backdrop-filter: blur(16px) saturate(120%);
 }
 .auth-mark {
-  width: 58px;
-  height: 58px;
-  margin: 0 auto 16px;
+  width: 108px;
+  height: 76px;
+  margin: -2px auto 10px;
   display: grid;
   place-items: center;
-  border: 1px solid #b7154655;
-  border-radius: 50%;
-  background: linear-gradient(145deg, #fff5f7, #f3dbe3);
-  color: #a41446;
-  box-shadow: 0 8px 20px #710b2e1f, inset 0 1px #ffffff;
-  font-size: 21px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+.auth-mark img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 3px 4px #3b13222a) drop-shadow(0 8px 14px #3b132215);
 }
 .auth-layout .auth-card::before {
   content: "";
@@ -825,7 +829,8 @@ html[data-theme="dark"] .auth-layout .brand-panel { background: radial-gradient(
 html[data-theme="dark"] .auth-layout .form-panel { background: radial-gradient(circle at 50% 0, #47343d 0, transparent 42%), #171a20; }
 html[data-theme="dark"] .auth-layout .auth-card { border-color: #46505d; background: rgba(35, 40, 48, .86); box-shadow: 0 18px 44px rgba(0,0,0,.3), inset 0 1px rgba(255,255,255,.05); }
 html[data-theme="dark"] .auth-layout .auth-card::before { background: linear-gradient(90deg, transparent, #bd8298, transparent); }
-html[data-theme="dark"] .auth-layout .auth-mark { border-color: #df6e9188; background: linear-gradient(145deg, #49303b, #30252e); color: #f0a2b7; box-shadow: 0 8px 20px #a80f3e38, inset 0 1px #ffffff18; }
+html[data-theme="dark"] .auth-layout .auth-mark { border: 0; background: transparent; box-shadow: none; }
+html[data-theme="dark"] .auth-layout .auth-mark img { filter: drop-shadow(0 3px 5px #00000065) drop-shadow(0 8px 16px #a80f3e30); }
 html[data-theme="dark"] .tabs { background: #292f38; border-color: #3b4450; }
 html[data-theme="dark"] .tabs::before { background: linear-gradient(145deg, #444c59, #353d49); border: 1px solid #a80f3e80; box-shadow: 0 4px 14px rgba(0,0,0,.28), 0 0 0 2px #a80f3e2b; }
 html[data-theme="dark"] .auth-layout .tabs { border-bottom-color: #46515f; background: transparent; }
