@@ -1,10 +1,12 @@
 const crypto = require('node:crypto');
 
 const MAX_HISTORY = 10;
+const MAX_NOTE_HISTORY = 20;
 const MAX_QUICK_ACCESS_HISTORY = 12;
 const MAX_FIELDS = 50;
 const MAX_FIELD_LABEL = 80;
 const MAX_FIELD_VALUE = 5000;
+const MAX_NOTES = 20000;
 const FIELD_TYPES = new Set(['text', 'secret', 'url', 'email', 'number', 'boolean']);
 
 function clean(value, maxLength, trim = true) {
@@ -23,6 +25,17 @@ function snapshot(entry) {
     favorite: entry.favorite,
     quickPinned: entry.quickPinned,
     tags: entry.tags,
+    savedAt: entry.updatedAt,
+  };
+}
+
+function noteSnapshot(entry) {
+  return {
+    title: entry.title,
+    notes: entry.notes,
+    group: entry.group,
+    tags: normalizeTags(entry.tags),
+    fields: normalizeCustomFields(entry.fields),
     savedAt: entry.updatedAt,
   };
 }
@@ -67,10 +80,25 @@ function normalizeCustomFields(value) {
   return fields;
 }
 
+function normalizeNoteHistory(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((entry) => entry && typeof entry === 'object')
+    .slice(-MAX_NOTE_HISTORY)
+    .map((entry) => ({
+      title: clean(entry.title, 120),
+      notes: clean(entry.notes, MAX_NOTES, false),
+      group: clean(entry.group, 80) || 'Umum',
+      tags: normalizeTags(entry.tags),
+      fields: normalizeCustomFields(entry.fields),
+      savedAt: String(entry.savedAt ?? ''),
+    }));
+}
+
 function normalizeEntry(entry) {
   const recentUseHistory = Array.isArray(entry.recentUseHistory)
     ? entry.recentUseHistory
-      .filter((record) => record && typeof record === 'object' && typeof record.usedAt === 'string' && ['username', 'password', 'url'].includes(record.field))
+      .filter((record) => record && typeof record === 'object' && typeof record.usedAt === 'string' && ['username', 'password', 'url', 'note'].includes(record.field))
       .slice(-MAX_QUICK_ACCESS_HISTORY)
       .map((record) => ({ field: record.field, usedAt: record.usedAt }))
     : [];
@@ -82,6 +110,7 @@ function normalizeEntry(entry) {
     quickPinned: Boolean(entry.quickPinned),
     deletedAt: entry.deletedAt ?? null,
     history: Array.isArray(entry.history) ? entry.history.slice(-MAX_HISTORY) : [],
+    noteHistory: normalizeNoteHistory(entry.noteHistory),
     tags: normalizeTags(entry.tags),
     fields: normalizeCustomFields(entry.fields),
     usageCount: Number.isSafeInteger(entry.usageCount) && entry.usageCount >= 0 ? entry.usageCount : 0,
@@ -97,7 +126,7 @@ function buildEntry(input = {}, existing = null) {
   const username = clean(input.username, 320);
   const password = clean(input.password, 1024, false);
   const url = clean(input.url, 2048);
-  const notes = clean(input.notes, 5000);
+  const notes = clean(input.notes, MAX_NOTES);
   const group = clean(input.group ?? existing?.group ?? 'Umum', 80) || 'Umum';
   if (!title) throw new Error('Nama item wajib diisi.');
   if (type === 'login' && !password) throw new Error('Password wajib diisi.');
@@ -108,6 +137,24 @@ function buildEntry(input = {}, existing = null) {
     ? (passwordChanged
       ? [...normalizedExisting.history, snapshot(normalizedExisting)]
       : normalizedExisting.history)
+    : [];
+  const tags = input.tags === undefined ? normalizeTags(normalizedExisting?.tags) : normalizeTags(input.tags);
+  const fields = input.fields === undefined ? normalizeCustomFields(normalizedExisting?.fields) : normalizeCustomFields(input.fields);
+  const noteChanged = Boolean(
+    normalizedExisting?.type === 'secure-note'
+      && type === 'secure-note'
+      && (
+        title !== normalizedExisting.title
+        || notes !== normalizedExisting.notes
+        || group !== normalizedExisting.group
+        || JSON.stringify(tags) !== JSON.stringify(normalizedExisting.tags)
+        || JSON.stringify(fields) !== JSON.stringify(normalizedExisting.fields)
+      ),
+  );
+  const previousNoteHistory = normalizedExisting
+    ? (noteChanged
+      ? [...normalizedExisting.noteHistory, noteSnapshot(normalizedExisting)]
+      : normalizedExisting.noteHistory)
     : [];
   const now = new Date().toISOString();
   return {
@@ -121,17 +168,18 @@ function buildEntry(input = {}, existing = null) {
     group,
     favorite: input.favorite === undefined ? Boolean(normalizedExisting?.favorite) : Boolean(input.favorite),
     quickPinned: input.quickPinned === undefined ? Boolean(normalizedExisting?.quickPinned) : Boolean(input.quickPinned),
-    tags: input.tags === undefined ? normalizeTags(normalizedExisting?.tags) : normalizeTags(input.tags),
-    fields: input.fields === undefined ? normalizeCustomFields(normalizedExisting?.fields) : normalizeCustomFields(input.fields),
+    tags,
+    fields,
     usageCount: normalizedExisting?.usageCount ?? 0,
     lastUsedAt: normalizedExisting?.lastUsedAt ?? null,
     recentUseHistory: normalizedExisting?.recentUseHistory ?? [],
     deletedAt: normalizedExisting?.deletedAt ?? null,
     history: previousHistory.slice(-MAX_HISTORY),
+    noteHistory: previousNoteHistory.slice(-MAX_NOTE_HISTORY),
     createdAt: normalizedExisting?.createdAt ?? now,
     updatedAt: now,
     ...(normalizedExisting?.source ? { source: normalizedExisting.source } : {}),
   };
 }
 
-module.exports = { buildEntry, normalizeEntry, normalizeTags, normalizeCustomFields, MAX_HISTORY, MAX_QUICK_ACCESS_HISTORY, MAX_FIELDS, MAX_FIELD_VALUE };
+module.exports = { buildEntry, normalizeEntry, normalizeTags, normalizeCustomFields, MAX_HISTORY, MAX_NOTE_HISTORY, MAX_QUICK_ACCESS_HISTORY, MAX_FIELDS, MAX_FIELD_VALUE, MAX_NOTES };

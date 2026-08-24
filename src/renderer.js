@@ -1,6 +1,10 @@
 const authView = document.querySelector('#auth-view');
 const vaultView = document.querySelector('#vault-view');
 const titlebarSyncStatus = document.querySelector('#titlebar-sync-status');
+const titlebarDragRegion = document.querySelector('.app-titlebar-drag-region');
+const windowMinimizeButton = document.querySelector('#window-minimize');
+const windowMaximizeButton = document.querySelector('#window-maximize');
+const windowCloseButton = document.querySelector('#window-close');
 const form = document.querySelector('#auth-form');
 const loginTab = document.querySelector('#login-tab');
 const registerTab = document.querySelector('#register-tab');
@@ -17,6 +21,19 @@ const syncButton = document.querySelector('#sync-button');
 const settingsButton = document.querySelector('#settings-button');
 const logoutButton = document.querySelector('#logout-button');
 const itemModal = document.querySelector('#item-modal');
+const noteDetailModal = document.querySelector('#note-detail-modal');
+const noteDetailTitle = document.querySelector('#note-detail-title');
+const noteDetailMeta = document.querySelector('#note-detail-meta');
+const noteDetailNotes = document.querySelector('#note-detail-notes');
+const noteDetailGroup = document.querySelector('#note-detail-group');
+const noteDetailTags = document.querySelector('#note-detail-tags');
+const noteDetailFieldsSection = document.querySelector('#note-detail-fields-section');
+const noteDetailFields = document.querySelector('#note-detail-fields');
+const noteDetailHistoryCount = document.querySelector('#note-detail-history-count');
+const noteDetailHistoryList = document.querySelector('#note-detail-history-list');
+const closeNoteDetailButton = document.querySelector('#close-note-detail');
+const noteDetailCloseSecondaryButton = document.querySelector('#note-detail-close-secondary');
+const noteDetailEditButton = document.querySelector('#note-detail-edit');
 const itemForm = document.querySelector('#item-form');
 const itemsList = document.querySelector('#items-list');
 const tagsOverview = document.querySelector('#tags-overview');
@@ -36,15 +53,33 @@ const vaultNoticeText = vaultNotice.querySelector('.vault-notice-text');
 const vaultNoticeIcon = vaultNotice.querySelector('.vault-notice-icon i');
 const vaultNoticeDismiss = vaultNotice.querySelector('.vault-notice-dismiss');
 const sortSelect = document.querySelector('#sort-select');
+const sortFilterLabel = document.querySelector('.filter-control');
+const confirmModal = document.querySelector('#confirm-modal');
+const confirmModalEyebrow = document.querySelector('#confirm-modal-eyebrow');
+const confirmModalTitle = document.querySelector('#confirm-modal-title');
+const confirmModalMessage = document.querySelector('#confirm-modal-message');
+const confirmModalList = document.querySelector('#confirm-modal-list');
+const confirmCancelButton = document.querySelector('#confirm-cancel');
+const confirmAcceptButton = document.querySelector('#confirm-accept');
 const categoryModal = document.querySelector('#category-modal');
 const categoryForm = document.querySelector('#category-form');
 const tagInput = document.querySelector('#item-tags');
 const tagSuggestions = document.querySelector('#tag-suggestions');
 const itemTypeInput = document.querySelector('#item-type');
+const itemNotesLabel = document.querySelector('#item-notes-label');
+const itemNotesInput = document.querySelector('#item-notes');
+const noteEditor = document.querySelector('#note-editor');
+const noteEditorToolbar = document.querySelector('#note-editor-toolbar');
+const noteEditorMode = document.querySelector('#note-editor-mode');
+const notePreview = document.querySelector('#note-preview');
+const noteHeadingLevel = document.querySelector('#note-heading-level');
+const noteEditorStatus = document.querySelector('#note-editor-status');
 const itemLoginFields = [...document.querySelectorAll('.item-login-fields')];
 const customFieldsList = document.querySelector('#custom-fields-list');
 const addCustomFieldButton = document.querySelector('#add-custom-field');
 const passwordHistory = document.querySelector('#password-history');
+const passwordHistoryTitle = document.querySelector('#password-history-title');
+const passwordHistoryNote = document.querySelector('.password-history-note');
 const passwordHistoryCount = document.querySelector('#password-history-count');
 const passwordHistoryList = document.querySelector('#password-history-list');
 const tagSearchInput = document.querySelector('#tag-search-input');
@@ -56,6 +91,7 @@ const sidebarCollapseButton = document.querySelector('#sidebar-collapse-button')
 const sidebarNavigationSearch = document.querySelector('#sidebar-navigation-search');
 const sidebarTooltip = document.querySelector('#sidebar-tooltip');
 const sidebarAddItemButton = document.querySelector('#sidebar-add-item-button');
+const sidebarAddNoteButton = document.querySelector('#sidebar-add-note-button');
 const sidebarAddTagButton = document.querySelector('#sidebar-add-tag-button');
 const settingsModal = document.querySelector('#settings-modal');
 const closeSettingsButton = document.querySelector('#close-settings');
@@ -93,6 +129,12 @@ const settingsStartup = document.querySelector('#settings-startup');
 const settingsMinimizeTray = document.querySelector('#settings-minimize-tray');
 const settingsQuickAccess = document.querySelector('#settings-quick-access');
 const settingsAppMessage = document.querySelector('#settings-app-message');
+const settingsTheme = document.querySelector('#settings-theme');
+const settingsThemeHelp = document.querySelector('#settings-theme-help');
+const THEME_STORAGE_KEY = 'passsa-theme';
+const systemThemeQuery = typeof window.matchMedia === 'function'
+  ? window.matchMedia('(prefers-color-scheme: dark)')
+  : null;
 const SIDEBAR_WIDTH_KEY = 'passsa-sidebar-width';
 const SIDEBAR_EXPANDED_WIDTH_KEY = 'passsa-sidebar-expanded-width';
 const DEFAULT_SIDEBAR_WIDTH = 260;
@@ -114,8 +156,77 @@ let currentFilter = 'all';
 let currentGroup = null;
 let currentGroupPrefix = null;
 let currentTag = null;
+let noteDetailCurrentId = null;
 let idleLockTimer;
 let initializeSidebarCollapsed = true;
+
+function updateMaximizeControl(maximized) {
+  if (!windowMaximizeButton) return;
+  const icon = windowMaximizeButton.querySelector('i');
+  if (icon) icon.className = `fa-regular ${maximized ? 'fa-window-restore' : 'fa-square'}`;
+  windowMaximizeButton.setAttribute('aria-label', maximized ? 'Pulihkan ukuran' : 'Maksimalkan');
+  windowMaximizeButton.title = maximized ? 'Pulihkan ukuran' : 'Maksimalkan';
+}
+
+windowMinimizeButton?.addEventListener('click', () => window.passsa.minimizeWindow?.());
+windowMaximizeButton?.addEventListener('click', async () => {
+  const result = await window.passsa.toggleMaximizeWindow?.();
+  updateMaximizeControl(Boolean(result?.maximized));
+});
+windowCloseButton?.addEventListener('click', () => window.passsa.closeWindow?.());
+titlebarDragRegion?.addEventListener('dblclick', async () => {
+  const result = await window.passsa.toggleMaximizeWindow?.();
+  updateMaximizeControl(Boolean(result?.maximized));
+});
+
+function normalizeThemePreference(value) {
+  return ['system', 'light', 'dark'].includes(value) ? value : 'system';
+}
+
+function getThemePreference() {
+  try {
+    return normalizeThemePreference(localStorage.getItem(THEME_STORAGE_KEY));
+  } catch {
+    return 'system';
+  }
+}
+
+function resolveTheme(preference) {
+  return preference === 'system'
+    ? (systemThemeQuery?.matches ? 'dark' : 'light')
+    : preference;
+}
+
+function updateThemeHelp(preference, resolved = resolveTheme(preference)) {
+  if (!settingsThemeHelp) return;
+  settingsThemeHelp.textContent = preference === 'system'
+    ? `Mengikuti Windows — saat ini mode ${resolved === 'dark' ? 'gelap' : 'terang'}.`
+    : `Mode ${resolved === 'dark' ? 'gelap' : 'terang'} dipilih secara manual.`;
+}
+
+function applyTheme(preference = getThemePreference()) {
+  const normalized = normalizeThemePreference(preference);
+  const resolved = resolveTheme(normalized);
+  document.documentElement.dataset.themePreference = normalized;
+  document.documentElement.dataset.theme = resolved;
+  document.documentElement.style.colorScheme = resolved;
+  try {
+    const nativeThemeUpdate = window.passsa.setTheme?.(resolved);
+    nativeThemeUpdate?.catch?.(() => undefined);
+  } catch { /* Renderer tetap dapat berganti tema jika native overlay belum siap. */ }
+  try {
+    localStorage.setItem(THEME_STORAGE_KEY, normalized);
+  } catch { /* Preferensi tema tetap diterapkan jika storage tidak tersedia. */ }
+  if (settingsTheme) settingsTheme.value = normalized;
+  updateThemeHelp(normalized, resolved);
+}
+
+applyTheme();
+const handleSystemThemeChange = () => {
+  if (getThemePreference() === 'system') applyTheme('system');
+};
+if (systemThemeQuery?.addEventListener) systemThemeQuery.addEventListener('change', handleSystemThemeChange);
+else systemThemeQuery?.addListener?.(handleSystemThemeChange);
 
 function clampSidebarWidth(width) {
   const availableWidth = Math.max(MIN_SIDEBAR_WIDTH, window.innerWidth - 520);
@@ -452,6 +563,7 @@ function clearVaultState() {
   tagList?.replaceChildren();
   tagEmpty?.classList.add('hidden');
   itemModal.classList.add('hidden');
+  closeNoteDetail();
   bulkModal.classList.add('hidden');
   categoryModal.classList.add('hidden');
   settingsModal.classList.add('hidden');
@@ -497,7 +609,12 @@ function tagTone(tag) {
   return ['rose', 'amber', 'teal', 'blue', 'violet'][hash % 5];
 }
 
-function renderItems() {
+function renderItems({ preserveScroll = true } = {}) {
+  const scrollContainer = document.querySelector('.items-scroll');
+  const scrollTop = preserveScroll ? (scrollContainer?.scrollTop ?? 0) : 0;
+  const restoreScroll = () => {
+    if (preserveScroll && scrollContainer) scrollContainer.scrollTop = scrollTop;
+  };
   renderSidebarCounts();
   filterSidebarNavigation();
   if (currentFilter === 'tags' && !currentTag) {
@@ -506,6 +623,7 @@ function renderItems() {
     renderTagTree();
     renderCustomCategories();
     filterSidebarNavigation();
+    restoreScroll();
     return;
   }
   const query = searchInput.value.trim().toLowerCase();
@@ -514,6 +632,7 @@ function renderItems() {
       ? Boolean(item.deletedAt)
       : !item.deletedAt
         && (currentFilter !== 'favorites' || item.favorite)
+        && (currentFilter !== 'notes' || item.type === 'secure-note')
         && (currentFilter !== 'tags' || (item.tags ?? []).length > 0)
         && (!currentGroup || item.group === currentGroup)
         && (!currentGroupPrefix || item.group === currentGroupPrefix || item.group.startsWith(`${currentGroupPrefix}/`))
@@ -524,6 +643,8 @@ function renderItems() {
   }).sort(compareItems);
   visibleItems = filtered;
   tagsOverview.classList.add('hidden');
+  sortFilterLabel?.classList.remove('hidden');
+  sortSelect.classList.remove('hidden');
   itemCount.textContent = `${filtered.length} item`;
   emptyState.classList.toggle('hidden', filtered.length > 0);
   itemsList.classList.toggle('hidden', filtered.length === 0);
@@ -535,7 +656,7 @@ function renderItems() {
       : 'Tambahkan login pertama Anda. Data akan dienkripsi dan disimpan hanya di komputer ini.';
   }
   itemsList.innerHTML = filtered.map((item, index) => `
-    <article class="vault-item ${selectedIds.has(item.id) ? 'selected' : ''}" data-id="${escapeHtml(item.id)}" data-item-index="${Math.min(index, 10)}">
+    <article class="vault-item ${selectedIds.has(item.id) ? 'selected' : ''} ${item.type === 'secure-note' ? 'note-card' : ''}" data-id="${escapeHtml(item.id)}" data-item-index="${Math.min(index, 10)}" ${item.type === 'secure-note' ? `tabindex="0" role="button" aria-label="Buka catatan ${escapeHtml(item.title)}"` : ''}>
       <input class="item-select" type="checkbox" data-select-id="${escapeHtml(item.id)}" aria-label="Pilih ${escapeHtml(item.title)}" ${selectedIds.has(item.id) ? 'checked' : ''} />
       <div class="item-main"><strong>${item.favorite ? '★ ' : ''}${item.type === 'secure-note' ? '<i class="fa-solid fa-note-sticky item-type-icon" aria-hidden="true"></i> ' : ''}${escapeHtml(item.title)}</strong><small>${item.type === 'secure-note' ? 'Secure Note' : escapeHtml(item.group || 'Umum')} · ${escapeHtml(item.type === 'secure-note' ? 'Catatan terenkripsi' : (item.url || 'Login lokal'))}</small></div>
       <div class="item-tags-cell">${(item.tags ?? []).length ? `<div class="item-tags">${item.tags.slice(0, 2).map((tag) => `<button class="tag-chip tone-${tagTone(tag)}" type="button" data-tag-filter="${escapeHtml(tag)}"><span class="tag-dot" aria-hidden="true"></span>#${escapeHtml(tag)}</button>`).join('')}${item.tags.length > 2 ? `<button class="tag-overflow-toggle" type="button" data-tag-overflow="true" aria-expanded="false" aria-label="Lihat ${item.tags.length - 2} tags lainnya">+${item.tags.length - 2}</button><span class="tag-overflow-menu" role="listbox">${item.tags.slice(2).map((tag) => `<button class="tag-chip tone-${tagTone(tag)}" type="button" data-tag-filter="${escapeHtml(tag)}"><span class="tag-dot" aria-hidden="true"></span>#${escapeHtml(tag)}</button>`).join('')}</span>` : ''}</div>` : '<span class="item-muted">—</span>'}</div>
@@ -563,6 +684,7 @@ function renderItems() {
   renderTagTree();
   renderCustomCategories();
   filterSidebarNavigation();
+  restoreScroll();
 }
 
 function renderTagsOverview() {
@@ -577,6 +699,8 @@ function renderTagsOverview() {
     .sort(([left], [right]) => left.localeCompare(right, 'id', { sensitivity: 'base' }));
   itemCount.textContent = `${matches.length} tag`;
   clearFilterButton.classList.add('hidden');
+  sortFilterLabel?.classList.add('hidden');
+  sortSelect.classList.add('hidden');
   emptyState.classList.add('hidden');
   itemsHeader.classList.add('hidden');
   itemsList.classList.add('hidden');
@@ -642,6 +766,7 @@ function renderSidebarCounts() {
   setCount('sidebar-all-count', activeItems.length);
   setCount('sidebar-favorites-count', activeItems.filter((item) => item.favorite).length);
   setCount('sidebar-trash-count', items.filter((item) => item.deletedAt).length);
+  setCount('sidebar-notes-count', activeItems.filter((item) => item.type === 'secure-note').length);
   setCount('sidebar-tags-count', new Set(activeItems.flatMap((item) => item.tags ?? [])).size);
 }
 
@@ -670,12 +795,73 @@ function formatHistoryDate(value) {
   return new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(timestamp);
 }
 
+function renderNoteDetail(item) {
+  if (!item) return;
+  noteDetailTitle.textContent = item.title || 'Catatan';
+  noteDetailMeta.textContent = `${item.group || 'Umum'} · Catatan terenkripsi`;
+  noteDetailNotes.innerHTML = renderNoteMarkdown(item.notes || 'Tidak ada isi catatan.');
+  noteDetailGroup.textContent = item.group || 'Umum';
+  const tags = Array.isArray(item.tags) ? item.tags : [];
+  noteDetailTags.innerHTML = tags.length
+    ? tags.map((tag) => `<span class="tag-chip tone-${tagTone(tag)}"><span class="tag-dot" aria-hidden="true"></span>#${escapeHtml(tag)}</span>`).join('')
+    : '<span class="item-muted">Tidak ada tags</span>';
+
+  const fields = Array.isArray(item.fields) ? item.fields : [];
+  noteDetailFieldsSection.classList.toggle('hidden', fields.length === 0);
+  noteDetailFields.innerHTML = fields.map((field) => {
+    const value = field?.type === 'boolean'
+      ? (field.value ? 'Ya' : 'Tidak')
+      : String(field?.value ?? '');
+    return `<div class="note-detail-field"><strong>${escapeHtml(field?.label || 'Field')}</strong><span>${escapeHtml(value || '—')}</span></div>`;
+  }).join('');
+
+  const history = Array.isArray(item.noteHistory) ? item.noteHistory.slice().reverse() : [];
+  noteDetailHistoryCount.textContent = history.length ? `(${history.length} versi)` : '';
+  noteDetailHistoryList.classList.toggle('is-scrollable', history.length > 3);
+  noteDetailHistoryList.innerHTML = history.length
+    ? history.map((entry, index) => `
+      <div class="note-history-entry">
+        <div class="note-history-entry-meta"><strong>Versi ${history.length - index}</strong><small>${escapeHtml(formatHistoryDate(entry.savedAt))}</small></div>
+        <div class="note-history-entry-content">
+          <strong>${escapeHtml(entry.title || 'Catatan')}</strong>
+          <div class="note-history-markdown">${renderNoteMarkdown(entry.notes || 'Tidak ada isi catatan.')}</div>
+          ${(entry.tags ?? []).length ? `<div class="item-tags">${entry.tags.map((tag) => `<span class="tag-chip tone-${tagTone(tag)}"><span class="tag-dot" aria-hidden="true"></span>#${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
+        </div>
+      </div>
+    `).join('')
+    : '<p class="note-history-empty">Belum ada perubahan pada catatan ini.</p>';
+}
+
+async function openNoteDetail(id) {
+  try {
+    const item = await window.passsa.getItem(id);
+    if (!item || item.type !== 'secure-note') return;
+    noteDetailCurrentId = id;
+    renderNoteDetail(item);
+    noteDetailModal.classList.remove('hidden');
+  } catch (error) {
+    showVaultNotice(error.message || 'Detail catatan tidak dapat dibuka.', true);
+  }
+}
+
+function closeNoteDetail() {
+  noteDetailCurrentId = null;
+  noteDetailModal.classList.add('hidden');
+}
+
+function updateHistoryHeader(note = false) {
+  passwordHistoryTitle.innerHTML = `<i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> ${note ? 'Note History' : 'Password History'}`;
+  passwordHistoryNote.textContent = note ? 'Versi catatan tersimpan terenkripsi' : 'Versi lama tersimpan terenkripsi';
+}
+
 function renderPasswordHistory(history, showSection = true) {
   const entries = Array.isArray(history)
     ? history.filter((entry) => typeof entry?.password === 'string').slice().reverse()
     : [];
+  updateHistoryHeader(false);
   passwordHistory.classList.toggle('hidden', !showSection);
   passwordHistoryCount.textContent = entries.length ? `(${entries.length} versi)` : '';
+  passwordHistoryList.classList.toggle('is-scrollable', entries.length > 3);
   passwordHistoryList.innerHTML = entries.length ? entries.map((entry, index) => `
     <div class="password-history-entry">
       <div class="password-history-meta"><strong>Versi ${entries.length - index}</strong><small>${escapeHtml(formatHistoryDate(entry.savedAt))}</small></div>
@@ -685,6 +871,26 @@ function renderPasswordHistory(history, showSection = true) {
       </div>
     </div>
   `).join('') : '<p class="password-history-empty">Belum ada perubahan password.</p>';
+}
+
+function renderNoteHistory(history, showSection = true) {
+  const entries = Array.isArray(history)
+    ? history.filter((entry) => entry && typeof entry === 'object').slice().reverse()
+    : [];
+  updateHistoryHeader(true);
+  passwordHistory.classList.toggle('hidden', !showSection);
+  passwordHistoryCount.textContent = entries.length ? `(${entries.length} versi)` : '';
+  passwordHistoryList.classList.toggle('is-scrollable', entries.length > 3);
+  passwordHistoryList.innerHTML = entries.length ? entries.map((entry, index) => `
+    <div class="note-history-entry">
+      <div class="note-history-entry-meta"><strong>Versi ${entries.length - index}</strong><small>${escapeHtml(formatHistoryDate(entry.savedAt))}</small></div>
+      <div class="note-history-entry-content">
+        <strong>${escapeHtml(entry.title || 'Catatan')}</strong>
+        <p>${escapeHtml(entry.notes || 'Tidak ada isi catatan.')}</p>
+        ${(entry.tags ?? []).length ? `<div class="item-tags">${entry.tags.map((tag) => `<span class="tag-chip tone-${tagTone(tag)}"><span class="tag-dot" aria-hidden="true"></span>#${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
+      </div>
+    </div>
+  `).join('') : '<p class="note-history-empty">Belum ada perubahan catatan.</p>';
 }
 
 const customFieldTypes = [
@@ -700,6 +906,25 @@ function customFieldTypeOptions(selected) {
   return customFieldTypes.map(([value, label]) => `<option value="${value}" ${value === selected ? 'selected' : ''}>${label}</option>`).join('');
 }
 
+const customFieldTypeConfig = {
+  text: { inputType: 'text', placeholder: 'Contoh: Nomor tiket atau kode akses' },
+  secret: { inputType: 'password', placeholder: 'Contoh: PIN atau kode pemulihan' },
+  url: { inputType: 'url', placeholder: 'https://contoh.com' },
+  email: { inputType: 'email', placeholder: 'nama@contoh.com' },
+  number: { inputType: 'number', placeholder: 'Contoh: 12345', inputmode: 'decimal', step: 'any' },
+};
+
+function readCustomFieldRow(row) {
+  const type = row.querySelector('[data-field-type]')?.value || 'text';
+  const valueInput = row.querySelector('[data-field-value]');
+  return {
+    id: row.dataset.fieldId || crypto.randomUUID(),
+    label: row.querySelector('[data-field-label]')?.value || '',
+    type,
+    value: type === 'boolean' ? valueInput?.value === 'true' : (valueInput?.value || ''),
+  };
+}
+
 function renderCustomFields(fields = []) {
   if (!customFieldsList) return;
   const normalized = Array.isArray(fields) ? fields : [];
@@ -707,28 +932,280 @@ function renderCustomFields(fields = []) {
     const type = customFieldTypes.some(([value]) => value === field?.type) ? field.type : 'text';
     const boolean = type === 'boolean';
     const value = boolean ? (field.value === true || String(field.value).toLowerCase() === 'true') : String(field?.value ?? '');
+    const config = customFieldTypeConfig[type] || customFieldTypeConfig.text;
+    const inputAttributes = [
+      `type="${config.inputType}"`,
+      'maxlength="5000"',
+      `value="${escapeHtml(value)}"`,
+      `placeholder="${escapeHtml(config.placeholder)}"`,
+      'aria-label="Nilai custom field"',
+      config.inputmode ? `inputmode="${config.inputmode}"` : '',
+      config.step ? `step="${config.step}"` : '',
+      type === 'url' || type === 'email' ? 'spellcheck="false"' : '',
+    ].filter(Boolean).join(' ');
     return `<div class="custom-field-row" data-field-row data-field-id="${escapeHtml(field?.id || `field-${index}`)}">
       <div class="custom-field-label"><input data-field-label type="text" maxlength="80" value="${escapeHtml(field?.label ?? '')}" placeholder="Nama field (contoh: PIN)" aria-label="Nama custom field" /></div>
       <select data-field-type aria-label="Tipe custom field">${customFieldTypeOptions(type)}</select>
       <div class="custom-field-value">${boolean
-        ? `<label class="custom-field-check"><input data-field-value type="checkbox" ${value ? 'checked' : ''} /> Aktif</label>`
-        : `<input data-field-value type="${type === 'secret' ? 'password' : 'text'}" maxlength="5000" value="${escapeHtml(value)}" placeholder="Nilai field" aria-label="Nilai custom field" />${type === 'secret' ? '<button class="text-button custom-field-toggle secret-toggle" type="button" data-custom-toggle aria-label="Tampilkan secret field" title="Tampilkan secret field"><i class="fa-solid fa-eye" aria-hidden="true"></i></button>' : ''}`}</div>
+        ? `<select class="custom-field-boolean-value" data-field-value aria-label="Nilai Ya atau Tidak"><option value="false" ${value ? '' : 'selected'}>Tidak</option><option value="true" ${value ? 'selected' : ''}>Ya</option></select>`
+        : `<input data-field-value ${inputAttributes} />${type === 'secret' ? '<button class="text-button custom-field-toggle secret-toggle" type="button" data-custom-toggle aria-label="Tampilkan secret field" title="Tampilkan secret field"><i class="fa-solid fa-eye" aria-hidden="true"></i></button>' : ''}`}</div>
       <button class="icon-button custom-field-remove" type="button" data-remove-custom-field aria-label="Hapus custom field"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
     </div>`;
   }).join('');
 }
 
 function collectCustomFields() {
-  return [...(customFieldsList?.querySelectorAll('[data-field-row]') ?? [])].map((row) => {
-    const type = row.querySelector('[data-field-type]')?.value || 'text';
-    const valueInput = row.querySelector('[data-field-value]');
-    return {
-      id: row.dataset.fieldId || crypto.randomUUID(),
-      label: row.querySelector('[data-field-label]')?.value || '',
-      type,
-      value: type === 'boolean' ? Boolean(valueInput?.checked) : (valueInput?.value || ''),
-    };
-  }).filter((field) => field.label.trim());
+  return [...(customFieldsList?.querySelectorAll('[data-field-row]') ?? [])]
+    .map(readCustomFieldRow)
+    .filter((field) => field.label.trim());
+}
+
+function markdownInline(value) {
+  let html = escapeHtml(value);
+  html = html.replace(/`([^`\n]+)`/g, '<code>$1</code>');
+  html = html.replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, (_match, label, href) => {
+    const safeHref = /^(https?:\/\/|mailto:)/i.test(href) ? href : '#';
+    return `<a href="${escapeHtml(safeHref)}" target="_blank" rel="noreferrer">${label}</a>`;
+  });
+  html = html.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/__([^_\n]+)__/g, '<strong>$1</strong>');
+  html = html.replace(/~~([^~\n]+)~~/g, '<del>$1</del>');
+  html = html.replace(/==([^=\n]+)==/g, '<mark>$1</mark>');
+  html = html.replace(/\+\+([^+\n]+)\+\+/g, '<u>$1</u>');
+  html = html.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+  html = html.replace(/(^|[^_])_([^_\n]+)_(?!_)/g, '$1<em>$2</em>');
+  return html;
+}
+
+function renderNoteMarkdown(value) {
+  const sourceLines = String(value ?? '').replace(/\r\n?/g, '\n').split('\n');
+  const splitTableCells = (row) => row.trim().replace(/^\||\|$/g, '').split('|').map((cell) => cell.trim());
+  const isTableSeparator = (row) => {
+    const cells = splitTableCells(row || '');
+    return cells.length >= 2 && cells.every((cell) => /^:?-{3,}:?$/.test(cell));
+  };
+  const lines = [];
+  for (let index = 0; index < sourceLines.length; index += 1) {
+    const line = sourceLines[index];
+    if (line.includes('|') && isTableSeparator(sourceLines[index + 1])) {
+      const rows = [splitTableCells(line)];
+      let rowIndex = index + 2;
+      while (rowIndex < sourceLines.length && sourceLines[rowIndex].includes('|') && sourceLines[rowIndex].trim()) {
+        rows.push(splitTableCells(sourceLines[rowIndex]));
+        rowIndex += 1;
+      }
+      lines.push({ table: rows, lineIndex: index });
+      index = rowIndex - 1;
+    } else {
+      lines.push({ line, lineIndex: index });
+    }
+  }
+  const html = [];
+  let paragraph = [];
+  let listType = null;
+  let inCode = false;
+  let codeLines = [];
+  const closeList = () => {
+    if (listType) html.push(`</${listType}>`);
+    listType = null;
+  };
+  const flushParagraph = () => {
+    if (!paragraph.length) return;
+    html.push(`<p>${paragraph.map((line) => markdownInline(line)).join('<br>')}</p>`);
+    paragraph = [];
+  };
+  lines.forEach((entry) => {
+    if (entry.table) {
+      flushParagraph();
+      closeList();
+      const rows = entry.table;
+      const headers = rows[0] || [];
+      const body = rows.slice(1);
+      html.push('<div class="note-preview-table-wrap"><table class="note-preview-table"><thead><tr>'
+        + headers.map((cell) => `<th>${markdownInline(cell)}</th>`).join('')
+        + '</tr></thead><tbody>'
+        + body.map((row) => `<tr>${headers.map((_header, cellIndex) => `<td>${markdownInline(row[cellIndex] || '')}</td>`).join('')}</tr>`).join('')
+        + '</tbody></table></div>');
+      return;
+    }
+    const line = entry.line;
+    const trimmed = line.trim();
+    if (trimmed.startsWith('```')) {
+      flushParagraph();
+      closeList();
+      if (inCode) {
+        html.push(`<pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
+        codeLines = [];
+      }
+      inCode = !inCode;
+      return;
+    }
+    if (inCode) {
+      codeLines.push(line);
+      return;
+    }
+    if (!trimmed) {
+      flushParagraph();
+      closeList();
+      return;
+    }
+    const heading = trimmed.match(/^(#{1,3})\s+(.+)$/);
+    if (heading) {
+      flushParagraph();
+      closeList();
+      const level = heading[1].length;
+      html.push(`<h${level}>${markdownInline(heading[2])}</h${level}>`);
+      return;
+    }
+    if (/^---+$/.test(trimmed) || /^\*\*\*+$/.test(trimmed)) {
+      flushParagraph();
+      closeList();
+      html.push('<hr />');
+      return;
+    }
+    const check = trimmed.match(/^[-*]\s+\[([ xX])\]\s+(.+)$/);
+    if (check) {
+      flushParagraph();
+      if (listType !== 'ul') { closeList(); html.push('<ul class="note-preview-list">'); listType = 'ul'; }
+      const checked = check[1].toLowerCase() === 'x';
+      html.push(`<li class="note-preview-check"><button type="button" class="note-preview-check-toggle" data-note-line="${entry.lineIndex}" aria-label="${checked ? 'Tandai belum selesai' : 'Tandai selesai'}">${checked ? '✓' : ''}</button><span class="${checked ? 'is-checked' : ''}">${markdownInline(check[2])}</span></li>`);
+      return;
+    }
+    const unordered = trimmed.match(/^[-*+]\s+(.+)$/);
+    if (unordered) {
+      flushParagraph();
+      if (listType !== 'ul') { closeList(); html.push('<ul class="note-preview-list">'); listType = 'ul'; }
+      html.push(`<li>${markdownInline(unordered[1])}</li>`);
+      return;
+    }
+    const ordered = trimmed.match(/^\d+[.)]\s+(.+)$/);
+    if (ordered) {
+      flushParagraph();
+      if (listType !== 'ol') { closeList(); html.push('<ol class="note-preview-list">'); listType = 'ol'; }
+      html.push(`<li>${markdownInline(ordered[1])}</li>`);
+      return;
+    }
+    if (trimmed.startsWith('>')) {
+      flushParagraph();
+      closeList();
+      html.push(`<blockquote>${markdownInline(trimmed.replace(/^>\s?/, ''))}</blockquote>`);
+      return;
+    }
+    closeList();
+    paragraph.push(line);
+  });
+  flushParagraph();
+  if (inCode) html.push(`<pre><code>${escapeHtml(codeLines.join('\n'))}</code></pre>`);
+  closeList();
+  return html.join('') || '<p class="note-preview-empty">Belum ada isi catatan.</p>';
+}
+
+let noteEditorModeValue = 'write';
+
+function updateNotePreview() {
+  if (!notePreview || !itemNotesInput) return;
+  notePreview.innerHTML = renderNoteMarkdown(itemNotesInput.value);
+  if (noteEditorStatus) {
+    const length = itemNotesInput.value.length;
+    const limit = Number(itemNotesInput.maxLength) || 20000;
+    noteEditorStatus.textContent = `${length.toLocaleString('id-ID')} / ${limit.toLocaleString('id-ID')} karakter`;
+  }
+}
+
+function setNoteEditorMode(nextMode = 'write') {
+  noteEditorModeValue = nextMode === 'preview' ? 'preview' : 'write';
+  const preview = noteEditorModeValue === 'preview';
+  itemNotesInput?.classList.toggle('hidden', preview);
+  notePreview?.classList.toggle('hidden', !preview);
+  noteEditorMode?.querySelectorAll('[data-note-mode]').forEach((button) => {
+    const active = button.dataset.noteMode === noteEditorModeValue;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-selected', String(active));
+  });
+  if (preview) updateNotePreview();
+}
+
+function replaceNoteSelection(replacement, selectionStart, selectionEnd) {
+  if (!itemNotesInput) return;
+  itemNotesInput.focus();
+  itemNotesInput.setRangeText(replacement, selectionStart, selectionEnd, 'select');
+  itemNotesInput.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function applyNoteFormat(format) {
+  if (!itemNotesInput) return;
+  if (format === 'undo' || format === 'redo') {
+    itemNotesInput.focus();
+    document.execCommand(format);
+    updateNotePreview();
+    return;
+  }
+  const value = itemNotesInput.value;
+  const start = itemNotesInput.selectionStart ?? 0;
+  const end = itemNotesInput.selectionEnd ?? start;
+  const selected = value.slice(start, end);
+  if (format === 'clear') {
+    replaceNoteSelection(selected
+      .replace(/(^|\n)\s{0,3}#{1,3}\s+/g, '$1')
+      .replace(/(^|\n)\s*[-*+]\s+(?:\[[ xX]\]\s+)?/g, '$1')
+      .replace(/(^|\n)\s*\d+[.)]\s+/g, '$1')
+      .replace(/(^|\n)\s*>\s?/g, '$1')
+      .replace(/\*\*|__|~~|`|\+\+/g, ''), start, end);
+    return;
+  }
+  const wrappers = { bold: ['**', '**'], italic: ['*', '*'], underline: ['++', '++'], strike: ['~~', '~~'], code: ['`', '`'] };
+  if (wrappers[format]) {
+    const [left, right] = wrappers[format];
+    replaceNoteSelection(`${left}${selected || 'teks'}${right}`, start, end);
+    return;
+  }
+  if (format === 'link') {
+    replaceNoteSelection(`[${selected || 'teks tautan'}](https://contoh.com)`, start, end);
+    return;
+  }
+  if (format === 'code-block') {
+    replaceNoteSelection(`\`\`\`\n${selected || 'kode'}\n\`\`\``, start, end);
+    return;
+  }
+  if (format === 'table') {
+    replaceNoteSelection(`| Kolom 1 | Kolom 2 |\n| --- | --- |\n| Isi | Isi |`, start, end);
+    return;
+  }
+  if (format === 'callout') {
+    replaceNoteSelection(`> **Catatan:** ${selected || 'Tulis catatan penting di sini.'}`, start, end);
+    return;
+  }
+  if (format === 'date') {
+    const date = new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date());
+    replaceNoteSelection(date, start, end);
+    return;
+  }
+  if (format === 'rule') {
+    replaceNoteSelection(`${start > 0 && value[start - 1] !== '\n' ? '\n' : ''}---\n`, start, end);
+    return;
+  }
+  const lineStart = value.lastIndexOf('\n', Math.max(0, start - 1)) + 1;
+  const lineEndIndex = value.indexOf('\n', end);
+  const lineEnd = lineEndIndex < 0 ? value.length : lineEndIndex;
+  const block = value.slice(lineStart, lineEnd);
+  const prefixes = {
+    heading: '# ',
+    'heading-1': '# ',
+    'heading-2': '## ',
+    'heading-3': '### ',
+    paragraph: '',
+    bullet: '- ',
+    number: '1. ',
+    check: '- [ ] ',
+    quote: '> ',
+  };
+  const prefix = prefixes[format];
+  if (prefix === undefined) return;
+  const lines = block.split('\n');
+  const stripped = lines.map((line) => line.replace(/^\s*(?:#{1,3}\s+|[-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+|>\s?)/, ''));
+  const already = prefix && lines.every((line) => line.startsWith(prefix));
+  const nextBlock = already || format === 'paragraph' ? stripped.join('\n') : stripped.map((line) => `${prefix}${line}`).join('\n');
+  replaceNoteSelection(nextBlock, lineStart, lineEnd);
 }
 
 function updateItemTypeUi() {
@@ -737,7 +1214,15 @@ function updateItemTypeUi() {
   const password = document.querySelector('#item-password');
   password.required = !secureNote;
   document.querySelector('#generate-password').classList.toggle('hidden', secureNote);
-  document.querySelector('#item-notes').placeholder = secureNote ? 'Tulis catatan rahasia Anda…' : 'Keterangan singkat item (opsional)';
+  itemNotesLabel.textContent = secureNote ? 'Isi Catatan' : 'Deskripsi';
+  itemNotesInput.placeholder = secureNote ? 'Tulis catatan rahasia Anda…' : 'Keterangan singkat item (opsional)';
+  noteEditor?.classList.toggle('secure-note-editor', secureNote);
+  noteEditorToolbar.classList.toggle('hidden', !secureNote);
+  noteEditorMode.classList.toggle('hidden', !secureNote);
+  document.querySelector('#note-editor-help').classList.toggle('hidden', !secureNote);
+  noteEditorStatus?.classList.toggle('hidden', !secureNote);
+  if (!secureNote) setNoteEditorMode('write');
+  updateNotePreview();
 }
 
 function renderCustomCategories() {
@@ -811,6 +1296,87 @@ function showVaultNotice(text, isError = false) {
   vaultNotice.classList.toggle('error', isError);
   vaultNotice.classList.add('notice-pop');
   noticeTimer = setTimeout(() => vaultNotice.classList.add('hidden'), 4000);
+}
+
+let confirmResolver = null;
+let confirmPreviousFocus = null;
+let confirmClosing = false;
+
+function finishConfirm(value, resolve) {
+  confirmResolver = null;
+  confirmClosing = false;
+  confirmModal.classList.add('hidden');
+  confirmModal.removeAttribute('data-danger');
+  confirmModal.removeAttribute('data-has-list');
+  confirmModalList.classList.remove('is-removing');
+  confirmModalList.classList.add('hidden');
+  confirmModalList.replaceChildren();
+  resolve(Boolean(value));
+  if (confirmPreviousFocus?.isConnected) confirmPreviousFocus.focus({ preventScroll: true });
+  confirmPreviousFocus = null;
+}
+
+function resolveConfirm(value) {
+  if (!confirmResolver || confirmClosing) return;
+  const resolve = confirmResolver;
+  if (value && confirmModalList.children.length) {
+    confirmClosing = true;
+    confirmModalList.classList.add('is-removing');
+    window.setTimeout(() => finishConfirm(true, resolve), 3200);
+    return;
+  }
+  finishConfirm(value, resolve);
+}
+
+function askConfirm(text, { title = 'Konfirmasi tindakan', eyebrow = 'KONFIRMASI', confirmLabel = 'Lanjutkan', danger = false, items = [] } = {}) {
+  if (confirmResolver) resolveConfirm(false);
+  confirmPreviousFocus = document.activeElement;
+  confirmModalEyebrow.textContent = eyebrow;
+  confirmModalTitle.textContent = title;
+  confirmModalMessage.textContent = text;
+  confirmAcceptButton.textContent = confirmLabel;
+  confirmModal.toggleAttribute('data-danger', Boolean(danger));
+  const list = Array.isArray(items) ? items.filter(Boolean) : [];
+  confirmModal.toggleAttribute('data-has-list', list.length > 0);
+  confirmModalList.classList.toggle('hidden', list.length === 0);
+  confirmModalList.classList.remove('is-removing');
+  confirmModalList.innerHTML = list.map((item, index) => {
+    const titleText = String(item.title || 'Item tanpa nama');
+    const detail = item.type === 'secure-note'
+      ? 'Secure Note · Catatan terenkripsi'
+      : `${item.username || 'Tanpa username'}${item.url ? ` · ${item.url}` : ''}`;
+    return `<div class="confirm-modal-item" style="--confirm-index:${Math.min(index, 8)}" role="listitem">
+      <span class="confirm-modal-item-icon" aria-hidden="true"><i class="fa-solid ${item.type === 'secure-note' ? 'fa-note-sticky' : 'fa-key'}"></i></span>
+      <span class="confirm-modal-item-copy"><strong>${escapeHtml(titleText)}</strong><small>${escapeHtml(detail)}</small><span class="confirm-modal-item-status"><i class="fa-solid fa-spinner" aria-hidden="true"></i> Menghapus…</span></span>
+    </div>`;
+  }).join('');
+  confirmModal.classList.remove('hidden');
+  requestAnimationFrame(() => confirmAcceptButton.focus());
+  return new Promise((resolve) => { confirmResolver = resolve; });
+}
+
+confirmCancelButton.addEventListener('click', () => resolveConfirm(false));
+confirmAcceptButton.addEventListener('click', () => resolveConfirm(true));
+confirmModal.addEventListener('click', (event) => {
+  if (event.target === confirmModal) resolveConfirm(false);
+});
+
+function updateCopiedRow(row, button, usage, fieldLabel) {
+  const usageText = row.querySelector('.item-usage');
+  if (usageText && Number.isFinite(Number(usage?.usageCount))) {
+    usageText.textContent = `Dipakai ${usage.usageCount} kali`;
+  }
+  const originalHtml = button.innerHTML;
+  const originalAria = button.getAttribute('aria-label');
+  button.classList.add('copy-success');
+  button.innerHTML = '<i class="fa-solid fa-check" aria-hidden="true"></i>';
+  button.setAttribute('aria-label', `${fieldLabel} berhasil disalin`);
+  window.setTimeout(() => {
+    if (!button.isConnected) return;
+    button.classList.remove('copy-success');
+    button.innerHTML = originalHtml;
+    if (originalAria) button.setAttribute('aria-label', originalAria);
+  }, 850);
 }
 
 function setSettingsMessage(text, success = false) {
@@ -888,6 +1454,7 @@ function openSettings() {
   setInlineMessage(settingsAppMessage, '');
   updateTransferFormatFields();
   setSettingsMessage('');
+  applyTheme(getThemePreference());
   refreshSettingsGoogleState();
   settingsModal.classList.remove('hidden');
   loadAppSettings();
@@ -938,6 +1505,22 @@ function showAllTags() {
   clearFilterButton.classList.add('hidden');
   searchInput.value = '';
   searchInput.placeholder = 'Cari tag...';
+}
+
+function showNotes() {
+  currentFilter = 'notes';
+  currentGroup = null;
+  currentGroupPrefix = null;
+  currentTag = null;
+  selectedIds.clear();
+  const notesButton = document.querySelector('.tree-node[data-filter="notes"]');
+  document.querySelectorAll('.tree-node').forEach((node) => node.classList.toggle('active', node === notesButton));
+  document.querySelector('.vault-content h2').textContent = 'Noted';
+  clearFilterButton.textContent = '← Semua item';
+  clearFilterButton.setAttribute('aria-label', 'Kembali ke semua item');
+  clearFilterButton.classList.remove('hidden');
+  searchInput.value = '';
+  searchInput.placeholder = 'Cari catatan...';
 }
 
 function showTagItems(tag) {
@@ -996,9 +1579,11 @@ function openItemModal(item = null) {
   document.querySelector('#item-favorite').checked = item ? Boolean(item.favorite) : currentFilter === 'favorites';
   document.querySelector('#item-notes').value = item?.notes ?? '';
   document.querySelector('#item-tags').value = item ? (item.tags ?? []).join(', ') : (currentTag ?? '');
+  setNoteEditorMode('write');
   renderCustomFields(item?.fields ?? []);
   updateItemTypeUi();
-  renderPasswordHistory(item?.passwordHistory ?? [], Boolean(item));
+  if (item?.type === 'secure-note') renderNoteHistory(item.noteHistory ?? [], Boolean(item));
+  else renderPasswordHistory(item?.passwordHistory ?? [], Boolean(item));
   itemModal.classList.remove('hidden');
   document.querySelector('#item-title').focus();
 }
@@ -1009,6 +1594,7 @@ function closeItemModal() {
   itemModal.classList.add('hidden');
   itemForm.reset();
   renderCustomFields([]);
+  setNoteEditorMode('write');
   updateItemTypeUi();
   renderPasswordHistory([], false);
 }
@@ -1082,6 +1668,7 @@ syncButton.addEventListener('click', async () => {
 });
 
 settingsButton.addEventListener('click', openSettings);
+settingsTheme?.addEventListener('change', () => applyTheme(settingsTheme.value));
 closeSettingsButton.addEventListener('click', closeSettings);
 closeSettingsSecondaryButton.addEventListener('click', closeSettings);
 settingsModal.addEventListener('click', (event) => {
@@ -1265,7 +1852,10 @@ settingsExportButton.addEventListener('click', async () => {
 
 settingsImportButton.addEventListener('click', async () => {
   setInlineMessage(settingsTransferMessage, '');
-  if (settingsImportMode.value === 'replace' && !confirm('Mode “Ganti item aktif” akan mengganti item aktif yang ada. Lanjutkan?')) return;
+  if (settingsImportMode.value === 'replace' && !(await askConfirm(
+    'Mode “Ganti item aktif” akan mengganti item aktif yang ada. Lanjutkan?',
+    { title: 'Ganti item aktif?', eyebrow: 'IMPORT VAULT', confirmLabel: 'Lanjutkan', danger: true },
+  ))) return;
   settingsImportButton.disabled = true;
   settingsImportButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Memeriksa…';
   try {
@@ -1299,6 +1889,12 @@ logoutButton.addEventListener('click', async () => {
 document.querySelector('#close-modal').addEventListener('click', closeItemModal);
 document.querySelector('#cancel-item').addEventListener('click', closeItemModal);
 sidebarAddItemButton.addEventListener('click', () => openItemModal());
+sidebarAddNoteButton?.addEventListener('click', () => {
+  openItemModal();
+  itemTypeInput.value = 'secure-note';
+  updateItemTypeUi();
+  document.querySelector('#item-title')?.focus();
+});
 sidebarAddTagButton.addEventListener('click', () => {
   openItemModal();
   requestAnimationFrame(() => {
@@ -1341,6 +1937,11 @@ document.querySelector('.vault-tree').addEventListener('click', (event) => {
   }
   const button = event.target.closest('.tree-node, .sidebar-tag-chip');
   if (!button) return;
+  if (button.dataset.filter === 'notes') {
+    showNotes();
+    renderItems();
+    return;
+  }
     currentFilter = button.dataset.filter ?? 'group';
     currentGroup = button.dataset.group ?? null;
     currentGroupPrefix = button.dataset.groupPrefix ?? null;
@@ -1443,7 +2044,12 @@ categoryForm.addEventListener('submit', async (event) => {
 document.querySelector('#delete-category').addEventListener('click', async () => {
   const id = document.querySelector('#category-id').value;
   const category = categories.find((item) => item.id === id);
-  if (!category || !confirm(`Hapus kategori “${category.name}”? Subkategori juga dihapus dan item dipindahkan ke parent.`)) return;
+  if (!category) return;
+  const confirmed = await askConfirm(
+    `Hapus kategori “${category.name}”? Subkategori juga dihapus dan item dipindahkan ke parent.`,
+    { title: 'Hapus kategori?', eyebrow: 'KATEGORI CUSTOM', confirmLabel: 'Hapus Kategori', danger: true },
+  );
+  if (!confirmed) return;
   try {
     await window.passsa.deleteCategory(id);
     closeCategoryModal();
@@ -1523,9 +2129,18 @@ document.querySelector('#bulk-delete-button').addEventListener('click', async ()
   if (!ids.length) return;
   const permanent = currentFilter === 'trash';
   const prompt = permanent
-    ? `Hapus permanen ${ids.length} item? Tindakan ini tidak dapat dibatalkan.`
+    ? `Apakah Anda yakin ingin menghapus permanen ${ids.length} item? Data yang dihapus tidak dapat dipulihkan.`
     : `Pindahkan ${ids.length} item ke Recycle Bin?`;
-  if (!confirm(prompt)) return;
+  const selectedItems = ids
+    .map((id) => items.find((item) => item.id === id))
+    .filter(Boolean);
+  if (!(await askConfirm(prompt, {
+    title: permanent ? 'Apakah Anda yakin?' : 'Pindahkan ke Recycle Bin?',
+    eyebrow: permanent ? 'KONFIRMASI PERMANEN' : 'AKSI MASSAL',
+    confirmLabel: permanent ? 'Hapus Permanen' : 'Pindahkan',
+    danger: true,
+    items: selectedItems,
+  }))) return;
   try {
     if (permanent) await window.passsa.bulkPurge(ids);
     else await window.passsa.bulkDelete(ids);
@@ -1562,7 +2177,64 @@ document.querySelector('#generate-password').addEventListener('click', () => {
   updateSecretToggle(document.querySelector('#toggle-item-password'), true);
 });
 
-itemTypeInput.addEventListener('change', updateItemTypeUi);
+itemTypeInput.addEventListener('change', () => {
+  updateItemTypeUi();
+  if (itemTypeInput.value === 'secure-note') renderNoteHistory([], false);
+  else renderPasswordHistory([], false);
+});
+noteEditorToolbar.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-note-format]');
+  if (button) applyNoteFormat(button.dataset.noteFormat);
+});
+noteEditorMode.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-note-mode]');
+  if (button) setNoteEditorMode(button.dataset.noteMode);
+});
+noteHeadingLevel?.addEventListener('change', (event) => {
+  applyNoteFormat(event.currentTarget.value);
+  event.currentTarget.value = 'paragraph';
+});
+itemNotesInput.addEventListener('input', updateNotePreview);
+itemNotesInput.addEventListener('keydown', (event) => {
+  const key = event.key.toLowerCase();
+  if (event.ctrlKey && ['b', 'i', 'u'].includes(key)) {
+    event.preventDefault();
+    applyNoteFormat({ b: 'bold', i: 'italic', u: 'underline' }[key]);
+    return;
+  }
+  if (event.ctrlKey && key === 'y') {
+    event.preventDefault();
+    applyNoteFormat('redo');
+    return;
+  }
+  if (event.key === 'Tab') {
+    event.preventDefault();
+    const start = itemNotesInput.selectionStart ?? 0;
+    const end = itemNotesInput.selectionEnd ?? start;
+    replaceNoteSelection('  ', start, end);
+    return;
+  }
+  if (event.key !== 'Enter' || event.shiftKey) return;
+  const start = itemNotesInput.selectionStart ?? 0;
+  const lineStart = itemNotesInput.value.lastIndexOf('\n', Math.max(0, start - 1)) + 1;
+  const currentLine = itemNotesInput.value.slice(lineStart, start);
+  const continuation = currentLine.match(/^(\s*(?:[-*+]\s+\[[ xX]\]\s+|[-*+]\s+|\d+[.)]\s+|>\s?))(.*)$/);
+  if (!continuation || !continuation[2].trim()) return;
+  event.preventDefault();
+  replaceNoteSelection(`\n${continuation[1]}`, start, start);
+});
+notePreview?.addEventListener('click', (event) => {
+  const toggle = event.target.closest('[data-note-line]');
+  if (!toggle || !itemNotesInput) return;
+  const lineIndex = Number(toggle.dataset.noteLine);
+  const lines = itemNotesInput.value.replace(/\r\n?/g, '\n').split('\n');
+  const line = lines[lineIndex] || '';
+  const match = line.match(/^(\s*[-*+]\s+\[)([ xX])(\]\s+.*)$/);
+  if (!match) return;
+  lines[lineIndex] = `${match[1]}${match[2].toLowerCase() === 'x' ? ' ' : 'x'}${match[3]}`;
+  itemNotesInput.value = lines.join('\n');
+  itemNotesInput.dispatchEvent(new Event('input', { bubbles: true }));
+});
 addCustomFieldButton.addEventListener('click', () => {
   const fields = collectCustomFields();
   fields.push({ id: crypto.randomUUID(), label: '', type: 'text', value: '' });
@@ -1589,12 +2261,18 @@ customFieldsList.addEventListener('click', (event) => {
 customFieldsList.addEventListener('change', (event) => {
   const select = event.target.closest('[data-field-type]');
   if (!select) return;
-  const fields = collectCustomFields();
+  const rows = [...customFieldsList.querySelectorAll('[data-field-row]')];
+  const fields = rows.map(readCustomFieldRow);
   const row = select.closest('[data-field-row]');
-  const index = [...customFieldsList.querySelectorAll('[data-field-row]')].indexOf(row);
-  if (index < 0) return;
+  const index = rows.indexOf(row);
+  if (index < 0 || !fields[index]) return;
+  const previousType = fields[index].type;
   fields[index].type = select.value;
-  if (select.value === 'boolean') fields[index].value = Boolean(fields[index].value);
+  if (select.value === 'boolean') {
+    fields[index].value = ['true', '1', 'yes', 'ya', 'on'].includes(String(fields[index].value).trim().toLowerCase());
+  } else if (previousType === 'boolean') {
+    fields[index].value = fields[index].value ? 'true' : 'false';
+  }
   renderCustomFields(fields);
 });
 
@@ -1625,6 +2303,23 @@ passwordHistoryList.addEventListener('click', (event) => {
 
 itemModal.addEventListener('click', (event) => {
   if (event.target === itemModal) closeItemModal();
+});
+
+closeNoteDetailButton?.addEventListener('click', closeNoteDetail);
+noteDetailCloseSecondaryButton?.addEventListener('click', closeNoteDetail);
+noteDetailModal?.addEventListener('click', (event) => {
+  if (event.target === noteDetailModal) closeNoteDetail();
+});
+noteDetailEditButton?.addEventListener('click', async () => {
+  const id = noteDetailCurrentId;
+  if (!id) return;
+  try {
+    const item = await window.passsa.getItem(id);
+    closeNoteDetail();
+    if (item) openItemModal(item);
+  } catch (error) {
+    showVaultNotice(error.message || 'Catatan tidak dapat diedit.', true);
+  }
 });
 
 itemForm.addEventListener('submit', async (event) => {
@@ -1710,6 +2405,13 @@ itemsList.addEventListener('click', async (event) => {
     renderItems();
     return;
   }
+  if (row && !event.target.closest('button, input, a')) {
+    const rowItem = items.find((candidate) => candidate.id === row.dataset.id);
+    if (rowItem?.type === 'secure-note' && !rowItem.deletedAt) {
+      openNoteDetail(row.dataset.id);
+      return;
+    }
+  }
   const button = event.target.closest('[data-action]');
   if (!button || !row) return;
   const item = items.find((candidate) => candidate.id === row.dataset.id);
@@ -1727,10 +2429,7 @@ itemsList.addEventListener('click', async (event) => {
       const usage = await window.passsa.copyEntrySecret(item.id, field);
       item.usageCount = usage.usageCount;
       item.lastUsedAt = usage.lastUsedAt;
-      button.classList.add('copy-success');
-      button.textContent = '✓';
-      button.setAttribute('aria-label', `${field === 'username' ? 'Username' : 'Password'} berhasil disalin`);
-      setTimeout(renderItems, 850);
+      updateCopiedRow(row, button, usage, field === 'username' ? 'Username' : 'Password');
       showVaultNotice(`${field === 'username' ? 'Username' : 'Password'} disalin. Clipboard dibersihkan dalam 30 detik.`);
     }
     if (action === 'copy-url') {
@@ -1742,30 +2441,51 @@ itemsList.addEventListener('click', async (event) => {
       const usage = await window.passsa.copyEntrySecret(item.id, 'url');
       item.usageCount = usage.usageCount;
       item.lastUsedAt = usage.lastUsedAt;
-      button.classList.add('copy-success');
-      button.innerHTML = '✓';
-      button.setAttribute('aria-label', `Alamat situs berhasil disalin untuk ${item.title}`);
-      setTimeout(renderItems, 850);
+      updateCopiedRow(row, button, usage, 'Alamat situs');
       showVaultNotice('Alamat situs disalin. Clipboard dibersihkan dalam 30 detik.');
     }
-    if (action === 'delete' && confirm(`Hapus ${item.title}?`)) {
-      const result = await window.passsa.deleteItem(item.id);
-      items[items.findIndex((candidate) => candidate.id === item.id)] = result.item;
-      renderItems();
+    if (action === 'delete') {
+      const confirmed = await askConfirm(`Hapus “${item.title}” dan pindahkan ke Recycle Bin?`, {
+        title: 'Pindahkan item?',
+        eyebrow: 'RECYCLE BIN',
+        confirmLabel: 'Pindahkan',
+        danger: true,
+      });
+      if (confirmed) {
+        const result = await window.passsa.deleteItem(item.id);
+        items[items.findIndex((candidate) => candidate.id === item.id)] = result.item;
+        renderItems();
+      }
     }
     if (action === 'restore') {
       const result = await window.passsa.restoreItem(item.id);
       items[items.findIndex((candidate) => candidate.id === item.id)] = result.item;
       renderItems();
     }
-    if (action === 'purge' && confirm(`Hapus permanen ${item.title}? Tindakan ini tidak dapat dibatalkan.`)) {
-      await window.passsa.purgeItem(item.id);
-      items = items.filter((candidate) => candidate.id !== item.id);
-      renderItems();
+    if (action === 'purge') {
+      const confirmed = await askConfirm(`Apakah Anda yakin ingin menghapus permanen “${item.title}”? Data yang dihapus tidak dapat dipulihkan.`, {
+        title: 'Apakah Anda yakin?',
+        eyebrow: 'KONFIRMASI PERMANEN',
+        confirmLabel: 'Hapus Permanen',
+        danger: true,
+      });
+      if (confirmed) {
+        await window.passsa.purgeItem(item.id);
+        items = items.filter((candidate) => candidate.id !== item.id);
+        renderItems();
+      }
     }
   } catch (error) {
     showVaultNotice(error.message || 'Operasi item gagal.', true);
   }
+});
+
+itemsList.addEventListener('keydown', (event) => {
+  if (!['Enter', ' '].includes(event.key)) return;
+  const row = event.target.closest('.note-card');
+  if (!row || event.target.closest('button, input, a')) return;
+  event.preventDefault();
+  openNoteDetail(row.dataset.id);
 });
 
 document.addEventListener('click', (event) => {
@@ -1787,14 +2507,35 @@ document.addEventListener('keydown', (event) => {
     openItemModal();
     return;
   }
+  if (!confirmModal.classList.contains('hidden')) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      resolveConfirm(false);
+    }
+    return;
+  }
   if (event.key !== 'Escape') return;
-  if (!settingsModal.classList.contains('hidden')) closeSettings();
+  if (!noteDetailModal.classList.contains('hidden')) closeNoteDetail();
+  else if (!settingsModal.classList.contains('hidden')) closeSettings();
   else if (!categoryModal.classList.contains('hidden')) closeCategoryModal();
   else if (!bulkModal.classList.contains('hidden')) closeBulkModal();
   else if (!itemModal.classList.contains('hidden')) closeItemModal();
 });
 
 window.passsa.onLocked((reason) => showAuth(reason || 'Vault dikunci.'));
+window.passsa.onQuickAccessOpen(async (id) => {
+  try {
+    const item = await window.passsa.getItem(String(id || ''));
+    if (!item) {
+      showVaultNotice('Credential tidak ditemukan.', true);
+      return;
+    }
+    if (item.type === 'secure-note') await openNoteDetail(item.id);
+    else openItemModal(item);
+  } catch (error) {
+    showVaultNotice(error.message || 'Credential tidak dapat dibuka.', true);
+  }
+});
 
 window.passsa.session().then((user) => {
   if (user) showVault(user);

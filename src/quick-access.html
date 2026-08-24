@@ -5,6 +5,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PassSa Quick Access</title>
+    <link rel="stylesheet" href="../node_modules/@fortawesome/fontawesome-free/css/all.min.css" />
     <link rel="stylesheet" href="quick-access.css" />
   </head>
   <body>
@@ -18,7 +19,7 @@
       </header>
 
       <label class="quick-search" for="quick-search-input">
-        <span aria-hidden="true">⌕</span>
+        <i class="fa-solid fa-magnifying-glass" aria-hidden="true"></i>
         <input id="quick-search-input" type="search" autocomplete="off" placeholder="Cari credential…" aria-label="Cari credential" />
         <kbd>Esc</kbd>
       </label>
@@ -26,19 +27,42 @@
       <p id="quick-status" class="quick-status" role="status" aria-live="polite"></p>
 
       <section id="quick-pinned-section" class="quick-section hidden" aria-labelledby="quick-pinned-title">
-        <div class="quick-section-title"><span id="quick-pinned-title">Disematkan</span><span id="quick-pinned-count" class="quick-count"></span></div>
+        <div class="quick-section-title"><span id="quick-pinned-title"><i class="fa-solid fa-star" aria-hidden="true"></i> Disematkan</span><span id="quick-pinned-count" class="quick-count"></span></div>
         <div id="quick-pinned-list" class="quick-list"></div>
       </section>
 
       <section id="quick-recent-section" class="quick-section" aria-labelledby="quick-recent-title">
-        <div class="quick-section-title"><span id="quick-recent-title">Terakhir digunakan</span><span id="quick-recent-count" class="quick-count"></span></div>
+        <div class="quick-section-title">
+          <span id="quick-recent-title">Terakhir digunakan</span>
+          <div class="quick-section-tools">
+            <span id="quick-recent-count" class="quick-count"></span>
+            <button id="quick-clear-recent" class="quick-clear-recent hidden" type="button" aria-label="Bersihkan riwayat penggunaan" title="Bersihkan riwayat penggunaan">
+              <i class="fa-solid fa-eraser" aria-hidden="true"></i><span>Bersihkan</span>
+            </button>
+          </div>
+        </div>
         <div id="quick-recent-list" class="quick-list"></div>
       </section>
 
       <div id="quick-empty" class="quick-empty hidden">
-        <span aria-hidden="true">⌕</span>
+        <span aria-hidden="true"><i class="fa-solid fa-magnifying-glass"></i></span>
         <strong id="quick-empty-title">Belum ada credential di Quick Access</strong>
         <small id="quick-empty-subtitle">Pin item atau salin credential untuk melihatnya di sini.</small>
+      </div>
+
+      <div id="quick-note-modal" class="quick-note-modal hidden" role="dialog" aria-modal="true" aria-labelledby="quick-note-title">
+        <section class="quick-note-card">
+          <header class="quick-note-header">
+            <div>
+              <p class="quick-note-eyebrow">SECURE NOTE</p>
+              <h2 id="quick-note-title"></h2>
+              <small id="quick-note-meta"></small>
+            </div>
+            <button id="quick-note-close" class="quick-close" type="button" aria-label="Tutup catatan">×</button>
+          </header>
+          <div id="quick-note-body" class="quick-note-body"></div>
+          <div id="quick-note-tags" class="quick-note-tags"></div>
+        </section>
       </div>
 
       <footer class="quick-footer"><span>Alt + Shift + P</span><span>Quick Access</span></footer>

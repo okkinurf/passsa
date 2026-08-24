@@ -56,9 +56,12 @@ Set `PASSA_RESET_VAULT=true` untuk menghapus seluruh isi vault sebelum membuat d
 - `npm test`: unit/integration test.
 - `npm run test:e2e`: smoke test UI Electron tersembunyi.
 - `npm run qa`: unit dan E2E.
+- `npm run qa:full`: unit, E2E, validasi Tauri, dan audit sintaks JavaScript.
 - `npm run dist`: build produksi yang wajib memiliki code-signing credential.
 - `npm run dist:unsigned`: installer unsigned khusus QA lokal.
 - Panduan release: lihat `docs/WINDOWS_RELEASE.md`.
+- Persiapan Tauri v2 dan rencana port Android: lihat `docs/TAURI_V2_MIGRATION.md`. Jalankan `npm run qa:tauri` untuk validasi shell dan prerequisite native.
+- Peta arsitektur dan workflow perubahan: lihat `docs/ARCHITECTURE.md`.
 
 Lisensi dependency visual tersedia di `THIRD_PARTY_NOTICES.md`.
 - Struktur proyek mengadaptasi pemisahan core/crypto/storage/service/gui dari KeePassXC; lihat `docs/KEEPASSXC_ARCHITECTURE.md`.

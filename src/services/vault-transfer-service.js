@@ -197,6 +197,7 @@ function normalizeDocument(document) {
       id: typeof raw.id === 'string' && raw.id.length <= 80 ? raw.id : base.id,
       type: raw.type ?? base.type,
       history: Array.isArray(raw.history) ? raw.history : [],
+      noteHistory: Array.isArray(raw.noteHistory) ? raw.noteHistory : [],
       createdAt: raw.createdAt ?? base.createdAt,
       updatedAt: raw.updatedAt ?? base.updatedAt,
       usageCount: raw.usageCount,

@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { buildEntry, normalizeEntry, normalizeTags, normalizeCustomFields, MAX_HISTORY } = require('../src/core/vault-entry');
+const { buildEntry, normalizeEntry, normalizeTags, normalizeCustomFields, MAX_HISTORY, MAX_NOTE_HISTORY } = require('../src/core/vault-entry');
 
 test('entry lama dinormalisasi tanpa menghilangkan data', () => {
   const old = { id: '1', title: 'Lama', password: 'secret', username: '', url: '', notes: '' };
@@ -35,6 +35,28 @@ test('secure note tidak memerlukan password login dan tetap menyimpan fields', (
   assert.equal(note.type, 'secure-note');
   assert.equal(note.password, '');
   assert.equal(note.fields[0].value, 'ABC');
+});
+
+test('perubahan secure note menyimpan versi sebelumnya tanpa secret password', () => {
+  const first = buildEntry({
+    type: 'secure-note',
+    title: 'Catatan QA',
+    notes: 'Versi pertama',
+    group: 'Personal/Notes',
+    tags: ['qa'],
+    fields: [{ label: 'Kode', type: 'secret', value: 'ABC' }],
+  });
+  const second = buildEntry({ ...first, notes: 'Versi kedua' }, first);
+  assert.equal(second.noteHistory.length, 1);
+  assert.equal(second.noteHistory[0].notes, 'Versi pertama');
+  assert.equal(second.noteHistory[0].fields[0].value, 'ABC');
+  assert.equal(Object.hasOwn(second.noteHistory[0], 'password'), false);
+
+  let entry = second;
+  for (let index = 0; index < MAX_NOTE_HISTORY + 3; index += 1) {
+    entry = buildEntry({ ...entry, notes: `Versi ${index + 3}` }, entry);
+  }
+  assert.equal(entry.noteHistory.length, MAX_NOTE_HISTORY);
 });
 
 test('perubahan entry menyimpan versi sebelumnya dalam history', () => {

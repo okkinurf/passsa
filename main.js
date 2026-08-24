@@ -18,6 +18,7 @@ const { GoogleClientSecretStore } = require('./src/storage/google-client-secret-
 const { GoogleUnlockStore } = require('./src/storage/google-unlock-store');
 const { WindowsHelloStore } = require('./src/storage/windows-hello-store');
 const { findAutofillMatches } = require('./src/services/autofill-matcher');
+const { assertTrustedSender, createMutationSerializer } = require('./src/main/ipc-helpers');
 const {
   MAX_IMPORT_BYTES,
   csvToDocument,
@@ -52,7 +53,8 @@ let minimizeToTray = false;
 let isQuitting = false;
 let quickAccessHotkeyRegistered = false;
 let quickAccessEnabled = true;
-let mutationQueue = Promise.resolve();
+let activeTheme = 'light';
+const serializeMutation = createMutationSerializer();
 const clipboardTimers = new Set();
 
 function nativeHostMetadataCandidates() {
@@ -109,21 +111,9 @@ function runNativeHostMode() {
 
 if (nativeHostMode) runNativeHostMode();
 
-function assertTrustedSender(event, sourceWindow = mainWindow) {
-  if (!sourceWindow || sourceWindow.isDestroyed() || event.sender !== sourceWindow.webContents) {
-    throw new Error('Permintaan IPC tidak dipercaya.');
-  }
-}
-
-function serializeMutation(operation) {
-  const result = mutationQueue.then(operation, operation);
-  mutationQueue = result.catch(() => undefined);
-  return result;
-}
-
 function publicEntry(entry) {
   if (!entry) return entry;
-  const { password: _password, history: _history, ...summary } = entry;
+  const { password: _password, history: _history, noteHistory: _noteHistory, ...summary } = entry;
   if (Array.isArray(summary.fields)) {
     summary.fields = summary.fields.map(({ id, label, type, required }) => ({ id, label, type, required: Boolean(required) }));
   }
@@ -280,6 +270,11 @@ function positionQuickAccessWindow() {
   quickAccessWindow.setPosition(Math.round(x), Math.round(y), false);
 }
 
+function syncQuickAccessTheme() {
+  if (!quickAccessWindow || quickAccessWindow.isDestroyed() || quickAccessWindow.webContents.isLoading()) return;
+  quickAccessWindow.webContents.send('quick-access:theme', activeTheme);
+}
+
 function createQuickAccessWindow() {
   if (quickAccessWindow && !quickAccessWindow.isDestroyed()) return quickAccessWindow;
   quickAccessWindow = new BrowserWindow({
@@ -310,6 +305,7 @@ function createQuickAccessWindow() {
   });
   quickAccessWindow.setAlwaysOnTop(true, 'floating');
   quickAccessWindow.loadFile(path.join(__dirname, 'src', 'quick-access.html'));
+  quickAccessWindow.webContents.on('did-finish-load', syncQuickAccessTheme);
   quickAccessWindow.on('blur', () => quickAccessWindow?.hide());
   quickAccessWindow.on('closed', () => { quickAccessWindow = null; });
   return quickAccessWindow;
@@ -326,6 +322,7 @@ function toggleQuickAccess() {
   positionQuickAccessWindow();
   window.show();
   window.focus();
+  syncQuickAccessTheme();
   window.webContents.send('quick-access:refresh');
 }
 
@@ -444,7 +441,7 @@ function createTray() {
 function registerIpc() {
   const handle = (channel, operation, mutate = false) => {
     ipcMain.handle(channel, (event, ...args) => {
-      assertTrustedSender(event);
+      assertTrustedSender(event, mainWindow);
       const invoke = () => operation(...args);
       return mutate ? serializeMutation(invoke) : invoke();
     });
@@ -456,6 +453,21 @@ function registerIpc() {
       return mutate ? serializeMutation(invoke) : invoke();
     });
   };
+  handle('window:minimize', () => {
+    mainWindow?.minimize();
+    return { ok: true };
+  });
+  handle('window:toggle-maximize', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return { ok: false };
+    if (mainWindow.isMaximized()) mainWindow.unmaximize();
+    else mainWindow.maximize();
+    return { ok: true, maximized: mainWindow.isMaximized() };
+  });
+  handle('window:close', () => {
+    if (!mainWindow || mainWindow.isDestroyed()) return { ok: false };
+    mainWindow.close();
+    return { ok: true };
+  });
   ipcMain.on('quick-access:close', (event) => {
     assertTrustedSender(event, quickAccessWindow);
     quickAccessWindow?.hide();
@@ -736,6 +748,13 @@ function registerIpc() {
     mainWindow.setSize(width, Math.max(bounds.height, 620), true);
     return { ok: true, mode: nextMode, width };
   });
+  handle('window:set-theme', (theme) => {
+    const nextTheme = theme === 'dark' ? 'dark' : 'light';
+    activeTheme = nextTheme;
+    mainWindow.setBackgroundColor(nextTheme === 'dark' ? '#170d15' : '#fbf7f9');
+    syncQuickAccessTheme();
+    return { ok: true, theme: nextTheme };
+  });
   handle('settings:get-app', async () => {
     const settings = await appSettingsStore.read();
     let startWithWindows = false;
@@ -819,11 +838,47 @@ function registerIpc() {
     const entries = await vaultService.list();
     return { ok: true, items: entries.filter((entry) => !entry.deletedAt).map(publicQuickAccessEntry) };
   });
+  quickHandle('quick-access:clear-recent', async () => {
+    if (!authService?.session()) return { ok: false, code: 'LOCKED', message: 'Vault sedang terkunci.' };
+    return vaultService.clearRecentUsage();
+  }, true);
   quickHandle('quick-access:toggle-pin', async (id) => {
     if (!authService?.session()) return { ok: false, code: 'LOCKED', message: 'Vault sedang terkunci.' };
     const result = await vaultService.toggleQuickPinned(String(id || ''));
     return { ...result, item: publicQuickAccessEntry(result.item) };
   }, true);
+  quickHandle('quick-access:get-note', async (id) => {
+    if (!authService?.session()) return { ok: false, code: 'LOCKED', message: 'Vault sedang terkunci.' };
+    const item = await vaultService.getForEditing(String(id || ''));
+    if (!item || item.type !== 'secure-note') return { ok: false, message: 'Secure Note tidak ditemukan.' };
+    return {
+      ok: true,
+      note: {
+        id: item.id,
+        title: item.title || 'Catatan',
+        group: item.group || 'Umum',
+        notes: item.notes || '',
+        tags: Array.isArray(item.tags) ? item.tags.slice(0, 20) : [],
+      },
+    };
+  });
+  quickHandle('quick-access:use-note', async (id) => {
+    if (!authService?.session()) return { ok: false, code: 'LOCKED', message: 'Vault sedang terkunci.' };
+    return vaultService.useNote(String(id || ''));
+  }, true);
+  quickHandle('quick-access:open-item', async (id) => {
+    if (!authService?.session()) return { ok: false, code: 'LOCKED', message: 'Buka PassSa untuk membuka credential.' };
+    const item = await vaultService.getForEditing(String(id || ''));
+    if (!item?.id) return { ok: false, message: 'Credential tidak ditemukan.' };
+    showMainWindow();
+    const sendOpenEvent = () => {
+      if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('quick-access:open-item', item.id);
+    };
+    if (mainWindow?.webContents.isLoading()) mainWindow.webContents.once('did-finish-load', sendOpenEvent);
+    else sendOpenEvent();
+    quickAccessWindow?.hide();
+    return { ok: true };
+  });
   quickHandle('quick-access:copy', async ({ id, field } = {}) => {
     if (!authService?.session()) return { ok: false, code: 'LOCKED', message: 'Vault sedang terkunci.' };
     const allowedFields = new Set(['url', 'username', 'password']);
@@ -845,12 +900,7 @@ function createWindow() {
     backgroundColor: '#f5f7fb',
     title: 'PassSa',
     icon: path.join(__dirname, 'src', 'assets', 'passsa-mark.png'),
-    titleBarStyle: 'hidden',
-    titleBarOverlay: {
-      color: '#f7f8fa',
-      symbolColor: '#536273',
-      height: 36,
-    },
+    frame: false,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,

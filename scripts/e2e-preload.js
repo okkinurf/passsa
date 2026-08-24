@@ -37,7 +37,7 @@ contextBridge.exposeInMainWorld('passsa', {
   listItems: async () => structuredClone(items),
   getItem: async (id) => {
     const item = structuredClone(items.find((candidate) => candidate.id === id));
-    return { ...item, password: 'qa-secret', passwordHistory: item?.history ?? [] };
+    return { ...item, password: 'qa-secret', passwordHistory: item?.history ?? [], noteHistory: item?.noteHistory ?? [] };
   },
   addItem: async (input) => { const item = { ...input, id: String(items.length + 1), tags: [], usageCount: 0, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }; items.push(item); return { ok: true, item }; },
   updateItem: async (input) => {
@@ -45,11 +45,28 @@ contextBridge.exposeInMainWorld('passsa', {
     if (index < 0) return { ok: false, message: 'Item tidak ditemukan.' };
     const next = structuredClone(input);
     next.tags = Array.isArray(next.tags) ? next.tags : String(next.tags ?? '').split(',').map((tag) => tag.trim()).filter(Boolean);
+    const previous = items[index];
+    if (previous.type === 'secure-note' && next.type === 'secure-note' && previous.notes !== next.notes) {
+      next.noteHistory = [...(previous.noteHistory ?? []), {
+        title: previous.title,
+        notes: previous.notes,
+        group: previous.group,
+        tags: previous.tags ?? [],
+        fields: previous.fields ?? [],
+        savedAt: previous.updatedAt,
+      }];
+    }
     items[index] = { ...items[index], ...next, updatedAt: new Date().toISOString() };
     return { ok: true, item: structuredClone(items[index]) };
   },
   toggleFavorite: async (id) => ({ ok: true, item: items.find((item) => item.id === id) }),
-  deleteItem: ok, restoreItem: ok, purgeItem: ok,
+  deleteItem: async (id) => {
+    const index = items.findIndex((item) => item.id === id);
+    if (index < 0) return { ok: false, message: 'Item tidak ditemukan.' };
+    items[index] = { ...items[index], deletedAt: new Date().toISOString() };
+    return { ok: true, item: structuredClone(items[index]) };
+  },
+  restoreItem: ok, purgeItem: ok,
   bulkUpdate: ok, bulkDelete: ok, bulkRestore: ok, bulkPurge: ok,
   copyEntrySecret: async () => ({ usageCount: 1, lastUsedAt: new Date().toISOString() }),
   listCategories: async () => [

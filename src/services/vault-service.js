@@ -282,6 +282,39 @@ class VaultService {
     };
   }
 
+  async useNote(id) {
+    const items = await this.list();
+    const item = items.find((candidate) => candidate.id === id && candidate.type === 'secure-note' && !candidate.deletedAt);
+    if (!item) throw new Error('Secure Note tidak ditemukan.');
+    const usedAt = new Date().toISOString();
+    item.usageCount = (item.usageCount ?? 0) + 1;
+    item.lastUsedAt = usedAt;
+    item.recentUseHistory = [
+      ...(item.recentUseHistory ?? []),
+      { field: 'note', usedAt },
+    ].slice(-12);
+    await this.save(items);
+    return {
+      ok: true,
+      usage: { id: item.id, field: 'note', usageCount: item.usageCount, lastUsedAt: item.lastUsedAt, recentUseHistory: item.recentUseHistory },
+    };
+  }
+
+  async clearRecentUsage() {
+    const document = await this.document();
+    let cleared = 0;
+    document.items = document.items.map((item) => {
+      const hasUsage = Number(item.usageCount) > 0
+        || Boolean(item.lastUsedAt)
+        || (Array.isArray(item.recentUseHistory) && item.recentUseHistory.length > 0);
+      if (!hasUsage) return item;
+      cleared += 1;
+      return { ...item, usageCount: 0, lastUsedAt: null, recentUseHistory: [] };
+    });
+    if (cleared > 0) await this.writeDocument(document);
+    return { ok: true, cleared };
+  }
+
   async moveToTrash(id) {
     const items = await this.list();
     const item = items.find((candidate) => candidate.id === id && !candidate.deletedAt);

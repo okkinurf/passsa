@@ -12,7 +12,18 @@
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <div class="app-titlebar"><img src="assets/passsa-mark.png" alt="" /><span>PassSa</span><span id="titlebar-sync-status" class="titlebar-sync-status disconnected" role="status" aria-live="polite" title="Google Drive belum terhubung"><i class="fa-solid fa-cloud" aria-hidden="true"></i><span>Google Drive belum terhubung</span></span></div>
+    <div class="app-titlebar" role="banner">
+      <div class="app-titlebar-drag-region">
+        <img src="assets/passsa-mark.png" alt="" />
+        <span>PassSa</span>
+        <span id="titlebar-sync-status" class="titlebar-sync-status disconnected" role="status" aria-live="polite" title="Google Drive belum terhubung"><i class="fa-solid fa-cloud" aria-hidden="true"></i><span>Google Drive belum terhubung</span></span>
+      </div>
+      <div class="window-controls" role="group" aria-label="Kontrol jendela">
+        <button id="window-minimize" class="window-control" type="button" aria-label="Minimalkan" title="Minimalkan"><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
+        <button id="window-maximize" class="window-control" type="button" aria-label="Maksimalkan" title="Maksimalkan"><i class="fa-regular fa-square" aria-hidden="true"></i></button>
+        <button id="window-close" class="window-control window-control-close" type="button" aria-label="Tutup PassSa" title="Tutup"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+      </div>
+    </div>
     <main id="auth-view" class="auth-layout">
       <section class="brand-panel">
         <img class="brand-logo" src="assets/passsa-mark.png" alt="PassSa" />
@@ -29,6 +40,7 @@
 
       <section class="form-panel">
         <div class="auth-card">
+          <div class="auth-mark" aria-hidden="true"><i class="fa-solid fa-lock"></i></div>
           <div class="tabs" data-mode="login" role="tablist" aria-label="Autentikasi">
             <button id="login-tab" class="tab active" type="button" role="tab" aria-selected="true">Masuk</button>
             <button id="register-tab" class="tab" type="button" role="tab" aria-selected="false">Daftar</button>
@@ -41,10 +53,14 @@
 
           <form id="auth-form" novalidate>
             <label for="email">Email atau Username</label>
-            <input id="email" name="email" type="text" autocomplete="username" placeholder="nama@email.com atau username" required />
+            <div class="auth-input-shell">
+              <i class="fa-solid fa-envelope" aria-hidden="true"></i>
+              <input id="email" name="email" type="text" autocomplete="username" placeholder="nama@email.com atau username" required />
+            </div>
 
             <label for="password">Password</label>
-            <div class="password-field">
+            <div class="auth-input-shell password-field">
+              <i class="fa-solid fa-lock" aria-hidden="true"></i>
               <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Minimal 8 karakter" minlength="8" required />
               <button id="toggle-password" class="text-button secret-toggle" type="button" aria-label="Tampilkan password" title="Tampilkan password"><i class="fa-solid fa-eye" aria-hidden="true"></i></button>
             </div>
@@ -97,6 +113,7 @@
             <div id="insights-list" class="sidebar-group-list">
               <div class="tree-row level-1"><span class="tree-spacer"></span><button class="tree-node sidebar-link" type="button" data-filter="favorites" data-title="Favorit"><i class="fa-solid fa-star system-icon favorite-icon"></i><span data-label>Favorit</span><span id="sidebar-favorites-count" class="sidebar-count" data-label>0</span></button></div>
               <div class="tree-row level-1"><span class="tree-spacer"></span><button class="tree-node sidebar-link" type="button" data-filter="trash" data-title="Recycle Bin"><i class="fa-solid fa-trash-can"></i><span data-label>Recycle Bin</span><span id="sidebar-trash-count" class="sidebar-count" data-label>0</span></button></div>
+              <div class="tree-row level-1"><span class="tree-spacer"></span><button class="tree-node sidebar-link" type="button" data-filter="notes" data-title="Noted"><i class="fa-solid fa-note-sticky"></i><span data-label>Noted</span><span id="sidebar-notes-count" class="sidebar-count" data-label>0</span></button></div>
               <div class="tree-row level-1">
                 <span class="tree-spacer"></span>
                 <button class="tree-node sidebar-link" type="button" data-filter="tags" data-title="Semua Tags"><i class="fa-solid fa-tags system-icon tags-icon"></i><span data-label>Tags</span><span id="sidebar-tags-count" class="sidebar-count" data-label>0</span></button>
@@ -107,6 +124,7 @@
         <div class="sidebar-fixed">
           <div class="sidebar-create-actions" aria-label="Buat baru">
             <button id="sidebar-add-item-button" class="sidebar-create-button" type="button" data-sidebar-tooltip="New Credential"><i class="fa-solid fa-plus"></i><span data-label>New Credential</span></button>
+            <button id="sidebar-add-note-button" class="sidebar-create-button" type="button" data-sidebar-tooltip="New Noted"><i class="fa-solid fa-plus"></i><span data-label>New Noted</span></button>
             <button id="sidebar-add-tag-button" class="sidebar-create-button" type="button" title="Buat tag melalui credential baru" data-sidebar-tooltip="New Tags"><i class="fa-solid fa-plus"></i><span data-label>New Tags</span></button>
             <button id="add-category-button" class="sidebar-create-button" type="button" data-sidebar-tooltip="Kategori Custom"><i class="fa-solid fa-plus"></i><span data-label>Kategori Custom</span></button>
           </div>
@@ -218,8 +236,54 @@
             <label for="item-favorite">Tandai sebagai favorit</label>
           </div>
         </div>
-        <label for="item-notes">Deskripsi</label>
-        <textarea id="item-notes" maxlength="5000" rows="3" placeholder="Keterangan singkat item (opsional)"></textarea>
+        <label id="item-notes-label" for="item-notes">Deskripsi</label>
+        <div id="note-editor" class="note-editor">
+          <div id="note-editor-toolbar" class="note-editor-toolbar" role="toolbar" aria-label="Format Secure Note">
+            <div class="note-editor-group" role="group" aria-label="Riwayat editor">
+              <button type="button" data-note-format="undo" title="Urungkan (Ctrl+Z)" aria-label="Urungkan"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i></button>
+              <button type="button" data-note-format="redo" title="Ulangi (Ctrl+Y)" aria-label="Ulangi"><i class="fa-solid fa-rotate-right" aria-hidden="true"></i></button>
+            </div>
+            <span class="note-editor-divider" aria-hidden="true"></span>
+            <label class="note-editor-select-wrap" aria-label="Gaya teks">
+              <span class="sr-only">Gaya teks</span>
+              <select id="note-heading-level" data-note-format-select aria-label="Gaya teks">
+                <option value="paragraph">Paragraf</option>
+                <option value="heading-1">Judul 1</option>
+                <option value="heading-2">Judul 2</option>
+                <option value="heading-3">Judul 3</option>
+              </select>
+            </label>
+            <span class="note-editor-divider" aria-hidden="true"></span>
+            <button type="button" data-note-format="bold" title="Tebal (Ctrl+B)" aria-label="Tebal"><i class="fa-solid fa-bold" aria-hidden="true"></i></button>
+            <button type="button" data-note-format="italic" title="Miring (Ctrl+I)" aria-label="Miring"><i class="fa-solid fa-italic" aria-hidden="true"></i></button>
+            <button type="button" data-note-format="underline" title="Garis bawah (Ctrl+U)" aria-label="Garis bawah"><i class="fa-solid fa-underline" aria-hidden="true"></i></button>
+            <button type="button" data-note-format="strike" title="Coret" aria-label="Coret"><i class="fa-solid fa-strikethrough" aria-hidden="true"></i></button>
+            <span class="note-editor-divider" aria-hidden="true"></span>
+            <button type="button" data-note-format="bullet" title="Daftar bullet" aria-label="Daftar bullet"><i class="fa-solid fa-list-ul" aria-hidden="true"></i></button>
+            <button type="button" data-note-format="number" title="Daftar bernomor" aria-label="Daftar bernomor"><i class="fa-solid fa-list-ol" aria-hidden="true"></i></button>
+            <button type="button" data-note-format="check" title="Checklist" aria-label="Checklist"><i class="fa-solid fa-list-check" aria-hidden="true"></i></button>
+            <button type="button" data-note-format="quote" title="Quote" aria-label="Quote"><i class="fa-solid fa-quote-left" aria-hidden="true"></i></button>
+            <span class="note-editor-divider" aria-hidden="true"></span>
+            <button type="button" data-note-format="code" title="Kode inline" aria-label="Kode inline"><i class="fa-solid fa-code" aria-hidden="true"></i></button>
+            <button type="button" data-note-format="code-block" title="Blok kode" aria-label="Blok kode"><i class="fa-solid fa-file-code" aria-hidden="true"></i></button>
+            <button type="button" data-note-format="link" title="Tautan" aria-label="Tautan"><i class="fa-solid fa-link" aria-hidden="true"></i></button>
+            <button type="button" data-note-format="table" title="Tabel" aria-label="Tabel"><i class="fa-solid fa-table" aria-hidden="true"></i></button>
+            <button type="button" data-note-format="callout" title="Callout" aria-label="Callout"><i class="fa-solid fa-message" aria-hidden="true"></i></button>
+            <button type="button" data-note-format="rule" title="Garis pemisah" aria-label="Garis pemisah"><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
+            <button type="button" data-note-format="date" title="Sisipkan tanggal" aria-label="Sisipkan tanggal"><i class="fa-regular fa-calendar" aria-hidden="true"></i></button>
+            <button type="button" data-note-format="clear" title="Hapus format" aria-label="Hapus format"><i class="fa-solid fa-eraser" aria-hidden="true"></i></button>
+          </div>
+          <div id="note-editor-mode" class="note-editor-mode" role="tablist" aria-label="Mode editor">
+            <button type="button" data-note-mode="write" role="tab" aria-selected="true">Tulis</button>
+            <button type="button" data-note-mode="preview" role="tab" aria-selected="false">Preview</button>
+          </div>
+          <textarea id="item-notes" maxlength="20000" rows="8" spellcheck="true" placeholder="Keterangan singkat item (opsional)"></textarea>
+          <div id="note-preview" class="note-preview hidden" role="region" aria-label="Preview Secure Note"></div>
+          <div class="note-editor-footer">
+            <small id="note-editor-help" class="field-help">Markdown: **tebal**, *miring*, tabel, checklist, quote, kode, dan tautan aman.</small>
+            <small id="note-editor-status" class="note-editor-status" aria-live="polite">0 karakter</small>
+          </div>
+        </div>
         <label for="item-tags">Tags</label>
         <input id="item-tags" type="text" maxlength="400" placeholder="kerja, penting, email" autocomplete="off" />
         <div id="tag-suggestions" class="tag-suggestions hidden" role="listbox" aria-label="Rekomendasi tag"></div>
@@ -235,7 +299,7 @@
         <section id="password-history" class="password-history hidden" aria-labelledby="password-history-title">
           <div class="password-history-heading">
             <div><span id="password-history-title"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> Password History</span><small id="password-history-count"></small></div>
-            <span class="password-history-note">Versi lama tersimpan terenkripsi</span>
+            <span id="password-history-note" class="password-history-note">Versi lama tersimpan terenkripsi</span>
           </div>
           <div id="password-history-list" class="password-history-list"></div>
         </section>
@@ -246,6 +310,55 @@
           <button id="save-item" class="primary-button compact" type="submit">Simpan Item</button>
         </div>
       </form>
+    </div>
+
+    <div id="note-detail-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="note-detail-title">
+      <section class="item-modal note-detail-modal-card">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow">SECURE NOTE</p>
+            <h2 id="note-detail-title">Catatan</h2>
+            <small id="note-detail-meta" class="note-detail-meta"></small>
+          </div>
+          <button id="close-note-detail" class="icon-button" type="button" aria-label="Tutup">×</button>
+        </div>
+        <div class="note-detail-body">
+          <div>
+            <p class="note-detail-label">Isi catatan</p>
+            <div id="note-detail-notes" class="note-detail-notes"></div>
+          </div>
+          <div class="note-detail-info-grid">
+            <div>
+              <span class="note-detail-label">Grup</span>
+              <strong id="note-detail-group"></strong>
+            </div>
+            <div>
+              <span class="note-detail-label">Tags</span>
+              <div id="note-detail-tags" class="note-detail-tags"></div>
+            </div>
+          </div>
+        </div>
+        <section id="note-detail-fields-section" class="note-detail-section hidden" aria-labelledby="note-detail-fields-heading">
+          <div class="note-detail-section-heading">
+            <span id="note-detail-fields-heading"><i class="fa-solid fa-sliders" aria-hidden="true"></i> Custom Fields</span>
+          </div>
+          <div id="note-detail-fields" class="note-detail-field-list"></div>
+        </section>
+        <section class="note-detail-history" aria-labelledby="note-detail-history-heading">
+          <div class="note-detail-section-heading">
+            <div>
+              <span id="note-detail-history-heading"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i> Riwayat Perubahan</span>
+              <small id="note-detail-history-count"></small>
+            </div>
+            <span class="note-detail-history-note">Versi lama tersimpan terenkripsi</span>
+          </div>
+          <div id="note-detail-history-list" class="note-detail-history-list"></div>
+        </section>
+        <div class="modal-actions">
+          <button id="note-detail-edit" class="secondary-button" type="button"><i class="fa-solid fa-pen" aria-hidden="true"></i> Edit Note</button>
+          <button id="note-detail-close-secondary" class="primary-button compact" type="button">Tutup</button>
+        </div>
+      </section>
     </div>
 
     <div id="bulk-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="bulk-modal-title">
@@ -311,6 +424,18 @@
           <div><p class="eyebrow">PENGATURAN</p><h2 id="settings-modal-title">Pengaturan</h2></div>
           <button id="close-settings" class="icon-button" type="button" aria-label="Tutup">×</button>
         </div>
+        <section class="settings-section settings-theme-section" aria-labelledby="settings-theme-heading">
+          <p class="settings-label">TAMPILAN</p>
+          <h3 id="settings-theme-heading"><i class="fa-solid fa-circle-half-stroke" aria-hidden="true"></i> Tema aplikasi</h3>
+          <p>Pilih tampilan yang nyaman untuk mata. Mode Ikuti Windows akan mengikuti pengaturan terang atau gelap sistem Anda.</p>
+          <label for="settings-theme">Mode warna</label>
+          <select id="settings-theme">
+            <option value="system">Ikuti Windows (default)</option>
+            <option value="light">Terang</option>
+            <option value="dark">Gelap</option>
+          </select>
+          <small id="settings-theme-help" class="field-help">Mode saat ini mengikuti pengaturan Windows.</small>
+        </section>
         <section class="settings-section" aria-labelledby="settings-google-heading">
           <p class="settings-label">CLOUD SYNC</p>
           <h3 id="settings-google-heading"><i class="fa-brands fa-google" aria-hidden="true"></i> Google Drive</h3>
@@ -345,7 +470,7 @@
             <div class="settings-actions"><button id="settings-password-submit" class="primary-button compact" type="submit">Simpan Password</button></div>
           </form>
         </section>
-        <section class="settings-section" aria-labelledby="settings-hello-heading">
+        <section class="settings-section hidden" aria-labelledby="settings-hello-heading" aria-hidden="true">
           <p class="settings-label">UNLOCK PERANGKAT</p>
           <h3 id="settings-hello-heading"><i class="fa-solid fa-fingerprint" aria-hidden="true"></i> Windows Hello</h3>
           <p id="settings-hello-status">Gunakan PIN, sidik jari, atau Windows Hello untuk membuka vault di perangkat ini setelah login password pertama.</p>
@@ -376,7 +501,7 @@
           </label>
           <p id="settings-app-message" class="message" role="status" aria-live="polite"></p>
         </section>
-        <section class="settings-section" aria-labelledby="settings-autofill-heading">
+        <section class="settings-section hidden" aria-labelledby="settings-autofill-heading" aria-hidden="true">
           <p class="settings-label">BROWSER INTEGRATION</p>
           <h3 id="settings-autofill-heading"><i class="fa-solid fa-wand-magic-sparkles" aria-hidden="true"></i> Autofill Browser</h3>
           <p>Gunakan extension PassSa untuk mengisi username dan password pada Chrome atau Edge. Pencocokan default memakai host, protocol, dan port yang sama.</p>
@@ -429,6 +554,23 @@
       </section>
     </div>
 
+    <div id="confirm-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="confirm-modal-title" aria-describedby="confirm-modal-message">
+      <section class="confirm-modal-card">
+        <div class="confirm-modal-icon" aria-hidden="true"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <div class="confirm-modal-copy">
+          <p id="confirm-modal-eyebrow" class="eyebrow">KONFIRMASI</p>
+          <h2 id="confirm-modal-title">Konfirmasi tindakan</h2>
+          <p id="confirm-modal-message"></p>
+        </div>
+        <div id="confirm-modal-list" class="confirm-modal-list hidden" role="list" aria-label="Item yang dipilih"></div>
+        <div class="modal-actions">
+          <button id="confirm-cancel" class="secondary-button" type="button">Batal</button>
+          <button id="confirm-accept" class="primary-button compact" type="button">Lanjutkan</button>
+        </div>
+      </section>
+    </div>
+
+    <script src="tauri-bridge.js"></script>
     <script src="renderer.js"></script>
   </body>
 </html>

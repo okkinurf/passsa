@@ -97,6 +97,31 @@ test('Quick Access dapat menyematkan credential dan mencatat aksi copy tanpa men
   assert.ok(item.recentUseHistory.every((entry) => !Object.hasOwn(entry, 'value')));
 });
 
+test('Quick Access mencatat Secure Note yang dibuka di riwayat penggunaan', async () => {
+  const service = createService();
+  const added = await service.add({ title: 'Catatan Quick', type: 'secure-note', notes: 'Isi aman' });
+  const used = await service.useNote(added.item.id);
+  assert.equal(used.usage.field, 'note');
+  assert.equal(used.usage.usageCount, 1);
+  const item = (await service.list())[0];
+  assert.equal(item.lastUsedAt, used.usage.lastUsedAt);
+  assert.deepEqual(item.recentUseHistory.map((entry) => entry.field), ['note']);
+});
+
+test('Quick Access dapat membersihkan riwayat penggunaan tanpa melepas pin', async () => {
+  const service = createService();
+  const added = await service.add({ title: 'Quick', username: 'user', password: 'secret', quickPinned: true });
+  await service.useSecret(added.item.id, 'password');
+  const result = await service.clearRecentUsage();
+  assert.equal(result.cleared, 1);
+  const item = (await service.list())[0];
+  assert.equal(item.quickPinned, true);
+  assert.equal(item.usageCount, 0);
+  assert.equal(item.lastUsedAt, null);
+  assert.deepEqual(item.recentUseHistory, []);
+  assert.equal((await service.clearRecentUsage()).cleared, 0);
+});
+
 test('kategori custom dapat dibuat, diubah, dan dihapus tanpa menghapus entry', async () => {
   const service = createService();
   const created = await service.createCategory({ name: 'Kantor', parentPath: 'Internet', icon: 'briefcase' });

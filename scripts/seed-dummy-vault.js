@@ -67,6 +67,63 @@ const samples = [
   ['Database Development', 'passsa_dev', 'postgresql://localhost:5432', 'My Computer/Development', ['database', 'local'], 'Database lokal khusus pengembangan PassSa.'],
 ];
 
+// Secure Notes dipakai untuk menguji seluruh editor Markdown tanpa menyimpan
+// credential palsu di dalam note. Setiap contoh sengaja memakai kombinasi
+// format yang berbeda agar toolbar, preview, checklist, tabel, custom fields,
+// dan riwayat perubahan dapat diuji secara langsung.
+const noteSamples = [
+  {
+    title: 'Project README', group: 'Internet/Work', tags: ['project', 'markdown', 'qa'],
+    notes: '# Project README\n\n**Tujuan:** merapikan dokumentasi PassSa.\n\n## Checklist\n- [x] Tentukan struktur folder\n- [ ] Tulis panduan kontribusi\n- [ ] Review keamanan\n\n> **Catatan:** Semua contoh ini hanya data dummy.\n\n[Dokumentasi Markdown](https://www.markdownguide.org/)',
+    fields: [{ id: 'note-0-owner', label: 'Owner', type: 'text', value: 'PassSa QA Team' }, { id: 'note-0-priority', label: 'Prioritas', type: 'number', value: '1' }],
+  },
+  {
+    title: 'Meeting Product', group: 'Internet/Work', tags: ['meeting', 'product', 'team'],
+    notes: '## Agenda\n\n1. Review roadmap\n2. Bahas risiko rilis\n3. Tentukan pemilik tugas\n\n> Keputusan: rilis beta dilakukan setelah QA selesai.\n\n==Follow-up==: kirim ringkasan ke tim.',
+    fields: [{ id: 'note-1-date', label: 'Tanggal', type: 'text', value: '2026-08-24' }, { id: 'note-1-done', label: 'Selesai', type: 'boolean', value: false }],
+  },
+  {
+    title: 'API Reference', group: 'Internet/Coding', tags: ['coding', 'api', 'reference'],
+    notes: '# API Reference\n\nGunakan endpoint `GET /v1/items` untuk mengambil daftar item.\n\n```js\nconst response = await fetch(\'/v1/items\');\nconst items = await response.json();\n```\n\n| Method | Endpoint | Status |\n| --- | --- | --- |\n| GET | /v1/items | 200 |\n| POST | /v1/items | 201 |',
+    fields: [{ id: 'note-2-base', label: 'Base URL', type: 'url', value: 'https://api.example.test' }, { id: 'note-2-contact', label: 'Contact', type: 'email', value: 'dev@example.test' }],
+  },
+  {
+    title: 'Shopping Checklist', group: 'Internet/Shopping', tags: ['shopping', 'home', 'checklist'],
+    notes: '# Belanja Mingguan\n\n- [ ] Kopi\n- [x] Sabun\n- [ ] Kabel USB-C\n\n### Catatan\nBandingkan harga dan cek ulasan sebelum membeli.\n\n---\n\n**Budget:** `Rp500.000`',
+    fields: [{ id: 'note-3-budget', label: 'Budget', type: 'number', value: '500000' }],
+  },
+  {
+    title: 'Trip Planner', group: 'Personal/Travel', tags: ['travel', 'plan', 'booking'],
+    notes: '# Trip Planner\n\n| Hari | Agenda | Status |\n| :--- | :--- | :--- |\n| Jumat | Check-in | Selesai |\n| Sabtu | City tour | Rencana |\n| Minggu | Pulang | Rencana |\n\n> Simpan tiket offline sebelum berangkat.\n\n[Maps](https://maps.google.com) · **Bawa dokumen penting.**',
+    fields: [{ id: 'note-4-city', label: 'Kota', type: 'text', value: 'Yogyakarta' }, { id: 'note-4-confirmed', label: 'Terkonfirmasi', type: 'boolean', value: true }],
+  },
+  {
+    title: 'Health Journal', group: 'Personal/Health', tags: ['health', 'journal', 'private'],
+    notes: '## Health Journal\n\n> Catatan ini bersifat dummy, bukan nasihat medis.\n\n- [ ] Minum air cukup\n- [x] Jalan kaki 30 menit\n- [ ] Tidur sebelum 23:00\n\n==Reminder==: konsultasikan keluhan ke tenaga profesional.',
+    fields: [{ id: 'note-5-water', label: 'Target air (ml)', type: 'number', value: '2000' }, { id: 'note-5-private', label: 'Privat', type: 'boolean', value: true }],
+  },
+  {
+    title: 'Home Network Plan', group: 'Rumah/Network', tags: ['home', 'network', 'router'],
+    notes: '# Home Network\n\nTopologi sederhana:\n\n```text\nInternet -> Router -> Switch -> NAS\n```\n\n| Perangkat | IP |\n| --- | --- |\n| Router | 192.168.1.1 |\n| NAS | 192.168.1.10 |\n\n> Jangan menyimpan password asli di catatan dummy.',
+    fields: [{ id: 'note-6-router', label: 'Router URL', type: 'url', value: 'http://192.168.1.1' }, { id: 'note-6-backup', label: 'Backup aktif', type: 'boolean', value: true }],
+  },
+  {
+    title: 'Finance Monthly Review', group: 'Finance/Banking', tags: ['finance', 'review', 'monthly'],
+    notes: '# Monthly Review\n\n**Ringkasan:** semua angka di bawah hanya simulasi.\n\n| Kategori | Nilai |\n| --- | ---: |\n| Tabungan | Rp2.000.000 |\n| Belanja | Rp750.000 |\n| Transport | Rp300.000 |\n\n- [x] Cocokkan transaksi\n- [ ] Buat anggaran bulan depan',
+    fields: [{ id: 'note-7-period', label: 'Periode', type: 'text', value: 'Agustus 2026' }, { id: 'note-7-reviewed', label: 'Ditinjau', type: 'boolean', value: false }],
+  },
+  {
+    title: 'Study Notes', group: 'Internet/Education', tags: ['study', 'learning', 'reference'],
+    notes: '# Study Notes\n\n## Prinsip penting\n\n1. Pecah materi menjadi bagian kecil.\n2. Ulangi dengan interval.\n3. Uji pemahaman dengan contoh.\n\n`active recall` membantu mengingat lebih lama.\n\n[Referensi belajar](https://example.com/learning)',
+    fields: [{ id: 'note-8-topic', label: 'Topik', type: 'text', value: 'Security basics' }],
+  },
+  {
+    title: 'Personal Ideas', group: 'Personal/Ideas', tags: ['ideas', 'writing', 'draft'],
+    notes: '## Ide Cerita\n\n> Tokoh utama menemukan vault digital yang menyimpan kenangan terenkripsi.\n\n### Alur\n- Pembuka misterius\n- Konflik kepercayaan\n- Resolusi terbuka\n\n==Draft== masih dapat berubah.\n\n---\n\n**Next:** tulis adegan pembuka.',
+    fields: [{ id: 'note-9-status', label: 'Status', type: 'text', value: 'Draft' }, { id: 'note-9-ready', label: 'Siap dibagikan', type: 'boolean', value: false }],
+  },
+];
+
 // Keep the seed deterministic in shape while making every generated item unique.
 // The first pass uses the curated examples above; subsequent passes add a suffix
 // so repeated categories, tags, and credentials are still easy to identify in QA.
@@ -123,7 +180,8 @@ async function main() {
   const dummyItems = seedSamples.map(([title, itemUsername, url, group, tags, notes], index) => {
     const createdAt = new Date(Date.now() - index * 24 * 60 * 60 * 1000).toISOString();
     const usageCount = (index * 7 + 3) % 13;
-    const isSecureNote = index % 19 === 0;
+    const noteSample = noteSamples[index];
+    const isSecureNote = Boolean(noteSample);
     const useHistory = Array.from({ length: Math.min(usageCount, 4) }, (_, historyIndex) => ({
       field: ['password', 'username', 'url'][historyIndex % 3],
       usedAt: new Date(Date.now() - (index * 3 + historyIndex) * 60 * 60 * 1000).toISOString(),
@@ -142,7 +200,7 @@ async function main() {
         savedAt: new Date(Date.now() - (index + version) * 86_400_000).toISOString(),
       }))
       : [];
-    const customFields = index % 5 === 0
+    const customFields = noteSample?.fields ?? (index % 5 === 0
       ? [
         { id: `field-${index}-recovery`, label: 'Recovery Code', type: 'secret', value: `REC-${String(index + 1).padStart(3, '0')}-DEMO` },
         { id: `field-${index}-owner`, label: 'Owner', type: 'text', value: 'PassSa QA Team' },
@@ -150,24 +208,36 @@ async function main() {
       ]
       : index % 7 === 0
         ? [{ id: `field-${index}-ticket`, label: 'Ticket', type: 'number', value: String(1000 + index) }]
-        : [];
+        : []);
+    const noteHistory = noteSample
+      ? Array.from({ length: index === 0 ? 5 : (index % 3) + 1 }, (_, version) => ({
+        title: noteSample.title,
+        notes: `${noteSample.notes}\n\n> Versi history ${version + 1} — perubahan dummy.`,
+        group: noteSample.group,
+        tags: noteSample.tags,
+        fields: noteSample.fields,
+        savedAt: new Date(Date.now() - (version + 1) * 86_400_000).toISOString(),
+      }))
+      : [];
+    const itemTags = noteSample?.tags ?? [...tags, index % 3 === 0 ? 'penting' : 'demo', index % 4 === 0 ? 'quick-access' : 'qa'];
     return {
     id: crypto.randomUUID(),
     type: isSecureNote ? 'secure-note' : 'login',
-    title,
+    title: noteSample?.title ?? title,
     username: isSecureNote ? '' : itemUsername,
     password: currentPassword,
     url: isSecureNote ? '' : url,
-    group,
-    tags: [...tags, index % 3 === 0 ? 'penting' : 'demo', index % 4 === 0 ? 'quick-access' : 'qa'],
+    group: noteSample?.group ?? group,
+    tags: itemTags,
     favorite: index % 7 === 0,
     quickPinned: index % 10 === 0,
     usageCount,
     lastUsedAt: usageCount ? new Date(Date.now() - index * 3 * 60 * 60 * 1000).toISOString() : null,
     recentUseHistory: useHistory,
-    history: passwordHistory,
+    history: isSecureNote ? [] : passwordHistory,
+    noteHistory,
     fields: customFields,
-    notes: `${notes} Data dummy; jangan digunakan sebagai kredensial asli.`,
+    notes: noteSample?.notes ?? `${notes} Data dummy; jangan digunakan sebagai kredensial asli.`,
     source: 'passsa-dummy',
     createdAt,
     updatedAt: createdAt,
