@@ -1,35 +1,95 @@
-# 🔐 PassSa
+<div align="center">
 
-![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)
-![Platform](https://img.shields.io/badge/platform-Windows-0078D6.svg?logo=windows&logoColor=white)
-![Electron](https://img.shields.io/badge/Electron-39-47848F.svg?logo=electron&logoColor=white)
-![Encryption](https://img.shields.io/badge/encryption-AES--256--GCM-success.svg)
+<img src="src/assets/passsa-logo-transparent-cropped.png" alt="PassSa Logo" width="300" />
 
-**PassSa** adalah password manager desktop untuk Windows dengan pendekatan **local-first**. Credential disimpan di vault lokal terenkripsi dan dapat disinkronkan secara opsional ke Google Drive dalam bentuk envelope terenkripsi.
+# PassSa
 
-PassSa dirancang agar password vault, token, dan secret tidak disimpan sebagai plaintext. Aplikasi juga menyediakan Windows Hello, browser autofill, encrypted backup, Secure Note, custom fields, tags, grup, favorit, trash, serta riwayat perubahan credential.
+### Local-first encrypted password manager for Windows
 
-> **Status:** PassSa masih dalam tahap pengembangan (`v0.1.0`). Lakukan pengujian dan review keamanan sebelum menggunakannya untuk data produksi yang kritikal.
+Simpan credential secara lokal, enkripsi vault dengan **AES-256-GCM**, gunakan **Windows Hello**, dan sinkronkan encrypted vault secara opsional melalui **Google Drive**.
+
+[![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](#-roadmap)
+[![Platform](https://img.shields.io/badge/platform-Windows-0078D6.svg?logo=windows&logoColor=white)](#-menjalankan-passsa)
+[![Electron](https://img.shields.io/badge/Electron-39-47848F.svg?logo=electron&logoColor=white)](#-tech-stack)
+[![Encryption](https://img.shields.io/badge/encryption-AES--256--GCM-success.svg)](#-model-keamanan)
+[![OAuth](https://img.shields.io/badge/Google-OAuth%202.0%20%2B%20PKCE-4285F4.svg?logo=google&logoColor=white)](#%EF%B8%8F-google-oauth--google-drive-sync)
+[![License](https://img.shields.io/badge/license-See%20Repository-lightgrey.svg)](#-acknowledgements)
+
+**Development status:** `v0.1.0` — aktif dikembangkan.
+
+[Features](#-fitur-utama) · [Security](#%EF%B8%8F-model-keamanan) · [Install](#-menjalankan-passsa) · [Roadmap](#-roadmap) · [Docs](#-dokumentasi)
+
+</div>
+
+---
+
+## 📖 Tentang PassSa
+
+**PassSa** adalah password manager desktop Windows dengan pendekatan **local-first**. Credential utama disimpan pada vault lokal terenkripsi dan tidak membutuhkan cloud agar dapat digunakan.
+
+Google Drive bersifat opsional dan hanya digunakan sebagai media sinkronisasi envelope terenkripsi. Password vault, refresh token, dan secret lain tidak dirancang untuk disimpan sebagai plaintext.
+
+PassSa juga menyediakan Windows Hello, browser autofill, Secure Note, custom fields, tags, groups, favorites, Trash, password history, encrypted backup, serta import/export untuk interoperabilitas.
+
+> [!WARNING]
+> PassSa masih dalam tahap pengembangan. Lakukan pengujian dan review keamanan sebelum menggunakannya untuk credential produksi yang kritikal.
+
+---
+
+## 🖥️ Preview
+
+Repository saat ini sudah memiliki aset logo resmi PassSa, tetapi belum menyimpan screenshot atau rekaman GIF UI aplikasi. README ini sudah disiapkan agar media dapat ditambahkan tanpa mengubah layout utama.
+
+**Lokasi media yang direkomendasikan:**
+
+```text
+docs/assets/
+├── passsa-dashboard.png
+├── passsa-login.png
+├── passsa-settings.png
+└── passsa-demo.gif
+```
+
+Setelah file tersedia, section ini dapat langsung menampilkan dashboard, login, settings, dan demo workflow aplikasi.
+
+### Alur penggunaan
+
+```mermaid
+flowchart LR
+    A[Login] --> B[Unlock Vault]
+    B --> C[Browse Credentials]
+    C --> D[Copy / Autofill]
+    C --> E[Secure Notes]
+    C --> F[Manage Tags & Groups]
+    B --> G{Google Login?}
+    G -->|Yes| H[Encrypted Drive Sync]
+    G -->|No| I[Local-only Vault]
+    B --> J[Encrypted Backup]
+```
 
 ---
 
 ## ✨ Fitur Utama
 
-- 🔒 **Encrypted local vault** menggunakan AES-256-GCM.
-- 🔑 **Key derivation** dari password menggunakan `scrypt` dengan salt khusus vault.
-- 👋 **Windows Hello** sebagai opsi unlock setelah login password pertama.
-- ☁️ **Google Drive encrypted sync** melalui OAuth 2.0 Desktop + PKCE.
-- 🌐 **Browser Autofill** melalui Chromium Extension Manifest V3 dan Native Messaging.
-- 📝 **Secure Note** untuk menyimpan catatan terenkripsi tanpa field login.
-- 🧩 **Custom Fields**: Text, Secret, URL, Email, Angka, dan Ya/Tidak.
-- 🏷️ **Tags dan Groups** untuk mengorganisasi credential.
-- ⭐ **Favorites**, **Trash**, restore, dan permanent delete.
-- 🕓 **Password history** hingga 10 perubahan terakhir.
-- 📊 Statistik penggunaan untuk pengurutan berdasarkan frekuensi dan penggunaan terakhir.
-- 📦 **Encrypted backup `.passsa`** dengan password backup terpisah.
-- 📄 Import/export CSV untuk interoperabilitas.
-- 📋 Clipboard otomatis dibersihkan setelah credential disalin.
-- 🔄 Proteksi penulisan vault dengan lock lintas proses, temporary file unik, dan backup.
+| Fitur | Status | Keterangan |
+| --- | :---: | --- |
+| Encrypted local vault | ✅ | AES-256-GCM |
+| Password-based key derivation | ✅ | `scrypt` + random salt |
+| Windows Hello | ✅ | Unlock opsional dengan biometrik/PIN Windows |
+| Google OAuth Desktop PKCE | ✅ | Identitas Google tanpa menyimpan client secret |
+| Google Drive encrypted sync | ✅ | Upload envelope terenkripsi |
+| Browser autofill | ✅ | Chromium Manifest V3 + Native Messaging |
+| Secure Note | ✅ | Catatan terenkripsi tanpa credential login |
+| Custom Fields | ✅ | Text, Secret, URL, Email, Angka, Ya/Tidak |
+| Tags & Groups | ✅ | Organisasi dan bulk operation |
+| Favorites & Trash | ✅ | Restore dan permanent delete |
+| Password history | ✅ | Hingga 10 perubahan terakhir |
+| Usage statistics | ✅ | Sort berdasarkan frekuensi dan recent usage |
+| Encrypted `.passsa` backup | ✅ | Password backup terpisah |
+| CSV import/export | ✅ | Interoperabilitas dengan warning plaintext |
+| Clipboard auto-clear | ✅ | Dibersihkan setelah 30 detik |
+| Single-instance protection | ✅ | Satu instance aplikasi aktif |
+| Atomic vault write | ✅ | Lock file, temp file unik, dan backup |
 
 ---
 
@@ -48,11 +108,50 @@ PassSa dirancang agar password vault, token, dan secret tidak disimpan sebagai p
 | Clipboard | Dibersihkan otomatis setelah 30 detik |
 | Renderer | Secret tidak dikirim pada response list credential |
 
-Google hanya digunakan untuk memverifikasi identitas dan menyediakan media sinkronisasi. Password vault lokal tetap diperlukan untuk menurunkan kunci enkripsi vault.
+Google hanya digunakan untuk memverifikasi identitas dan menyediakan media sinkronisasi. Password vault lokal tetap digunakan untuk menurunkan kunci enkripsi vault.
 
-> **Catatan keamanan:** export CSV menghasilkan credential dalam bentuk plaintext. PassSa meminta konfirmasi eksplisit sebelum proses export/import CSV dilakukan.
+### Prinsip keamanan
 
-Detail lebih lengkap tersedia di [`docs/SECURITY_FEATURES.md`](docs/SECURITY_FEATURES.md).
+```text
+Password Vault
+     │
+     ▼
+   scrypt
+     │
+     ▼
+Vault Encryption Key
+     │
+     ├──► AES-256-GCM ──► Local Vault
+     │
+     ├──► Windows Hello / DPAPI wrapper
+     │
+     └──► Encrypted Envelope ──► Google Drive
+```
+
+> [!CAUTION]
+> Export CSV menghasilkan credential dalam bentuk plaintext. PassSa meminta konfirmasi eksplisit sebelum proses export/import CSV dilakukan.
+
+Detail: [`docs/SECURITY_FEATURES.md`](docs/SECURITY_FEATURES.md).
+
+---
+
+## 🧰 Tech Stack
+
+| Teknologi | Penggunaan |
+| --- | --- |
+| Electron 39 | Desktop application runtime |
+| JavaScript | Core, services, storage, renderer, tooling |
+| HTML/CSS | Desktop UI |
+| Node.js | Runtime dan development tooling |
+| AES-256-GCM | Enkripsi vault dan backup |
+| `scrypt` | Password hashing dan key derivation |
+| Windows DPAPI | Proteksi token/kunci melalui Electron `safeStorage` |
+| Google OAuth 2.0 + PKCE | Login Google desktop |
+| Google Drive API | Optional encrypted synchronization |
+| Chromium Manifest V3 | Browser extension autofill |
+| Native Messaging | Komunikasi extension ↔ PassSa |
+| NSIS / electron-builder | Windows installer |
+| Tauri v2 | Persiapan migrasi shell/native backend |
 
 ---
 
@@ -65,20 +164,20 @@ Detail lebih lengkap tersedia di [`docs/SECURITY_FEATURES.md`](docs/SECURITY_FEA
 - npm.
 - Git.
 
-### Clone repository
+### 1. Clone repository
 
 ```bash
 git clone https://github.com/okkinurf/passsa.git
 cd passsa
 ```
 
-### Install dependency
+### 2. Install dependency
 
 ```bash
 npm install
 ```
 
-### Jalankan aplikasi
+### 3. Jalankan aplikasi
 
 ```bash
 npm start
@@ -88,7 +187,7 @@ npm start
 
 ## 👤 Membuat User Testing
 
-Akun testing dapat dibuat atau diperbarui melalui script bawaan.
+Akun testing dapat dibuat atau diperbarui menggunakan script bawaan.
 
 ### PowerShell
 
@@ -100,9 +199,7 @@ npm run create-test-user
 
 Password minimal 8 karakter. Email/username akan dinormalisasi menjadi huruf kecil.
 
-### Seed dummy vault
-
-Untuk membuat 50 item dummy:
+### Seed 50 dummy credential
 
 ```powershell
 $env:PASSA_TEST_USERNAME = "test@example.com"
@@ -110,35 +207,57 @@ $env:PASSA_TEST_PASSWORD = "password-testing"
 npm run seed-dummy-vault
 ```
 
-Untuk menghapus seluruh isi vault sebelum membuat data dummy:
+Untuk menghapus seluruh isi vault sebelum membuat dummy:
 
 ```powershell
 $env:PASSA_RESET_VAULT = "true"
 npm run seed-dummy-vault
 ```
 
+> [!WARNING]
 > `PASSA_RESET_VAULT=true` akan menghapus item asli dan Trash pada vault testing tersebut.
 
 ---
 
 ## ☁️ Google OAuth & Google Drive Sync
 
-PassSa menggunakan OAuth 2.0 untuk aplikasi desktop dengan PKCE. Client secret **tidak diperlukan** dan tidak boleh ditanam di source code desktop.
+PassSa menggunakan **OAuth 2.0 Desktop + PKCE**. Client secret tidak diperlukan dan tidak boleh ditanam di source code desktop.
 
-Buat OAuth Client ID bertipe **Desktop app** di Google Cloud, aktifkan Google Drive API, lalu set Client ID:
+### Konfigurasi cepat
+
+1. Buat/select project di Google Cloud.
+2. Enable **Google Drive API**.
+3. Konfigurasikan OAuth consent screen.
+4. Buat **OAuth Client ID** bertipe **Desktop app**.
+5. Set Client ID sebelum menjalankan aplikasi.
 
 ```powershell
 $env:PASSA_GOOGLE_CLIENT_ID = "1234567890-xxxxx.apps.googleusercontent.com"
 npm start
 ```
 
-PassSa menggunakan scope:
+Scope yang digunakan:
 
 ```text
 https://www.googleapis.com/auth/drive.file
 ```
 
-Sinkronisasi hanya menyimpan data terenkripsi. Jika data lokal dan remote berubah bersamaan, file utama Drive dipertahankan dan versi lokal disimpan sebagai conflict copy terenkripsi.
+### Cara sync bekerja
+
+```mermaid
+sequenceDiagram
+    participant P as PassSa
+    participant G as Google OAuth
+    participant D as Google Drive
+
+    P->>G: OAuth Desktop + PKCE
+    G-->>P: Authorization result
+    P->>P: Encrypt vault envelope
+    P->>D: Upload encrypted envelope
+    D-->>P: Revision metadata
+```
+
+Jika data lokal dan remote berubah bersamaan, file utama Drive dipertahankan dan versi lokal disimpan sebagai conflict copy terenkripsi.
 
 Panduan lengkap: [`docs/GOOGLE_OAUTH_SETUP.md`](docs/GOOGLE_OAUTH_SETUP.md).
 
@@ -146,17 +265,30 @@ Panduan lengkap: [`docs/GOOGLE_OAUTH_SETUP.md`](docs/GOOGLE_OAUTH_SETUP.md).
 
 ## 🌐 Browser Autofill
 
-Extension Chromium tersedia pada folder:
+Extension Chromium tersedia pada:
 
 ```text
 browser-extension/
 ```
 
-Autofill menggunakan **Manifest V3 + Native Messaging**. Credential hanya diminta dari PassSa setelah pengguna memilih item secara eksplisit, dengan pencocokan host/protocol/port secara ketat.
+Autofill menggunakan **Manifest V3 + Native Messaging**. Credential hanya diminta dari PassSa setelah pengguna memilih item secara eksplisit, dengan pencocokan host, protocol, dan port secara ketat.
+
+```text
+Browser
+   │
+   ▼
+PassSa Extension
+   │ Native Messaging
+   ▼
+PassSa Desktop
+   │
+   ▼
+Encrypted Vault
+```
 
 Setup production membutuhkan Native Messaging Host dan Extension ID resmi.
 
-Panduan lengkap: [`docs/AUTOFILL_SETUP.md`](docs/AUTOFILL_SETUP.md).
+Panduan: [`docs/AUTOFILL_SETUP.md`](docs/AUTOFILL_SETUP.md).
 
 ---
 
@@ -164,7 +296,7 @@ Panduan lengkap: [`docs/AUTOFILL_SETUP.md`](docs/AUTOFILL_SETUP.md).
 
 | Command | Fungsi |
 | --- | --- |
-| `npm test` | Menjalankan unit/integration test |
+| `npm test` | Unit/integration test |
 | `npm run test:e2e` | Smoke test UI Electron |
 | `npm run qa` | Unit/integration + E2E |
 | `npm run qa:tauri` | Validasi konfigurasi dan prerequisite Tauri |
@@ -172,7 +304,7 @@ Panduan lengkap: [`docs/AUTOFILL_SETUP.md`](docs/AUTOFILL_SETUP.md).
 | `npm run qa:google-network` | QA konektivitas Google |
 | `npm run qa:installer` | QA installer Windows |
 
-Sebelum membuat release, disarankan menjalankan:
+Sebelum packaging/release:
 
 ```bash
 npm run qa:full
@@ -200,7 +332,9 @@ npm run dist:unsigned
 npm run dist
 ```
 
-Build production mewajibkan code-signing credential. Detail release Windows tersedia di [`docs/WINDOWS_RELEASE.md`](docs/WINDOWS_RELEASE.md).
+Build production mewajibkan code-signing credential.
+
+Detail: [`docs/WINDOWS_RELEASE.md`](docs/WINDOWS_RELEASE.md).
 
 ---
 
@@ -209,11 +343,13 @@ Build production mewajibkan code-signing credential. Detail release Windows ters
 ```text
 passsa/
 ├── browser-extension/      # Chromium autofill extension
-├── build/                  # Build assets
+├── build/                  # Windows build assets
 ├── docs/                   # Dokumentasi teknis
 ├── scripts/                # QA, seed, packaging, native helper
 ├── src/
+│   ├── assets/             # Logo & visual assets
 │   ├── core/               # Domain rules & normalization
+│   ├── main/               # Main-process helpers
 │   ├── services/           # Auth, vault, sync, import/export, autofill
 │   ├── storage/            # Atomic storage, encrypted token/key handling
 │   └── renderer.js         # Main renderer UI
@@ -224,15 +360,78 @@ passsa/
 └── package.json
 ```
 
-Prinsip arsitektur utama:
+### Architecture
+
+```mermaid
+flowchart TD
+    UI[Renderer / UI] --> IPC[Preload + IPC]
+    IPC --> S[Services]
+    S --> C[Core]
+    S --> ST[Storage]
+    S --> SYNC[Google Sync]
+    S --> AF[Autofill Service]
+    ST --> V[(Encrypted Vault)]
+```
+
+Prinsip utama:
 
 ```text
 UI → Service → Core / Storage
 ```
 
-Logika domain dijaga terpisah dari Electron/DOM, sedangkan operasi mutasi vault diserialisasi untuk mencegah dua proses menimpa data satu sama lain.
+Logika domain dipisahkan dari Electron/DOM, sedangkan operasi mutasi vault diserialisasi untuk mencegah dua proses menimpa data satu sama lain.
 
-Lihat [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) untuk detail workflow pengembangan.
+Detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
+---
+
+## 🗺️ Roadmap
+
+### v0.1 — Core Password Manager
+
+- [x] Local encrypted vault.
+- [x] AES-256-GCM encryption.
+- [x] `scrypt` password hashing dan key derivation.
+- [x] Credential groups dan tags.
+- [x] Favorites dan Trash.
+- [x] Password history.
+- [x] Secure Notes.
+- [x] Custom Fields.
+- [x] Encrypted `.passsa` backup.
+- [x] CSV import/export.
+- [x] Clipboard auto-clear.
+
+### Desktop Integration
+
+- [x] Windows Hello integration.
+- [x] Google OAuth Desktop + PKCE.
+- [x] Encrypted Google Drive sync.
+- [x] Chromium Manifest V3 autofill extension.
+- [x] Native Messaging integration.
+- [x] Quick Access UI.
+- [x] Electron installer pipeline.
+- [ ] Production code signing configuration.
+- [ ] Official browser-extension distribution workflow.
+
+### QA & Hardening
+
+- [x] Unit/integration tests.
+- [x] Electron E2E smoke test.
+- [x] Full QA command.
+- [x] Installer QA tooling.
+- [x] Atomic vault writes dan locking.
+- [ ] Broader automated regression coverage.
+- [ ] Independent security review / audit.
+
+### Next Platform
+
+- [x] Tauri v2 migration preparation.
+- [x] Tauri configuration/prerequisite validation.
+- [ ] Migrate vault backend ke native Rust implementation.
+- [ ] Complete Tauri desktop runtime migration.
+- [ ] Android application exploration/port.
+
+> Roadmap dapat berubah mengikuti hasil QA, security review, dan kebutuhan project.
 
 ---
 
@@ -246,7 +445,7 @@ Lihat [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) untuk detail workflow penge
 | [`AUTOFILL_SETUP.md`](docs/AUTOFILL_SETUP.md) | Setup browser autofill |
 | [`WINDOWS_RELEASE.md`](docs/WINDOWS_RELEASE.md) | Build dan release Windows |
 | [`TAURI_V2_MIGRATION.md`](docs/TAURI_V2_MIGRATION.md) | Persiapan migrasi Tauri v2 / Android |
-| [`KEEPASSXC_ARCHITECTURE.md`](docs/KEEPASSXC_ARCHITECTURE.md) | Catatan adaptasi pemisahan arsitektur KeePassXC |
+| [`KEEPASSXC_ARCHITECTURE.md`](docs/KEEPASSXC_ARCHITECTURE.md) | Catatan adaptasi arsitektur KeePassXC |
 | [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md) | Third-party notices |
 
 ---
@@ -256,7 +455,8 @@ Lihat [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) untuk detail workflow penge
 - Google OAuth dan Google Drive nyata membutuhkan Desktop Client ID dari project Google Cloud pengguna.
 - Installer production membutuhkan certificate Authenticode atau Azure Trusted Signing milik publisher.
 - Autofill production membutuhkan registrasi Native Messaging Host dan Extension ID resmi.
-- Shell Tauri v2 masih merupakan persiapan migrasi; backend vault utama saat ini tetap berada pada implementasi Electron.
+- Screenshot/GIF demo aplikasi belum dikomit ke repository.
+- Shell Tauri v2 masih merupakan persiapan migrasi; backend vault utama saat ini tetap pada implementasi Electron.
 
 ---
 
@@ -272,16 +472,38 @@ Untuk perubahan fitur utama:
 6. Tambahkan jalur E2E bila diperlukan.
 7. Jalankan `npm run qa:full` sebelum packaging/release.
 
+### Checklist sebelum commit/release
+
+```text
+[ ] npm test
+[ ] npm run test:e2e
+[ ] npm run qa:full
+[ ] git diff --check
+[ ] cek perubahan schema
+[ ] cek backup / rollback
+[ ] cek code signing sebelum installer production
+```
+
 ---
 
 ## 🙏 Acknowledgements
 
-Struktur project mengadaptasi beberapa prinsip pemisahan **core / crypto / storage / service / GUI** dari KeePassXC. Detailnya tersedia di [`docs/KEEPASSXC_ARCHITECTURE.md`](docs/KEEPASSXC_ARCHITECTURE.md).
+Struktur project mengadaptasi beberapa prinsip pemisahan **core / crypto / storage / service / GUI** dari KeePassXC.
+
+Detail: [`docs/KEEPASSXC_ARCHITECTURE.md`](docs/KEEPASSXC_ARCHITECTURE.md).
 
 Informasi dependency pihak ketiga tersedia pada [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
 
 ---
 
-<p align="center">
-  <strong>PassSa — local-first password manager for Windows.</strong>
-</p>
+<div align="center">
+
+<img src="src/assets/passsa-mark.png" alt="PassSa" width="80" />
+
+### PassSa
+
+**Secure locally. Sync encrypted. Stay in control.**
+
+Made for Windows · Local-first · Encrypted by design
+
+</div>
