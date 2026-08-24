@@ -39,7 +39,7 @@ app.whenReady().then(async () => {
     const brandStyle = getComputedStyle(brand);
     return layoutStyle.display === 'flex'
       && layoutStyle.flexDirection === 'column'
-      && brandStyle.display !== 'none'
+      && brandStyle.display === 'none'
       && document.querySelector('.auth-mark img')?.getAttribute('src') === 'assets/passsa-mark.png'
       && !document.querySelector('.auth-mark .fa-lock')
       && card.getBoundingClientRect().width <= 420;
