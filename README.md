@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="src/assets/passsa-logo-transparent-cropped.png" alt="PassSa Logo" width="300" />
+<img src="src/assets/passsa-logo-cropped.png" alt="PassSa Logo" width="300" />
 
 # PassSa
 
