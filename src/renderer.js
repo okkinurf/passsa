@@ -795,6 +795,31 @@ function formatHistoryDate(value) {
   return new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(timestamp);
 }
 
+function renderNoteHistoryEntry(entry, version, { includeTitle = false, renderMarkdown = false } = {}) {
+  const notes = renderMarkdown
+    ? renderNoteMarkdown(entry.notes || 'Tidak ada isi catatan.')
+    : `<p>${escapeHtml(entry.notes || 'Tidak ada isi catatan.')}</p>`;
+  const tags = Array.isArray(entry.tags) ? entry.tags : [];
+  return `
+    <div class="note-history-entry" data-note-history-expand tabindex="0" role="button" aria-expanded="false" aria-label="Buka Versi ${version}">
+      <div class="note-history-entry-meta">
+        <strong>Versi ${version}</strong>
+        <small>${escapeHtml(formatHistoryDate(entry.savedAt))}</small>
+        <span class="note-history-expand-hint">
+          <span class="note-history-expand-collapsed">Klik untuk melihat penuh</span>
+          <span class="note-history-expand-expanded">Klik untuk meringkas</span>
+          <i class="fa-solid fa-chevron-down note-history-expand-icon" aria-hidden="true"></i>
+        </span>
+      </div>
+      <div class="note-history-entry-content">
+        ${includeTitle ? `<strong>${escapeHtml(entry.title || 'Catatan')}</strong>` : ''}
+        <div class="note-history-markdown">${notes}</div>
+        ${tags.length ? `<div class="item-tags">${tags.map((tag) => `<span class="tag-chip tone-${tagTone(tag)}"><span class="tag-dot" aria-hidden="true"></span>#${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
+      </div>
+    </div>
+  `;
+}
+
 function renderNoteDetail(item) {
   if (!item) return;
   noteDetailTitle.textContent = item.title || 'Catatan';
@@ -819,16 +844,7 @@ function renderNoteDetail(item) {
   noteDetailHistoryCount.textContent = history.length ? `(${history.length} versi)` : '';
   noteDetailHistoryList.classList.toggle('is-scrollable', history.length > 3);
   noteDetailHistoryList.innerHTML = history.length
-    ? history.map((entry, index) => `
-      <div class="note-history-entry">
-        <div class="note-history-entry-meta"><strong>Versi ${history.length - index}</strong><small>${escapeHtml(formatHistoryDate(entry.savedAt))}</small></div>
-        <div class="note-history-entry-content">
-          <strong>${escapeHtml(entry.title || 'Catatan')}</strong>
-          <div class="note-history-markdown">${renderNoteMarkdown(entry.notes || 'Tidak ada isi catatan.')}</div>
-          ${(entry.tags ?? []).length ? `<div class="item-tags">${entry.tags.map((tag) => `<span class="tag-chip tone-${tagTone(tag)}"><span class="tag-dot" aria-hidden="true"></span>#${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
-        </div>
-      </div>
-    `).join('')
+    ? history.map((entry, index) => renderNoteHistoryEntry(entry, history.length - index, { includeTitle: true, renderMarkdown: true })).join('')
     : '<p class="note-history-empty">Belum ada perubahan pada catatan ini.</p>';
 }
 
@@ -882,14 +898,7 @@ function renderNoteHistory(history, showSection = true) {
   passwordHistoryCount.textContent = entries.length ? `(${entries.length} versi)` : '';
   passwordHistoryList.classList.toggle('is-scrollable', entries.length > 3);
   passwordHistoryList.innerHTML = entries.length ? entries.map((entry, index) => `
-    <div class="note-history-entry">
-      <div class="note-history-entry-meta"><strong>Versi ${entries.length - index}</strong><small>${escapeHtml(formatHistoryDate(entry.savedAt))}</small></div>
-      <div class="note-history-entry-content">
-        <strong>${escapeHtml(entry.title || 'Catatan')}</strong>
-        <p>${escapeHtml(entry.notes || 'Tidak ada isi catatan.')}</p>
-        ${(entry.tags ?? []).length ? `<div class="item-tags">${entry.tags.map((tag) => `<span class="tag-chip tone-${tagTone(tag)}"><span class="tag-dot" aria-hidden="true"></span>#${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
-      </div>
-    </div>
+    ${renderNoteHistoryEntry(entry, entries.length - index, { includeTitle: true })}
   `).join('') : '<p class="note-history-empty">Belum ada perubahan catatan.</p>';
 }
 
@@ -2403,6 +2412,33 @@ passwordHistoryList.addEventListener('click', (event) => {
   const version = button.closest('.password-history-entry')?.querySelector('.password-history-meta strong')?.textContent || 'password';
   updateSecretToggle(button, !visible, version.toLowerCase());
 });
+
+function toggleNoteHistoryEntry(entry) {
+  if (!entry) return;
+  const expanded = !entry.classList.contains('is-expanded');
+  entry.classList.toggle('is-expanded', expanded);
+  entry.setAttribute('aria-expanded', String(expanded));
+}
+
+function handleNoteHistoryEntryClick(event) {
+  const entry = event.target.closest('[data-note-history-expand]');
+  if (!entry || !event.currentTarget.contains(entry)) return;
+  if (event.target.closest('a, button, input, select, textarea')) return;
+  toggleNoteHistoryEntry(entry);
+}
+
+function handleNoteHistoryEntryKeydown(event) {
+  if (event.key !== 'Enter' && event.key !== ' ') return;
+  const entry = event.target.closest('[data-note-history-expand]');
+  if (!entry || !event.currentTarget.contains(entry)) return;
+  event.preventDefault();
+  toggleNoteHistoryEntry(entry);
+}
+
+passwordHistoryList.addEventListener('click', handleNoteHistoryEntryClick);
+passwordHistoryList.addEventListener('keydown', handleNoteHistoryEntryKeydown);
+noteDetailHistoryList?.addEventListener('click', handleNoteHistoryEntryClick);
+noteDetailHistoryList?.addEventListener('keydown', handleNoteHistoryEntryKeydown);
 
 itemModal.addEventListener('click', (event) => {
   if (event.target === itemModal) closeItemModal();

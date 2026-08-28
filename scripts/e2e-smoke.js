@@ -204,6 +204,17 @@ app.whenReady().then(async () => {
   await waitFor(win, "document.querySelector('.vault-item').textContent.includes('Catatan QA')");
   await win.webContents.executeJavaScript("document.querySelector('.vault-item').click()");
   assert(await win.webContents.executeJavaScript("document.querySelector('#note-detail-history-count').textContent.includes('1 versi') && document.querySelector('#note-detail-history-list').textContent.includes('Versi pertama note.')"), 'Riwayat perubahan Secure Note tidak tampil di popup detail.');
+  assert(await win.webContents.executeJavaScript(`(() => {
+    const entry = document.querySelector('#note-detail-history-list [data-note-history-expand]');
+    return entry && entry.getAttribute('aria-expanded') === 'false' && !entry.classList.contains('is-expanded');
+  })()`), 'Riwayat Secure Note tidak dimulai dalam keadaan compact.');
+  await win.webContents.executeJavaScript("document.querySelector('#note-detail-history-list [data-note-history-expand]').click()");
+  assert(await win.webContents.executeJavaScript(`(() => {
+    const entry = document.querySelector('#note-detail-history-list [data-note-history-expand]');
+    return entry.getAttribute('aria-expanded') === 'true' && entry.classList.contains('is-expanded');
+  })()`), 'Riwayat Secure Note tidak dapat diperluas saat diklik.');
+  await win.webContents.executeJavaScript("document.querySelector('#note-detail-history-list [data-note-history-expand]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))");
+  assert(await win.webContents.executeJavaScript("document.querySelector('#note-detail-history-list [data-note-history-expand]').getAttribute('aria-expanded') === 'false'"), 'Riwayat Secure Note tidak dapat diringkas dengan keyboard.');
   await win.webContents.executeJavaScript("document.querySelector('#close-note-detail').click(); document.querySelector('[data-action=delete]').click();");
   await waitFor(win, "!document.querySelector('#confirm-modal').classList.contains('hidden')");
   await win.webContents.executeJavaScript("document.querySelector('#confirm-accept').click();");
