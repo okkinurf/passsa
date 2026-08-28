@@ -200,6 +200,26 @@ app.whenReady().then(async () => {
     return { value, count: (value.match(/^- \\[ \\]/gm) || []).length };
   })()`);
   assert(blockChecklistValue.count === 4, `Checklist toolbar tidak mempertahankan baris pada blok editor: ${JSON.stringify(blockChecklistValue.value)}`);
+  const deletedChecklistValue = await win.webContents.executeJavaScript(`(() => {
+    const input = document.querySelector('#item-notes');
+    input.value = '- [ ] 1\\n- [ ] 2\\n- [ ] 3\\n- [ ] 4';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    const preview = document.querySelector('#note-preview');
+    const second = preview.querySelectorAll('.note-preview-check')[1];
+    const range = document.createRange();
+    range.selectNodeContents(second);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    document.execCommand('delete');
+    preview.dispatchEvent(new Event('input', { bubbles: true }));
+    return {
+      value: input.value,
+      checkboxes: preview.querySelectorAll('.note-preview-check-toggle').length,
+      visibleText: preview.textContent.replace(/\\s+/g, ' ').trim(),
+    };
+  })()`);
+  assert(deletedChecklistValue.checkboxes === 3 && !deletedChecklistValue.value.includes('- [ ] 2'), `Menghapus satu checklist meninggalkan markup duplikat: ${JSON.stringify(deletedChecklistValue)}`);
   await win.webContents.executeJavaScript(`(() => {
     const input = document.querySelector('#item-notes');
     input.value = 'Teks pilihan';

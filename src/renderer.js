@@ -1172,9 +1172,10 @@ function serializeNoteBlock(node) {
       const toggle = Array.from(li.children).find((child) => child.classList?.contains('note-preview-check-toggle'));
       const contentNode = Array.from(li.children).find((child) => child !== toggle) || li;
       const content = serializeNoteInlineNode(contentNode).trim();
-      if (toggle) return `- [${toggle.textContent.trim() ? 'x' : ' '}] ${content}`;
+      if (!content) return '';
+      if (toggle || li.classList.contains('note-preview-check')) return `- [${toggle?.textContent.trim() ? 'x' : ' '}] ${content}`;
       return `${ordered ? `${index + 1}.` : '-'} ${content}`;
-    }).join('\n');
+    }).filter(Boolean).join('\n');
   }
   const blockChildren = Array.from(node.children).filter((child) => /^(p|h[1-3]|ul|ol|blockquote|pre|hr)$/.test(child.tagName?.toLowerCase() || '') || child.classList?.contains('note-preview-table-wrap'));
   if (tag === 'div' && blockChildren.length) return blockChildren.map(serializeNoteBlock).filter(Boolean).join('\n\n');
@@ -1196,6 +1197,16 @@ function syncNoteInputFromPreview() {
   const limit = Number(itemNotesInput.maxLength) || 20000;
   itemNotesInput.value = serializeNotePreview().slice(0, limit);
   updateNoteEditorStatus();
+}
+
+function notePreviewNeedsCanonicalRender() {
+  if (!notePreview) return false;
+  return Array.from(notePreview.querySelectorAll('.note-preview-check')).some((item) => {
+    const children = Array.from(item.children);
+    const toggles = children.filter((child) => child.classList?.contains('note-preview-check-toggle'));
+    const content = children.find((child) => !child.classList?.contains('note-preview-check-toggle'));
+    return toggles.length !== 1 || !content || item.querySelector('.note-preview-check-toggle br');
+  });
 }
 
 function updateNotePreview() {
@@ -2476,7 +2487,10 @@ notePreview?.addEventListener('click', (event) => {
   itemNotesInput.dispatchEvent(new Event('input', { bubbles: true }));
 });
 notePreview?.addEventListener('input', () => {
-  if (noteEditorModeValue === 'preview') syncNoteInputFromPreview();
+  if (noteEditorModeValue !== 'preview') return;
+  const needsCanonicalRender = notePreviewNeedsCanonicalRender();
+  syncNoteInputFromPreview();
+  if (needsCanonicalRender) updateNotePreview();
 });
 document.addEventListener('selectionchange', rememberNotePreviewSelection);
 addCustomFieldButton.addEventListener('click', () => {
