@@ -127,6 +127,161 @@ app.whenReady().then(async () => {
       && formats.includes('callout') && formats.includes('date')
       && document.querySelector('#item-notes').maxLength === 20000;
   })()`), 'Toolbar editor Secure Note belum lengkap.');
+  const emptyNoteTyping = await win.webContents.executeJavaScript(`(() => {
+    const preview = document.querySelector('#note-preview');
+    preview.focus();
+    const paragraph = preview.querySelector('p');
+    const range = document.createRange();
+    range.selectNodeContents(paragraph);
+    range.collapse(true);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    document.execCommand('insertText', false, 'Catatan baru');
+    return {
+      value: document.querySelector('#item-notes').value,
+      placeholder: preview.querySelector('.note-preview-empty'),
+    };
+  })()`);
+  assert(emptyNoteTyping.value === 'Catatan baru' && !emptyNoteTyping.placeholder, `Secure Note baru tidak dapat diisi langsung dari Review: ${JSON.stringify(emptyNoteTyping)}`);
+  const formatMatrix = await win.webContents.executeJavaScript(`(() => {
+    const input = document.querySelector('#item-notes');
+    const preview = document.querySelector('#note-preview');
+    const apply = (format, text = 'Teks pilihan') => {
+      input.value = text;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      const target = preview.querySelector('p') || preview;
+      const range = document.createRange();
+      range.selectNodeContents(target);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      document.dispatchEvent(new Event('selectionchange'));
+      document.querySelector('[data-note-format="' + format + '"]').click();
+      return input.value;
+    };
+    return {
+      bold: apply('bold'),
+      italic: apply('italic'),
+      underline: apply('underline'),
+      strike: apply('strike'),
+      bullet: apply('bullet'),
+      number: apply('number'),
+      check: apply('check'),
+      quote: apply('quote'),
+      code: apply('code'),
+      codeBlock: apply('code-block'),
+      link: apply('link'),
+      table: apply('table'),
+      callout: apply('callout'),
+      rule: apply('rule'),
+      date: apply('date'),
+    };
+  })()`);
+  assert(formatMatrix.bold === '**Teks pilihan**'
+    && formatMatrix.italic === '*Teks pilihan*'
+    && formatMatrix.underline === '++Teks pilihan++'
+    && formatMatrix.strike === '~~Teks pilihan~~'
+    && formatMatrix.bullet === '- Teks pilihan'
+    && formatMatrix.number === '1. Teks pilihan'
+    && formatMatrix.check === '- [ ] Teks pilihan'
+    && formatMatrix.quote === '> Teks pilihan'
+    && formatMatrix.code === '`Teks pilihan`'
+    && formatMatrix.codeBlock === '```\nTeks pilihan\n```'
+    && formatMatrix.link === '[Teks pilihan](https://contoh.com)'
+    && formatMatrix.table.includes('| Kolom 1 | Kolom 2 |')
+    && formatMatrix.callout.includes('> **Catatan:** Teks pilihan')
+    && formatMatrix.rule === '---'
+    && formatMatrix.date.length > 0, `Format editor tidak konsisten: ${JSON.stringify(formatMatrix)}`);
+  const multilineFormats = await win.webContents.executeJavaScript(`(() => {
+    const input = document.querySelector('#item-notes');
+    const preview = document.querySelector('#note-preview');
+    const apply = (format, text = 'Satu\\nDua\\nTiga') => {
+      input.value = text;
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      const range = document.createRange();
+      range.selectNodeContents(preview.querySelector('p') || preview);
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      document.dispatchEvent(new Event('selectionchange'));
+      document.querySelector('[data-note-format="' + format + '"]').click();
+      return input.value;
+    };
+    return {
+      bullet: apply('bullet'),
+      number: apply('number'),
+      check: apply('check'),
+      quote: apply('quote'),
+      codeBlock: apply('code-block'),
+    };
+  })()`);
+  assert(multilineFormats.bullet === '- Satu\n- Dua\n- Tiga'
+    && multilineFormats.number === '1. Satu\n2. Dua\n3. Tiga'
+    && multilineFormats.check === '- [ ] Satu\n- [ ] Dua\n- [ ] Tiga'
+    && multilineFormats.quote === '> Satu\n> Dua\n> Tiga'
+    && multilineFormats.codeBlock === '```\nSatu\nDua\nTiga\n```', `Format multi-baris tidak konsisten: ${JSON.stringify(multilineFormats)}`);
+  const directEntry = await win.webContents.executeJavaScript(`(() => {
+    const input = document.querySelector('#item-notes');
+    const preview = document.querySelector('#note-preview');
+    input.value = '';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    preview.focus();
+    let paragraph = preview.querySelector('p');
+    let range = document.createRange();
+    range.selectNodeContents(paragraph);
+    range.collapse(true);
+    let selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    document.execCommand('insertText', false, 'Baris satu');
+    range.selectNodeContents(paragraph);
+    range.collapse(false);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    preview.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }));
+    paragraph = preview.querySelector('p');
+    paragraph.appendChild(document.createTextNode('Baris dua'));
+    preview.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: 'Baris dua' }));
+    return { value: input.value, html: preview.innerHTML };
+  })()`);
+  assert(directEntry.value === 'Baris satu\nBaris dua', `Pengetikan Enter langsung di Review tidak mempertahankan baris: ${JSON.stringify(directEntry)}`);
+  const clearFormatValue = await win.webContents.executeJavaScript(`(() => {
+    const input = document.querySelector('#item-notes');
+    const preview = document.querySelector('#note-preview');
+    input.value = '**Teks tebal**';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    const range = document.createRange();
+    range.selectNodeContents(preview.querySelector('p'));
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    document.dispatchEvent(new Event('selectionchange'));
+    document.querySelector('[data-note-format="clear"]').click();
+    return input.value;
+  })()`);
+  assert(clearFormatValue === 'Teks tebal', `Hapus format tidak bekerja di Review: ${JSON.stringify(clearFormatValue)}`);
+  const undoRedoValues = await win.webContents.executeJavaScript(`(() => {
+    const input = document.querySelector('#item-notes');
+    const preview = document.querySelector('#note-preview');
+    input.value = 'Undo target';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    const range = document.createRange();
+    range.selectNodeContents(preview.querySelector('p') || preview);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    document.dispatchEvent(new Event('selectionchange'));
+    document.querySelector('[data-note-format="bold"]').click();
+    const formatted = input.value;
+    document.querySelector('[data-note-format="undo"]').click();
+    const undone = input.value;
+    document.querySelector('[data-note-format="redo"]').click();
+    return { formatted, undone, redone: input.value };
+  })()`);
+  assert(undoRedoValues.formatted === '**Undo target**'
+    && undoRedoValues.undone === 'Undo target'
+    && undoRedoValues.redone === '**Undo target**', `Undo/redo editor tidak bekerja: ${JSON.stringify(undoRedoValues)}`);
   await win.webContents.executeJavaScript(`(() => {
     const input = document.querySelector('#item-notes');
     input.value = '# Judul QA\\n\\n- [ ] Tugas pertama\\n- [x] Tugas selesai\\n\\n| Kolom | Nilai |\\n| --- | --- |\\n| A | B |';
@@ -259,12 +414,18 @@ app.whenReady().then(async () => {
   await waitFor(win, "document.querySelector('#item-modal').classList.contains('hidden') && document.querySelector('.vault-item').textContent.includes('WiFi QA Diedit')");
   assert(await win.webContents.executeJavaScript("document.querySelector('.vault-item').textContent.includes('WiFi QA Diedit')"), 'Perubahan credential lama tidak tersimpan setelah klik Simpan Item.');
   await win.webContents.executeJavaScript("document.querySelector('.tree-node[data-filter=notes]').click(); document.querySelector('#sidebar-add-note-button').click();");
-  await win.webContents.executeJavaScript(`
+  await win.webContents.executeJavaScript(`(() => {
     document.querySelector('#item-title').value = 'Catatan QA';
-    document.querySelector('#item-notes').value = 'Versi pertama note.';
+    const noteInput = document.querySelector('#item-notes');
+    noteInput.value = '';
+    noteInput.dispatchEvent(new Event('input', { bubbles: true }));
+    const notePreview = document.querySelector('#note-preview');
+    notePreview.focus();
+    notePreview.querySelector('p').textContent = 'Versi pertama note.';
+    notePreview.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: 'Versi pertama note.' }));
     document.querySelector('#item-tags').value = 'qa, note';
     document.querySelector('#item-form').requestSubmit();
-  `);
+  })()`);
   await waitFor(win, "document.querySelector('#item-modal').classList.contains('hidden')");
   await win.webContents.executeJavaScript("document.querySelector('.tree-node[data-filter=all]').click();");
   await waitFor(win, "document.querySelector('.vault-item.note-card')");

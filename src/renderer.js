@@ -1129,7 +1129,7 @@ function serializeNoteInlineNode(node) {
   if (tag === 'strong' || tag === 'b') return `**${content}**`;
   if (tag === 'em' || tag === 'i') return `*${content}*`;
   if (tag === 'u') return `++${content}++`;
-  if (tag === 'del' || tag === 's') return `~~${content}~~`;
+  if (tag === 'del' || tag === 's' || tag === 'strike') return `~~${content}~~`;
   if (tag === 'mark') return `==${content}==`;
   if (tag === 'code' && node.parentElement?.tagName.toLowerCase() !== 'pre') return `\`${content}\``;
   if (tag === 'a') {
@@ -1157,9 +1157,9 @@ function serializeNoteTable(table) {
 function serializeNoteBlock(node) {
   if (!node || node.nodeType !== 1) return node?.textContent?.trim() || '';
   const tag = node.tagName.toLowerCase();
-  if (node.classList.contains('note-preview-empty')) return '';
+  if (node.classList.contains('note-preview-empty') && node.textContent.trim() === 'Belum ada isi catatan.') return '';
   if (node.classList.contains('note-preview-table-wrap')) return serializeNoteTable(node.querySelector('table'));
-  if (tag === 'pre') return '```\n' + node.textContent.replace(/\n+$/g, '') + '\n```';
+  if (tag === 'pre') return '```\n' + serializeNoteInlineNode(node).replace(/\n+$/g, '') + '\n```';
   if (tag === 'hr') return '---';
   if (/^h[1-3]$/.test(tag)) return `${'#'.repeat(Number(tag[1]))} ${serializeNoteInlineNode(node).trim()}`;
   if (tag === 'blockquote') {
@@ -1178,7 +1178,15 @@ function serializeNoteBlock(node) {
     }).filter(Boolean).join('\n');
   }
   const blockChildren = Array.from(node.children).filter((child) => /^(p|h[1-3]|ul|ol|blockquote|pre|hr)$/.test(child.tagName?.toLowerCase() || '') || child.classList?.contains('note-preview-table-wrap'));
-  if (tag === 'div' && blockChildren.length) return blockChildren.map(serializeNoteBlock).filter(Boolean).join('\n\n');
+  if (blockChildren.length) {
+    const blockSet = new Set(blockChildren);
+    const inline = Array.from(node.childNodes)
+      .filter((child) => !blockSet.has(child))
+      .map(serializeNoteInlineNode)
+      .join('')
+      .trim();
+    return [inline, ...blockChildren.map(serializeNoteBlock).filter(Boolean)].filter(Boolean).join('\n\n');
+  }
   return serializeNoteInlineNode(node).trim();
 }
 
@@ -1214,6 +1222,17 @@ function updateNotePreview() {
   notePreview.innerHTML = renderNoteMarkdown(itemNotesInput.value);
   notePreviewSelectionRange = null;
   updateNoteEditorStatus();
+}
+
+function clearNotePreviewPlaceholder() {
+  if (!notePreview || noteEditorModeValue !== 'preview') return;
+  const placeholder = notePreview.querySelector('.note-preview-empty');
+  if (!placeholder) return;
+  const placeholderText = 'Belum ada isi catatan.';
+  const text = placeholder.textContent || '';
+  if (!text.includes(placeholderText)) return;
+  placeholder.classList.remove('note-preview-empty');
+  placeholder.textContent = text.replace(placeholderText, '');
 }
 
 function setNoteEditorMode(nextMode = 'preview', options = {}) {
@@ -1366,7 +1385,8 @@ function applyReviewNoteFormat(format) {
       : lines.map((line) => line.trim() ? `- [ ] ${line.replace(/^\s*(?:[-*+]\s+)?/, '').trim()}` : '').join('\n');
     return replaceReviewSelection(replacement, range);
   }
-  if (format === 'link') return replaceReviewSelection(selected ? selected : 'teks tautan', range);
+  if (format === 'code') return replaceReviewSelection(`\`${selected || 'kode'}\``, range);
+  if (format === 'link') return replaceReviewSelection(`[${selected || 'teks tautan'}](https://contoh.com)`, range);
   if (format === 'table') return replaceReviewSelection('| Kolom 1 | Kolom 2 |\n| --- | --- |\n| Isi | Isi |', range);
   if (format === 'callout') return replaceReviewSelection(`> **Catatan:** ${selected || 'Tulis catatan penting di sini.'}`, range);
   if (format === 'date') {
@@ -2486,8 +2506,29 @@ notePreview?.addEventListener('click', (event) => {
   itemNotesInput.value = lines.join('\n');
   itemNotesInput.dispatchEvent(new Event('input', { bubbles: true }));
 });
+notePreview?.addEventListener('focus', clearNotePreviewPlaceholder);
+notePreview?.addEventListener('beforeinput', clearNotePreviewPlaceholder);
+notePreview?.addEventListener('keydown', (event) => {
+  if (noteEditorModeValue !== 'preview' || event.key !== 'Enter') return;
+  const selection = window.getSelection();
+  if (!selection?.rangeCount || !notePreview.contains(selection.anchorNode) || !notePreview.contains(selection.focusNode)) return;
+  const block = (selection.anchorNode.nodeType === 1 ? selection.anchorNode : selection.anchorNode.parentElement)
+    ?.closest('li, blockquote, pre, td, th');
+  if (block) return;
+  event.preventDefault();
+  const range = selection.getRangeAt(0);
+  range.deleteContents();
+  const breakNode = document.createElement('br');
+  range.insertNode(breakNode);
+  range.setStartAfter(breakNode);
+  range.collapse(true);
+  selection.removeAllRanges();
+  selection.addRange(range);
+  notePreview.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertLineBreak' }));
+});
 notePreview?.addEventListener('input', () => {
   if (noteEditorModeValue !== 'preview') return;
+  clearNotePreviewPlaceholder();
   const needsCanonicalRender = notePreviewNeedsCanonicalRender();
   syncNoteInputFromPreview();
   if (needsCanonicalRender) updateNotePreview();
