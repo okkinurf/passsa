@@ -165,6 +165,24 @@ app.whenReady().then(async () => {
     return { value, count: (value.match(/^- \\[ \\]/gm) || []).length };
   })()`);
   assert(checklistValue.count === 4, `Checklist toolbar tidak menerapkan checkbox ke semua baris yang dipilih: ${JSON.stringify(checklistValue.value)}`);
+  const caretChecklistValue = await win.webContents.executeJavaScript(`(() => {
+    const input = document.querySelector('#item-notes');
+    input.value = '1\\n2\\n3\\n4';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    const preview = document.querySelector('#note-preview');
+    const textNode = [...preview.querySelector('p').childNodes].find((node) => node.nodeType === Node.TEXT_NODE);
+    const range = document.createRange();
+    range.setStart(textNode, 1);
+    range.collapse(true);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    document.dispatchEvent(new Event('selectionchange'));
+    document.querySelector('[data-note-format=check]').click();
+    const value = input.value;
+    return { value, count: (value.match(/^- \\[ \\]/gm) || []).length };
+  })()`);
+  assert(caretChecklistValue.count === 4, `Checklist toolbar tidak memecah baris saat caret berada di paragraf: ${JSON.stringify(caretChecklistValue.value)}`);
   await win.webContents.executeJavaScript(`(() => {
     const input = document.querySelector('#item-notes');
     input.value = 'Teks pilihan';

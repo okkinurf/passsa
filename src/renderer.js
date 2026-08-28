@@ -1298,7 +1298,7 @@ function getReviewSelectedText(range) {
   const container = document.createElement('div');
   container.appendChild(range.cloneContents());
   container.querySelectorAll('br').forEach((breakNode) => breakNode.replaceWith(document.createTextNode('\n')));
-  return String(container.innerText || container.textContent || range.toString()).replace(/\r\n?/g, '\n');
+  return String(container.textContent || container.innerText || range.toString()).replace(/\r\n?/g, '\n');
 }
 
 function applyReviewNoteFormat(format) {
