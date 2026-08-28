@@ -1201,6 +1201,7 @@ function syncNoteInputFromPreview() {
 function updateNotePreview() {
   if (!notePreview || !itemNotesInput) return;
   notePreview.innerHTML = renderNoteMarkdown(itemNotesInput.value);
+  notePreviewSelectionRange = null;
   updateNoteEditorStatus();
 }
 
@@ -1241,8 +1242,124 @@ function replaceNoteSelection(replacement, selectionStart, selectionEnd) {
   itemNotesInput.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
+let notePreviewSelectionRange = null;
+
+function rememberNotePreviewSelection() {
+  if (!notePreview || !window.getSelection) return;
+  const selection = window.getSelection();
+  if (!selection?.rangeCount || !notePreview.contains(selection.anchorNode) || !notePreview.contains(selection.focusNode)) return;
+  notePreviewSelectionRange = selection.getRangeAt(0).cloneRange();
+}
+
+function getNotePreviewSelection() {
+  if (!notePreview || !notePreviewSelectionRange) return null;
+  const range = notePreviewSelectionRange;
+  if (!notePreview.contains(range.startContainer) || !notePreview.contains(range.endContainer)) {
+    notePreviewSelectionRange = null;
+    return null;
+  }
+  return range.cloneRange();
+}
+
+function reviewSelectionWithBlockFallback() {
+  const range = getNotePreviewSelection();
+  if (!range) return null;
+  if (range.toString().trim()) return range;
+  const container = range.startContainer.nodeType === 1
+    ? range.startContainer
+    : range.startContainer.parentElement;
+  const block = container?.closest('p, li, h1, h2, h3, blockquote, pre');
+  if (!block || !notePreview.contains(block)) return range;
+  const blockRange = document.createRange();
+  blockRange.selectNodeContents(block);
+  return blockRange;
+}
+
+function replaceReviewSelection(replacement, range) {
+  if (!notePreview || !range) return false;
+  notePreview.focus();
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+  range.deleteContents();
+  const textNode = document.createTextNode(replacement);
+  range.insertNode(textNode);
+  range.setStartAfter(textNode);
+  range.collapse(true);
+  selection.removeAllRanges();
+  selection.addRange(range);
+  notePreview.dispatchEvent(new Event('input', { bubbles: true }));
+  updateNotePreview();
+  return true;
+}
+
+function getReviewSelectedText(range) {
+  if (!range) return '';
+  const container = document.createElement('div');
+  container.appendChild(range.cloneContents());
+  container.querySelectorAll('br').forEach((breakNode) => breakNode.replaceWith(document.createTextNode('\n')));
+  return String(container.innerText || container.textContent || range.toString()).replace(/\r\n?/g, '\n');
+}
+
+function applyReviewNoteFormat(format) {
+  const range = reviewSelectionWithBlockFallback();
+  if (!range) return false;
+  const selected = format === 'check' ? getReviewSelectedText(range) : range.toString();
+  notePreview.focus();
+  const selection = window.getSelection();
+  selection.removeAllRanges();
+  selection.addRange(range);
+  if (format === 'undo' || format === 'redo') {
+    document.execCommand(format);
+    syncNoteInputFromPreview();
+    return true;
+  }
+  const commandMap = {
+    bold: ['bold'],
+    italic: ['italic'],
+    underline: ['underline'],
+    strike: ['strikeThrough'],
+    bullet: ['insertUnorderedList'],
+    number: ['insertOrderedList'],
+    quote: ['formatBlock', 'blockquote'],
+    'heading-1': ['formatBlock', 'h1'],
+    'heading-2': ['formatBlock', 'h2'],
+    'heading-3': ['formatBlock', 'h3'],
+    paragraph: ['formatBlock', 'p'],
+    'code-block': ['formatBlock', 'pre'],
+    clear: ['removeFormat'],
+  };
+  if (commandMap[format]) {
+    const [command, value] = commandMap[format];
+    document.execCommand(command, false, value);
+    syncNoteInputFromPreview();
+    return true;
+  }
+  const lines = selected.split('\n');
+  const checklistPattern = /^\s*[-*+]\s+\[([ xX])\]\s+(.*)$/;
+  if (format === 'check') {
+    const parsed = lines.map((line) => line.match(checklistPattern));
+    const nonEmpty = lines.filter((line) => line.trim());
+    const allChecklist = nonEmpty.length > 0 && parsed.every((match, index) => !lines[index].trim() || match);
+    const replacement = allChecklist
+      ? lines.map((line, index) => line.trim() ? parsed[index][2] : '').join('\n')
+      : lines.map((line) => line.trim() ? `- [ ] ${line.replace(/^\s*(?:[-*+]\s+)?/, '').trim()}` : '').join('\n');
+    return replaceReviewSelection(replacement, range);
+  }
+  if (format === 'link') return replaceReviewSelection(selected ? selected : 'teks tautan', range);
+  if (format === 'table') return replaceReviewSelection('| Kolom 1 | Kolom 2 |\n| --- | --- |\n| Isi | Isi |', range);
+  if (format === 'callout') return replaceReviewSelection(`> **Catatan:** ${selected || 'Tulis catatan penting di sini.'}`, range);
+  if (format === 'date') {
+    const date = new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date());
+    return replaceReviewSelection(date, range);
+  }
+  if (format === 'rule') return replaceReviewSelection('---', range);
+  return false;
+}
+
 function applyNoteFormat(format) {
   if (!itemNotesInput) return;
+  if (noteEditorModeValue === 'preview' && notePreview?.isContentEditable && applyReviewNoteFormat(format)) return;
   if (format === 'undo' || format === 'redo') {
     itemNotesInput.focus();
     document.execCommand(format);
@@ -2295,6 +2412,9 @@ noteEditorToolbar.addEventListener('click', (event) => {
   const button = event.target.closest('[data-note-format]');
   if (button) applyNoteFormat(button.dataset.noteFormat);
 });
+noteEditorToolbar.addEventListener('mousedown', (event) => {
+  if (noteEditorModeValue === 'preview' && event.target.closest('button[data-note-format]')) event.preventDefault();
+});
 noteEditorMode.addEventListener('click', (event) => {
   const button = event.target.closest('[data-note-mode]');
   if (button) setNoteEditorMode(button.dataset.noteMode);
@@ -2304,6 +2424,7 @@ noteHeadingLevel?.addEventListener('change', (event) => {
   event.currentTarget.value = 'paragraph';
 });
 itemNotesInput.addEventListener('input', updateNotePreview);
+itemNotesInput.addEventListener('focus', () => { notePreviewSelectionRange = null; });
 itemNotesInput.addEventListener('keydown', (event) => {
   const key = event.key.toLowerCase();
   if (event.ctrlKey && ['b', 'i', 'u'].includes(key)) {
@@ -2348,6 +2469,7 @@ notePreview?.addEventListener('click', (event) => {
 notePreview?.addEventListener('input', () => {
   if (noteEditorModeValue === 'preview') syncNoteInputFromPreview();
 });
+document.addEventListener('selectionchange', rememberNotePreviewSelection);
 addCustomFieldButton.addEventListener('click', () => {
   const fields = collectCustomFields();
   fields.push({ id: crypto.randomUUID(), label: '', type: 'text', value: '' });

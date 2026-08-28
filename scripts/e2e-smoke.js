@@ -149,13 +149,33 @@ app.whenReady().then(async () => {
   assert(await win.webContents.executeJavaScript("document.querySelector('#item-notes').value.includes('- [x] Tugas pertama')"), 'Checklist Preview tidak memperbarui Markdown note.');
   await win.webContents.executeJavaScript(`(() => {
     const input = document.querySelector('#item-notes');
+    input.value = 'Satu\\nDua\\nTiga\\nEmpat';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    const preview = document.querySelector('#note-preview');
+    const range = document.createRange();
+    range.selectNodeContents(preview);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    document.dispatchEvent(new Event('selectionchange'));
+    document.querySelector('[data-note-format=check]').click();
+  })()`);
+  const checklistValue = await win.webContents.executeJavaScript(`(() => {
+    const value = document.querySelector('#item-notes').value;
+    return { value, count: (value.match(/^- \\[ \\]/gm) || []).length };
+  })()`);
+  assert(checklistValue.count === 4, `Checklist toolbar tidak menerapkan checkbox ke semua baris yang dipilih: ${JSON.stringify(checklistValue.value)}`);
+  await win.webContents.executeJavaScript(`(() => {
+    const input = document.querySelector('#item-notes');
     input.value = 'Teks pilihan';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
     input.focus();
     input.setSelectionRange(0, input.value.length);
     document.querySelector('[data-note-format=bold]').click();
     return input.value;
   })()`);
-  assert(await win.webContents.executeJavaScript("document.querySelector('#item-notes').value === '**Teks pilihan**'"), 'Format bold pada toolbar tidak bekerja.');
+  const boldValue = await win.webContents.executeJavaScript("document.querySelector('#item-notes').value");
+  assert(boldValue === '**Teks pilihan**', `Format bold pada toolbar tidak bekerja: ${JSON.stringify(boldValue)}`);
   await win.webContents.executeJavaScript(`(() => {
     const input = document.querySelector('#item-notes');
     input.value = '';
