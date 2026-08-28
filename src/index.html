@@ -273,14 +273,13 @@
             <button type="button" data-note-format="date" title="Sisipkan tanggal" aria-label="Sisipkan tanggal"><i class="fa-regular fa-calendar" aria-hidden="true"></i></button>
             <button type="button" data-note-format="clear" title="Hapus format" aria-label="Hapus format"><i class="fa-solid fa-eraser" aria-hidden="true"></i></button>
           </div>
-          <div id="note-editor-mode" class="note-editor-mode" role="tablist" aria-label="Mode editor">
-            <button type="button" data-note-mode="write" role="tab" aria-selected="true">Tulis</button>
-            <button type="button" data-note-mode="preview" role="tab" aria-selected="false" title="Preview dan edit langsung">Preview</button>
+          <div id="note-editor-mode" class="note-editor-mode note-editor-review-only" role="status" aria-label="Mode editor">
+            <span id="note-editor-review-label"><i class="fa-solid fa-eye" aria-hidden="true"></i> Review</span>
           </div>
           <textarea id="item-notes" maxlength="20000" rows="8" spellcheck="true" placeholder="Keterangan singkat item (opsional)"></textarea>
-          <div id="note-preview" class="note-preview hidden" role="region" aria-label="Preview Secure Note"></div>
+          <div id="note-preview" class="note-preview hidden" role="region" aria-label="Review Secure Note"></div>
           <div class="note-editor-footer">
-            <small id="note-editor-help" class="field-help">Markdown: **tebal**, *miring*, tabel, checklist, quote, kode, dan tautan aman. Preview dapat diedit langsung.</small>
+            <small id="note-editor-help" class="field-help">Markdown: **tebal**, *miring*, tabel, checklist, quote, kode, dan tautan aman. Review dapat diedit langsung.</small>
             <small id="note-editor-status" class="note-editor-status" aria-live="polite">0 karakter</small>
           </div>
         </div>

@@ -115,6 +115,12 @@ app.whenReady().then(async () => {
   await win.webContents.executeJavaScript("document.querySelector('#sidebar-add-note-button').click()");
   assert(await win.webContents.executeJavaScript("!document.querySelector('#item-modal').classList.contains('hidden') && document.querySelector('#item-type').value === 'secure-note'"), 'Tombol New Noted tidak membuka form Secure Note.');
   assert(await win.webContents.executeJavaScript(`(() => {
+    const mode = document.querySelector('#note-editor-mode');
+    return mode && mode.textContent.includes('Review') && !mode.querySelector('[data-note-mode]')
+      && !mode.textContent.includes('Tulis') && !mode.textContent.includes('Preview')
+      && !document.querySelector('#note-preview').classList.contains('hidden');
+  })()`), 'Editor Secure Note masih menampilkan tab Tulis/Preview atau belum berada di mode Review.');
+  assert(await win.webContents.executeJavaScript(`(() => {
     const toolbar = document.querySelector('#note-editor-toolbar');
     const formats = [...toolbar.querySelectorAll('[data-note-format]')].map((button) => button.dataset.noteFormat);
     return formats.includes('undo') && formats.includes('redo') && formats.includes('table')
@@ -125,7 +131,6 @@ app.whenReady().then(async () => {
     const input = document.querySelector('#item-notes');
     input.value = '# Judul QA\\n\\n- [ ] Tugas pertama\\n- [x] Tugas selesai\\n\\n| Kolom | Nilai |\\n| --- | --- |\\n| A | B |';
     input.dispatchEvent(new Event('input', { bubbles: true }));
-    document.querySelector('[data-note-mode=preview]').click();
   })()`);
   assert(await win.webContents.executeJavaScript(`(() => {
     const preview = document.querySelector('#note-preview');
@@ -143,7 +148,6 @@ app.whenReady().then(async () => {
   await win.webContents.executeJavaScript("document.querySelector('.note-preview-check-toggle').click()");
   assert(await win.webContents.executeJavaScript("document.querySelector('#item-notes').value.includes('- [x] Tugas pertama')"), 'Checklist Preview tidak memperbarui Markdown note.');
   await win.webContents.executeJavaScript(`(() => {
-    document.querySelector('[data-note-mode=write]').click();
     const input = document.querySelector('#item-notes');
     input.value = 'Teks pilihan';
     input.focus();

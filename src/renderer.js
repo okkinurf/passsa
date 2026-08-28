@@ -1109,7 +1109,7 @@ function renderNoteMarkdown(value) {
   return html.join('') || '<p class="note-preview-empty">Belum ada isi catatan.</p>';
 }
 
-let noteEditorModeValue = 'write';
+let noteEditorModeValue = 'preview';
 
 function updateNoteEditorStatus(value = itemNotesInput?.value ?? '') {
   if (!noteEditorStatus) return;
@@ -1204,8 +1204,9 @@ function updateNotePreview() {
   updateNoteEditorStatus();
 }
 
-function setNoteEditorMode(nextMode = 'write', options = {}) {
-  noteEditorModeValue = nextMode === 'preview' ? 'preview' : 'write';
+function setNoteEditorMode(nextMode = 'preview', options = {}) {
+  const secureNote = itemTypeInput?.value === 'secure-note';
+  noteEditorModeValue = secureNote || nextMode === 'preview' ? 'preview' : 'write';
   const preview = noteEditorModeValue === 'preview';
   if (!preview && options.sync !== false && notePreview?.isContentEditable) syncNoteInputFromPreview();
   itemNotesInput?.classList.toggle('hidden', preview);
@@ -1215,13 +1216,13 @@ function setNoteEditorMode(nextMode = 'write', options = {}) {
       notePreview.setAttribute('contenteditable', 'true');
       notePreview.setAttribute('role', 'textbox');
       notePreview.setAttribute('aria-multiline', 'true');
-      notePreview.setAttribute('aria-label', 'Preview Secure Note, klik teks untuk mengedit');
+      notePreview.setAttribute('aria-label', 'Review Secure Note, klik teks untuk mengedit');
       notePreview.classList.add('is-editable');
     } else {
       notePreview.removeAttribute('contenteditable');
       notePreview.removeAttribute('aria-multiline');
       notePreview.setAttribute('role', 'region');
-      notePreview.setAttribute('aria-label', 'Preview Secure Note');
+      notePreview.setAttribute('aria-label', 'Review Secure Note');
       notePreview.classList.remove('is-editable');
     }
   }
@@ -1329,7 +1330,7 @@ function updateItemTypeUi() {
   noteEditorMode.classList.toggle('hidden', !secureNote);
   document.querySelector('#note-editor-help').classList.toggle('hidden', !secureNote);
   noteEditorStatus?.classList.toggle('hidden', !secureNote);
-  if (!secureNote) setNoteEditorMode('write');
+  setNoteEditorMode(secureNote ? 'preview' : 'write');
   updateNotePreview();
 }
 
