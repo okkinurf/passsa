@@ -183,6 +183,23 @@ app.whenReady().then(async () => {
     return { value, count: (value.match(/^- \\[ \\]/gm) || []).length };
   })()`);
   assert(caretChecklistValue.count === 4, `Checklist toolbar tidak memecah baris saat caret berada di paragraf: ${JSON.stringify(caretChecklistValue.value)}`);
+  const blockChecklistValue = await win.webContents.executeJavaScript(`(() => {
+    const input = document.querySelector('#item-notes');
+    input.value = '';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    const preview = document.querySelector('#note-preview');
+    preview.innerHTML = '<div>1</div><div>2</div><div>3</div><div>4</div>';
+    const range = document.createRange();
+    range.selectNodeContents(preview);
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    document.dispatchEvent(new Event('selectionchange'));
+    document.querySelector('[data-note-format=check]').click();
+    const value = input.value;
+    return { value, count: (value.match(/^- \\[ \\]/gm) || []).length };
+  })()`);
+  assert(blockChecklistValue.count === 4, `Checklist toolbar tidak mempertahankan baris pada blok editor: ${JSON.stringify(blockChecklistValue.value)}`);
   await win.webContents.executeJavaScript(`(() => {
     const input = document.querySelector('#item-notes');
     input.value = 'Teks pilihan';

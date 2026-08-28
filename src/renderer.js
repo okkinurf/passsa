@@ -1297,8 +1297,17 @@ function getReviewSelectedText(range) {
   if (!range) return '';
   const container = document.createElement('div');
   container.appendChild(range.cloneContents());
-  container.querySelectorAll('br').forEach((breakNode) => breakNode.replaceWith(document.createTextNode('\n')));
-  return String(container.textContent || container.innerText || range.toString()).replace(/\r\n?/g, '\n');
+  const blockTags = new Set(['address', 'blockquote', 'div', 'h1', 'h2', 'h3', 'li', 'ol', 'p', 'pre', 'ul']);
+  const readNode = (node) => {
+    if (node.nodeType === 3) return node.nodeValue || '';
+    if (node.nodeType !== 1) return '';
+    const tag = node.tagName.toLowerCase();
+    if (tag === 'br') return '\n';
+    const content = Array.from(node.childNodes).map(readNode).join('');
+    return blockTags.has(tag) ? `${content}\n` : content;
+  };
+  const selected = readNode(container).replace(/\r\n?/g, '\n');
+  return selected.replace(/\n{3,}/g, '\n\n').replace(/^\n+|\n+$/g, '');
 }
 
 function applyReviewNoteFormat(format) {
