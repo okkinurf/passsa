@@ -133,6 +133,13 @@ app.whenReady().then(async () => {
       && preview.querySelector('.note-preview-table')
       && preview.querySelectorAll('.note-preview-check-toggle').length === 2;
   })()`), 'Preview editor tidak merender heading, checklist, dan tabel.');
+  assert(await win.webContents.executeJavaScript("document.querySelector('#note-preview').isContentEditable && document.querySelector('#note-preview').getAttribute('role') === 'textbox'"), 'Preview Secure Note belum dapat diedit langsung.');
+  await win.webContents.executeJavaScript(`(() => {
+    const heading = document.querySelector('#note-preview h1');
+    heading.textContent = 'Judul Diedit';
+    heading.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
+  })()`);
+  assert(await win.webContents.executeJavaScript("document.querySelector('#item-notes').value.includes('# Judul Diedit') && document.querySelector('#item-notes').value.includes('- [ ] Tugas pertama') && document.querySelector('#item-notes').value.includes('| Kolom | Nilai |')"), 'Perubahan langsung dari Preview tidak dikonversi kembali ke Markdown.');
   await win.webContents.executeJavaScript("document.querySelector('.note-preview-check-toggle').click()");
   assert(await win.webContents.executeJavaScript("document.querySelector('#item-notes').value.includes('- [x] Tugas pertama')"), 'Checklist Preview tidak memperbarui Markdown note.');
   await win.webContents.executeJavaScript(`(() => {

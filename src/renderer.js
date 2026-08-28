@@ -1102,21 +1102,120 @@ function renderNoteMarkdown(value) {
 
 let noteEditorModeValue = 'write';
 
+function updateNoteEditorStatus(value = itemNotesInput?.value ?? '') {
+  if (!noteEditorStatus) return;
+  const length = String(value).length;
+  const limit = Number(itemNotesInput?.maxLength) || 20000;
+  noteEditorStatus.textContent = `${length.toLocaleString('id-ID')} / ${limit.toLocaleString('id-ID')} karakter`;
+}
+
+function serializeNoteInlineNode(node) {
+  if (!node) return '';
+  if (node.nodeType === 3) return node.nodeValue.replace(/\u00a0/g, ' ');
+  if (node.nodeType !== 1) return '';
+  const tag = node.tagName.toLowerCase();
+  if (tag === 'br') return '\n';
+  if (tag === 'button' && node.classList.contains('note-preview-check-toggle')) return '';
+  const content = Array.from(node.childNodes).map(serializeNoteInlineNode).join('');
+  if (tag === 'strong' || tag === 'b') return `**${content}**`;
+  if (tag === 'em' || tag === 'i') return `*${content}*`;
+  if (tag === 'u') return `++${content}++`;
+  if (tag === 'del' || tag === 's') return `~~${content}~~`;
+  if (tag === 'mark') return `==${content}==`;
+  if (tag === 'code' && node.parentElement?.tagName.toLowerCase() !== 'pre') return `\`${content}\``;
+  if (tag === 'a') {
+    const href = node.getAttribute('href') || '';
+    return /^(https?:\/\/|mailto:)/i.test(href) ? `[${content}](${href})` : content;
+  }
+  if (tag === 'div') return Array.from(node.childNodes).map(serializeNoteInlineNode).join('\n');
+  return content;
+}
+
+function serializeNoteTable(table) {
+  if (!table) return '';
+  const rows = Array.from(table.querySelectorAll('tr')).map((row) => Array.from(row.querySelectorAll('th, td'))
+    .map((cell) => serializeNoteInlineNode(cell).replace(/\|/g, '\\|').trim()));
+  const headers = rows[0] || [];
+  if (headers.length < 2) return '';
+  const separator = headers.map(() => '---');
+  return [
+    `| ${headers.join(' | ')} |`,
+    `| ${separator.join(' | ')} |`,
+    ...rows.slice(1).map((row) => `| ${headers.map((_header, index) => row[index] || '').join(' | ')} |`),
+  ].join('\n');
+}
+
+function serializeNoteBlock(node) {
+  if (!node || node.nodeType !== 1) return node?.textContent?.trim() || '';
+  const tag = node.tagName.toLowerCase();
+  if (node.classList.contains('note-preview-empty')) return '';
+  if (node.classList.contains('note-preview-table-wrap')) return serializeNoteTable(node.querySelector('table'));
+  if (tag === 'pre') return '```\n' + node.textContent.replace(/\n+$/g, '') + '\n```';
+  if (tag === 'hr') return '---';
+  if (/^h[1-3]$/.test(tag)) return `${'#'.repeat(Number(tag[1]))} ${serializeNoteInlineNode(node).trim()}`;
+  if (tag === 'blockquote') {
+    const content = serializeNoteInlineNode(node).trim();
+    return content.split('\n').map((line) => line ? `> ${line}` : '>').join('\n');
+  }
+  if (tag === 'ul' || tag === 'ol') {
+    const ordered = tag === 'ol';
+    return Array.from(node.children).filter((child) => child.tagName?.toLowerCase() === 'li').map((li, index) => {
+      const toggle = Array.from(li.children).find((child) => child.classList?.contains('note-preview-check-toggle'));
+      const contentNode = Array.from(li.children).find((child) => child !== toggle) || li;
+      const content = serializeNoteInlineNode(contentNode).trim();
+      if (toggle) return `- [${toggle.textContent.trim() ? 'x' : ' '}] ${content}`;
+      return `${ordered ? `${index + 1}.` : '-'} ${content}`;
+    }).join('\n');
+  }
+  const blockChildren = Array.from(node.children).filter((child) => /^(p|h[1-3]|ul|ol|blockquote|pre|hr)$/.test(child.tagName?.toLowerCase() || '') || child.classList?.contains('note-preview-table-wrap'));
+  if (tag === 'div' && blockChildren.length) return blockChildren.map(serializeNoteBlock).filter(Boolean).join('\n\n');
+  return serializeNoteInlineNode(node).trim();
+}
+
+function serializeNotePreview() {
+  if (!notePreview) return '';
+  return Array.from(notePreview.childNodes)
+    .map(serializeNoteBlock)
+    .filter(Boolean)
+    .join('\n\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
+}
+
+function syncNoteInputFromPreview() {
+  if (!notePreview || !itemNotesInput) return;
+  const limit = Number(itemNotesInput.maxLength) || 20000;
+  itemNotesInput.value = serializeNotePreview().slice(0, limit);
+  updateNoteEditorStatus();
+}
+
 function updateNotePreview() {
   if (!notePreview || !itemNotesInput) return;
   notePreview.innerHTML = renderNoteMarkdown(itemNotesInput.value);
-  if (noteEditorStatus) {
-    const length = itemNotesInput.value.length;
-    const limit = Number(itemNotesInput.maxLength) || 20000;
-    noteEditorStatus.textContent = `${length.toLocaleString('id-ID')} / ${limit.toLocaleString('id-ID')} karakter`;
-  }
+  updateNoteEditorStatus();
 }
 
-function setNoteEditorMode(nextMode = 'write') {
+function setNoteEditorMode(nextMode = 'write', options = {}) {
   noteEditorModeValue = nextMode === 'preview' ? 'preview' : 'write';
   const preview = noteEditorModeValue === 'preview';
+  if (!preview && options.sync !== false && notePreview?.isContentEditable) syncNoteInputFromPreview();
   itemNotesInput?.classList.toggle('hidden', preview);
   notePreview?.classList.toggle('hidden', !preview);
+  if (notePreview) {
+    if (preview) {
+      notePreview.setAttribute('contenteditable', 'true');
+      notePreview.setAttribute('role', 'textbox');
+      notePreview.setAttribute('aria-multiline', 'true');
+      notePreview.setAttribute('aria-label', 'Preview Secure Note, klik teks untuk mengedit');
+      notePreview.classList.add('is-editable');
+    } else {
+      notePreview.removeAttribute('contenteditable');
+      notePreview.removeAttribute('aria-multiline');
+      notePreview.setAttribute('role', 'region');
+      notePreview.setAttribute('aria-label', 'Preview Secure Note');
+      notePreview.classList.remove('is-editable');
+    }
+  }
   noteEditorMode?.querySelectorAll('[data-note-mode]').forEach((button) => {
     const active = button.dataset.noteMode === noteEditorModeValue;
     button.classList.toggle('active', active);
@@ -1579,7 +1678,7 @@ function openItemModal(item = null) {
   document.querySelector('#item-favorite').checked = item ? Boolean(item.favorite) : currentFilter === 'favorites';
   document.querySelector('#item-notes').value = item?.notes ?? '';
   document.querySelector('#item-tags').value = item ? (item.tags ?? []).join(', ') : (currentTag ?? '');
-  setNoteEditorMode('write');
+  setNoteEditorMode('write', { sync: false });
   renderCustomFields(item?.fields ?? []);
   updateItemTypeUi();
   if (item?.type === 'secure-note') renderNoteHistory(item.noteHistory ?? [], Boolean(item));
@@ -1594,7 +1693,7 @@ function closeItemModal() {
   itemModal.classList.add('hidden');
   itemForm.reset();
   renderCustomFields([]);
-  setNoteEditorMode('write');
+  setNoteEditorMode('write', { sync: false });
   updateItemTypeUi();
   renderPasswordHistory([], false);
 }
@@ -2224,6 +2323,7 @@ itemNotesInput.addEventListener('keydown', (event) => {
   replaceNoteSelection(`\n${continuation[1]}`, start, start);
 });
 notePreview?.addEventListener('click', (event) => {
+  if (noteEditorModeValue === 'preview' && event.target.closest('a')) event.preventDefault();
   const toggle = event.target.closest('[data-note-line]');
   if (!toggle || !itemNotesInput) return;
   const lineIndex = Number(toggle.dataset.noteLine);
@@ -2234,6 +2334,9 @@ notePreview?.addEventListener('click', (event) => {
   lines[lineIndex] = `${match[1]}${match[2].toLowerCase() === 'x' ? ' ' : 'x'}${match[3]}`;
   itemNotesInput.value = lines.join('\n');
   itemNotesInput.dispatchEvent(new Event('input', { bubbles: true }));
+});
+notePreview?.addEventListener('input', () => {
+  if (noteEditorModeValue === 'preview') syncNoteInputFromPreview();
 });
 addCustomFieldButton.addEventListener('click', () => {
   const fields = collectCustomFields();
