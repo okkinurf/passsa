@@ -251,6 +251,7 @@ body.resizing-sidebar { cursor: col-resize; user-select: none; }
 .tag-chip:hover { filter: saturate(1.12); transform: translateY(-1px) scale(1.04); }
 .item-actions { width: 156px; min-width: 0; display: flex; justify-content: flex-end; align-items: center; gap: 1px; }
 .item-action, .icon-button { width: 24px; height: 24px; display: inline-grid; place-items: center; border: 0; background: transparent; color: #5d6a82; border-radius: 6px; padding: 4px; font-size: 11px; transition: transform .35s var(--spring-pop), color .2s ease, background .2s ease; }
+.item-action { width: 25px; height: 26px; font-size: 12px; }
 .item-action i { pointer-events: none; }
 .item-action:hover, .icon-button:hover { background: #edf2fb; color: #2858b6; }
 .item-action:active, .icon-button:active { transform: scale(.82); transition-duration: .08s; }
@@ -766,13 +767,13 @@ select { width: 100%; height: 48px; padding: 0 12px; border: 1px solid #d9dfeb; 
 /* The sidebar width and OS scaling can leave a narrow content panel even on a
    wide window. Container queries keep actions inside the row in that case. */
 @container vault-content (max-width: 850px) {
-  .items-header { display: grid !important; grid-template-columns: 22px minmax(90px, 1.15fr) minmax(78px, .9fr) minmax(88px, .9fr) 116px; min-width: 0; gap: 4px 14px; padding-inline: 7px; }
-  .vault-item { min-width: 0; grid-template-columns: 22px minmax(90px, 1.15fr) minmax(78px, .9fr) minmax(88px, .9fr) 116px; gap: 4px 14px; padding: 6px 7px; }
+  .items-header { display: grid !important; grid-template-columns: 22px minmax(90px, 1.15fr) minmax(78px, .9fr) minmax(88px, .9fr) 132px; min-width: 0; gap: 4px 14px; padding-inline: 7px; }
+  .vault-item { min-width: 0; grid-template-columns: 22px minmax(90px, 1.15fr) minmax(78px, .9fr) minmax(88px, .9fr) 132px; gap: 4px 14px; padding: 6px 7px; }
   .item-tags-cell, .item-login { display: block; overflow: hidden; }
   .item-tags-cell { overflow: visible; }
   .item-tags-cell .item-tags { max-height: 25px; overflow: visible; }
-  .item-actions { width: 116px; max-width: none; gap: 0; }
-  .item-action { width: 19px; height: 21px; padding: 2px; font-size: 9px; }
+  .item-actions { width: 132px; max-width: none; gap: 0; }
+  .item-action { width: 22px; height: 24px; padding: 2px; font-size: 11px; }
   .item-description { grid-column: 2 / -1; }
 }
 
@@ -801,7 +802,7 @@ select { width: 100%; height: 48px; padding: 0 12px; border: 1px solid #d9dfeb; 
   .item-tags-cell, .item-login { display: none; }
   .item-description { grid-column: 2 / -1; }
   .item-actions { width: auto; gap: 1px; }
-  .item-action { width: 22px; height: 23px; padding: 3px; font-size: 10px; }
+  .item-action { width: 24px; height: 25px; padding: 3px; font-size: 11px; }
 }
 
 /* Calm theme tokens and the explicit dark palette. The renderer resolves
