@@ -476,9 +476,11 @@ app.whenReady().then(async () => {
       && row.querySelector('.item-login').offsetParent !== null;
   })()`), 'Kolom Item, Tags, Akun, dan Aksi tidak tetap terlihat pada layout responsive.');
   assert(await win.webContents.executeJavaScript(`(() => {
-    const selectors = ['.items-scroll', '.vault-tree', '.item-modal'];
-    return selectors.every((selector) => getComputedStyle(document.querySelector(selector)).scrollBehavior === 'smooth');
-  })()`), 'Scroll internal belum memakai perilaku smooth yang konsisten.');
+    const list = document.querySelector('.items-scroll');
+    const otherScrollSurfaces = ['.vault-tree', '.item-modal'];
+    return getComputedStyle(list).scrollBehavior === 'auto'
+      && otherScrollSurfaces.every((selector) => getComputedStyle(document.querySelector(selector)).scrollBehavior === 'smooth');
+  })()`), 'Perilaku scroll internal tidak sesuai: daftar harus tetap native agar scrolling item stabil, sementara tree dan modal memakai smooth scroll.');
   await win.webContents.executeJavaScript(`
     document.querySelector('#item-title').value = 'Item Baru E2E';
     document.querySelector('#item-username').value = 'e2e-user';
@@ -514,7 +516,7 @@ app.whenReady().then(async () => {
   assert(await win.webContents.executeJavaScript("document.querySelector('#item-count').textContent === '1 item'"), 'Filter Authenticator tidak memfilter item TOTP.');
   await win.webContents.executeJavaScript("document.querySelector('#settings-button').click()");
   assert(await win.webContents.executeJavaScript("document.querySelector('#settings-theme') && document.querySelector('#settings-theme').value === 'system'"), 'Pilihan tema Ikuti Windows tidak tampil sebagai default.');
-  assert(await win.webContents.executeJavaScript("document.querySelectorAll('input[name=\"settings-palette\"]').length === 4 && document.querySelector('input[name=\"settings-palette\"][value=\"rose\"]').checked"), 'Menu palet warna tidak tampil dengan pilihan Rosewood sebagai default.');
+  assert(await win.webContents.executeJavaScript("document.querySelectorAll('input[name=\"settings-palette\"]').length === 10 && document.querySelector('input[name=\"settings-palette\"][value=\"rose\"]').checked"), 'Menu harus menampilkan sepuluh palet warna dengan Rosewood sebagai default.');
   await win.webContents.executeJavaScript("(() => { const palette = document.querySelector('input[name=\"settings-palette\"][value=\"ocean\"]'); palette.click(); })()");
   assert(await win.webContents.executeJavaScript("document.documentElement.dataset.palette === 'ocean' && localStorage.getItem('passsa-palette') === 'ocean' && document.querySelector('.theme-palette-option[data-palette-option=\"ocean\"]').classList.contains('selected')"), 'Palet Ocean tidak diterapkan atau tidak tersimpan.');
   await win.webContents.executeJavaScript("(() => { const theme = document.querySelector('#settings-theme'); theme.value = 'dark'; theme.dispatchEvent(new Event('change', { bubbles: true })); })()");

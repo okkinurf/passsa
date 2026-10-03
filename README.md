@@ -1,23 +1,23 @@
 <div align="center">
 
-<img src="src/assets/passsa-logo-cropped.png" alt="PassSa Logo" width="300" />
+<img src="src/assets/passsa-logo-cropped.png" alt="PassSa Logo" width="240" />
 
 # PassSa
 
 ### Password manager local-first untuk Windows
 
-Simpan credential secara lokal, enkripsi vault dengan **AES-256-GCM**, dan sinkronkan vault terenkripsi secara opsional melalui **Google Drive**.
+Simpan credential di perangkat Anda. Enkripsi vault dengan **AES-256-GCM**. Sinkronkan secara opsional lewat **Google Drive** atau **Amazon S3**.
 
 [![Version](https://img.shields.io/badge/version-0.1.0-blue.svg)](#roadmap)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6.svg?logo=windows&logoColor=white)](#menjalankan-passsa)
 [![Electron](https://img.shields.io/badge/Electron-39-47848F.svg?logo=electron&logoColor=white)](#tech-stack)
 [![Encryption](https://img.shields.io/badge/encryption-AES--256--GCM-success.svg)](#model-keamanan)
-[![OAuth](https://img.shields.io/badge/Google-OAuth%202.0%20%2B%20PKCE-4285F4.svg?logo=google&logoColor=white)](#google-sync)
-[![License](https://img.shields.io/badge/license-not%20declared-lightgrey.svg)](#lisensi)
+[![2FA](https://img.shields.io/badge/2FA-TOTP-7050B2.svg)](#metode-login)
+[![Sync](https://img.shields.io/badge/sync-Google%20Drive%20%7C%20S3-4285F4.svg)](#sinkronisasi-cloud)
 
-**Development status:** `v0.1.0` — aktif dikembangkan. Runtime desktop saat ini adalah Electron; folder Tauri v2 masih menjadi persiapan migrasi.
+**Dalam pengembangan · v0.1.0** — runtime desktop saat ini Electron. Tauri v2 masih tahap persiapan migrasi.
 
-[Features](#fitur-utama) · [Security](#model-keamanan) · [Install](#menjalankan-passsa) · [Roadmap](#roadmap) · [Docs](#dokumentasi)
+[Fitur](#fitur-utama) · [Keamanan](#model-keamanan) · [Jalankan](#menjalankan-passsa) · [Roadmap](#roadmap) · [Dokumentasi](#dokumentasi)
 
 </div>
 
@@ -27,9 +27,9 @@ Simpan credential secara lokal, enkripsi vault dengan **AES-256-GCM**, dan sinkr
 
 **PassSa** adalah password manager desktop Windows dengan pendekatan **local-first**. Credential utama disimpan pada vault lokal terenkripsi dan tidak membutuhkan cloud agar dapat digunakan.
 
-Google Drive bersifat opsional dan hanya digunakan sebagai media sinkronisasi envelope terenkripsi. Password vault, refresh token, dan secret lain tidak dirancang untuk disimpan sebagai plaintext.
+Google Drive dan Amazon S3 bersifat opsional dan hanya digunakan untuk sinkronisasi snapshot vault terenkripsi. Password vault, refresh token, dan secret lain tidak dirancang untuk disimpan sebagai plaintext.
 
-PassSa juga menyediakan Windows Hello, browser autofill, Secure Note, custom fields, tags, groups, favorites, Trash, password history, encrypted backup, serta import/export untuk interoperabilitas.
+PassSa juga menyediakan Authenticator TOTP, Windows Hello, browser autofill, Secure Note, custom fields, tags, groups, favorites, Trash, riwayat password, backup terenkripsi, serta import/export.
 
 > [!WARNING]
 > PassSa masih dalam tahap pengembangan. Lakukan pengujian dan review keamanan sebelum menggunakannya untuk credential produksi yang kritikal.
@@ -38,24 +38,39 @@ PassSa juga menyediakan Windows Hello, browser autofill, Secure Note, custom fie
 
 ## 🖥️ Preview
 
-PassSa memakai layout desktop responsif dengan tema light/dark, sidebar yang dapat diciutkan, Quick Access, dan form login lokal. Logo resmi disimpan di `src/assets/` agar ikut terpaket saat build.
+Dirancang untuk vault lokal yang mudah dipakai: cari item, salin data dengan cepat, dan pilih sendiri apakah vault tetap hanya di perangkat atau disinkronkan.
 
-> Screenshot atau GIF demo dapat ditambahkan ke `docs/assets/` ketika alur UI sudah dibekukan untuk rilis publik.
+<table>
+  <tr>
+    <td width="33%"><strong>🔐 Vault terenkripsi</strong><br />Data utama tetap lokal dan dienkripsi saat tersimpan.</td>
+    <td width="33%"><strong>🧭 Akses cepat</strong><br />Authenticator TOTP dan Quick Access membantu alur sehari-hari.</td>
+    <td width="33%"><strong>☁️ Sync pilihan Anda</strong><br />Google Drive atau S3, dengan snapshot vault terenkripsi.</td>
+  </tr>
+</table>
 
 ### Alur penggunaan
 
 ```mermaid
 flowchart LR
-    A[Login] --> B[Unlock Vault]
-    B --> C[Browse Credentials]
-    C --> D[Copy / Autofill]
-    C --> E[Secure Notes]
-    C --> F[Manage Tags & Groups]
-    B --> G{Google Login?}
-    G -->|Yes| H[Encrypted Drive Sync]
-    G -->|No| I[Local-only Vault]
-    B --> J[Encrypted Backup]
+    A[Masuk ke perangkat] --> B{Metode login}
+    B -->|Password| C[Username + password]
+    B -->|Password + 2FA| D[Password + kode TOTP]
+    B -->|Login langsung| E[Akses khusus perangkat]
+    C --> F[Vault lokal terenkripsi]
+    D --> F
+    E --> F
+    F --> G[Credential · Notes · Authenticator]
+    G --> H[Copy · Autofill · Quick Access]
+    F --> I{Pilih sync}
+    I -->|Opsional| J[Google Drive / S3]
+    I -->|Tidak| K[Hanya lokal]
+    F --> L[Backup terenkripsi]
 ```
+
+<a id="metode-login"></a>
+### Pilih cara membuka vault
+
+Metode login diatur setelah akun dibuat melalui **Pengaturan → Metode login**. Vault dapat dibuka dengan username/password, password ditambah kode Google Authenticator, atau login langsung pada perangkat tersebut. Login langsung mengurangi perlindungan lokal: siapa pun yang memakai sesi Windows Anda dapat membuka vault. Pengaturan 2FA tersimpan per perangkat dan tidak ikut tersinkron.
 
 ---
 
@@ -69,6 +84,10 @@ flowchart LR
 | Windows Hello | ✅ opsional | Unlock biometrik/PIN Windows; tersembunyi secara default dan diaktifkan dari Pengaturan |
 | Google OAuth Desktop PKCE | ✅ opsional | Google dipakai untuk cloud sync; login lokal tetap menjadi jalur utama |
 | Google Drive encrypted sync | ✅ opsional | Folder `PassSa` dibuat atau digunakan kembali, lalu envelope terenkripsi diunggah |
+| Amazon S3 / S3-compatible sync | ✅ opsional | Sinkronisasi manual snapshot vault terenkripsi; termasuk endpoint seperti MinIO |
+| Metode login pilihan | ✅ | Password, password + 2FA, atau login langsung khusus perangkat; diatur lewat Pengaturan |
+| Login 2FA + recovery code | ✅ opsional | TOTP untuk autentikasi akun; konfigurasi kunci 2FA tetap lokal per perangkat |
+| Authenticator vault | ✅ | Simpan akun TOTP dan salin kode sekali-klik |
 | Browser autofill | ✅ opsional | Chromium Manifest V3 + Native Messaging; aktif hanya setelah setup eksplisit |
 | Secure Note | ✅ | Catatan terenkripsi tanpa credential login |
 | Custom Fields | ✅ | Text, Secret, URL, Email, Angka, Ya/Tidak |
@@ -96,6 +115,8 @@ flowchart LR
 | Google OAuth | OAuth 2.0 Desktop dengan PKCE |
 | Google refresh token | Electron `safeStorage` / Windows DPAPI |
 | Google Drive sync | Hanya envelope terenkripsi + metadata revisi |
+| S3 sync | Snapshot terenkripsi; access key dilindungi Windows `safeStorage` |
+| 2FA login | TOTP dan recovery code tersimpan lokal; bukan bagian dari sinkronisasi vault |
 | Windows Hello | Verifikasi biometrik + key wrapping melalui `safeStorage` |
 | Clipboard | Dibersihkan otomatis setelah 30 detik |
 | Renderer | Secret tidak dikirim pada response list credential |
@@ -117,7 +138,8 @@ Vault Encryption Key
      │
      ├──► Windows Hello / DPAPI wrapper
      │
-     └──► Encrypted Envelope ──► Google Drive
+     ├──► Encrypted Envelope ──► Google Drive
+     └──► Encrypted Snapshot ──► Amazon S3
 ```
 
 > [!CAUTION]
@@ -127,19 +149,26 @@ Detail: [`docs/SECURITY_FEATURES.md`](docs/SECURITY_FEATURES.md).
 
 ---
 
-## 🔐 Alur Login dan Cloud Sync
+## 🔐 Login dan Sinkronisasi Cloud
 
-Login aplikasi dan login Google sengaja dipisahkan:
+Login untuk membuka vault dipisahkan dari akun Google dan kredensial S3:
 
-1. Buat atau gunakan akun **username/password lokal** untuk membuka vault.
-2. Buka **Pengaturan → Google Drive** jika ingin mengaktifkan cloud sync.
-3. PassSa membuka browser untuk OAuth Desktop + PKCE; callback kembali ke aplikasi melalui loopback lokal.
-4. Setelah password vault dikonfirmasi, PassSa membuat atau memakai kembali folder Drive bernama `PassSa`.
-5. Hanya envelope vault terenkripsi yang disimpan di folder tersebut. Perubahan lokal dan remote diperiksa berdasarkan revision; konflik disimpan sebagai salinan terenkripsi.
+1. Buat akun lokal; setelah itu pilih metode login di **Pengaturan → Metode login**.
+2. Jika perlu sinkronisasi, hubungkan Google Drive atau Amazon S3 dari menu Pengaturan.
+3. Google menggunakan OAuth Desktop + PKCE. S3 dapat memakai AWS S3 maupun endpoint S3-compatible.
+4. Sinkronisasi dilakukan manual. Data vault diunggah sebagai snapshot terenkripsi; perubahan bersamaan menghasilkan salinan konflik terenkripsi.
 
-Google tidak menggantikan password vault lokal. Logout atau memutuskan Google hanya menghapus koneksi cloud pada perangkat tersebut, bukan menghapus vault lokal.
+Penyedia cloud tidak menggantikan metode login lokal. Memutus koneksi hanya menghapus kredensial cloud dari perangkat dan tidak menghapus vault lokal maupun objek cloud. Untuk S3, metadata akun di dalam snapshot tetap dapat terlihat oleh pemegang akses bucket.
 
-Detail konfigurasi: [`docs/GOOGLE_OAUTH_SETUP.md`](docs/GOOGLE_OAUTH_SETUP.md).
+Panduan: [`docs/GOOGLE_OAUTH_SETUP.md`](docs/GOOGLE_OAUTH_SETUP.md) · [`docs/S3_SYNC_SETUP.md`](docs/S3_SYNC_SETUP.md).
+
+<a id="sinkronisasi-cloud"></a>
+### Provider yang didukung
+
+| Provider | Cara kerja | Panduan |
+| --- | --- | --- |
+| Google Drive | OAuth Desktop + PKCE; menyimpan envelope vault terenkripsi | [`Google OAuth & Drive`](docs/GOOGLE_OAUTH_SETUP.md) |
+| Amazon S3 / S3-compatible | Sinkronisasi manual ke bucket privat; mendukung endpoint seperti MinIO | [`Amazon S3`](docs/S3_SYNC_SETUP.md) |
 
 ---
 
@@ -157,6 +186,7 @@ Detail konfigurasi: [`docs/GOOGLE_OAUTH_SETUP.md`](docs/GOOGLE_OAUTH_SETUP.md).
 | Windows DPAPI | Proteksi token/kunci melalui Electron `safeStorage` |
 | Google OAuth 2.0 + PKCE | Login Google desktop |
 | Google Drive API | Optional encrypted synchronization |
+| AWS SDK for JavaScript | S3 and S3-compatible synchronization |
 | Chromium Manifest V3 | Browser extension autofill |
 | Native Messaging | Komunikasi extension ↔ PassSa |
 | NSIS / electron-builder | Windows installer |
@@ -193,6 +223,16 @@ npm install
 npm start
 ```
 
+### Profil development dengan data demo
+
+Untuk mencoba aplikasi tanpa mengubah vault utama, jalankan profil development terpisah:
+
+```bash
+npm run dev:skip-login
+```
+
+Profil ini melewati layar login hanya untuk pengembangan dan berisi **200 item dummy bervariasi**—credential, Secure Note, dan Authenticator. Seluruh data bertanda demo dan tidak boleh dipakai sebagai kredensial sungguhan.
+
 ---
 
 ## 👤 Membuat User Testing
@@ -209,13 +249,15 @@ npm run create-test-user
 
 Password minimal 8 karakter. Email/username akan dinormalisasi menjadi huruf kecil.
 
-### Seed 50 dummy credential
+### Seed 100 dummy item ke akun testing
 
 ```powershell
 $env:PASSA_TEST_USERNAME = "test@example.com"
 $env:PASSA_TEST_PASSWORD = "password-testing"
 npm run seed-dummy-vault
 ```
+
+Seed ini memerlukan akun testing yang sudah dibuat. Jangan gunakan `PASSA_RESET_VAULT=true` pada akun yang menyimpan data penting.
 
 Untuk menghapus seluruh isi vault sebelum membuat dummy:
 
@@ -455,6 +497,7 @@ Detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 | [`ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Arsitektur dan workflow perubahan |
 | [`SECURITY_FEATURES.md`](docs/SECURITY_FEATURES.md) | Detail fitur keamanan |
 | [`GOOGLE_OAUTH_SETUP.md`](docs/GOOGLE_OAUTH_SETUP.md) | Konfigurasi Google OAuth dan Drive |
+| [`S3_SYNC_SETUP.md`](docs/S3_SYNC_SETUP.md) | Konfigurasi Amazon S3 dan endpoint S3-compatible |
 | [`AUTOFILL_SETUP.md`](docs/AUTOFILL_SETUP.md) | Setup browser autofill |
 | [`WINDOWS_RELEASE.md`](docs/WINDOWS_RELEASE.md) | Build dan release Windows |
 | [`TAURI_V2_MIGRATION.md`](docs/TAURI_V2_MIGRATION.md) | Persiapan migrasi Tauri v2 / Android |

@@ -41,12 +41,13 @@ app.whenReady().then(async () => {
     // which would measure the test harness rather than the visible app.
     win.showInactive();
     await win.webContents.executeJavaScript(`
-      document.querySelector('#email').value = 'qa@example.test';
+      document.querySelector('#username').value = 'qa@example.test';
       document.querySelector('#password').value = 'password-qa';
       document.querySelector('#auth-form').requestSubmit();
     `);
     await waitFor(win, "!document.querySelector('#vault-view').classList.contains('hidden')");
     const result = await win.webContents.executeJavaScript(`(async () => {
+      try {
       const input = document.querySelector('#search-input');
       const samples = [];
       const queries = ['entry', 'benchmark', 'qa-9', 'generated', 'tidak-ada'];
@@ -77,7 +78,11 @@ app.whenReady().then(async () => {
         scrollHeight: scroll.scrollHeight,
         heap: performance.memory ? performance.memory.usedJSHeapSize : null,
       };
+      } catch (error) {
+        return { rendererError: error?.stack || String(error) };
+      }
     })()`);
+    assert(!result.rendererError, `Skrip renderer performance gagal: ${result.rendererError}`);
     const durations = result.samples.map((sample) => sample.duration);
     const maxDuration = Math.max(...durations);
     const averageDuration = durations.reduce((sum, value) => sum + value, 0) / durations.length;
