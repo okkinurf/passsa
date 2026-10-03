@@ -1,6 +1,6 @@
 {
   "name": "passsa",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "PassSa password manager for Windows",
   "author": "PassSa",
   "main": "main.js",
@@ -25,9 +25,11 @@
     "dist": "npm run dist:signed",
     "dist:unsigned": "electron-builder --win nsis -c.win.signExecutable=false",
     "dist:signed": "node scripts/verify-signing-config.js && electron-builder --win nsis -c.forceCodeSigning=true",
-    "qa:installer": "node scripts/installer-qa.js"
+    "release:audit": "node scripts/release-package-audit.js",
+    "qa:installer": "node scripts/release-package-audit.js && node scripts/installer-qa.js"
   },
   "devDependencies": {
+    "@electron/asar": "^3.4.1",
     "electron": "^39.8.10",
     "electron-builder": "^26.0.12"
   },
@@ -42,8 +44,10 @@
       "preload.js",
       "quick-access-preload.js",
       "browser-extension/**/*",
-      "scripts/**/*",
+      "scripts/windows-hello-helper.exe",
       "src/**/*",
+      "!src/dev/**",
+      "!src/dev/**/*",
       "THIRD_PARTY_NOTICES.md",
       "package.json"
     ],

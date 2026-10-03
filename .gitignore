@@ -11,6 +11,7 @@ src-tauri/gen/
 
 # Local credentials, vault data, OAuth secrets, and signing material
 .env*
+.aws/
 client_secret*.json
 auth.json
 vault.json
@@ -19,4 +20,5 @@ google-unlock.json
 *.secret
 *.pem
 *.p12
+*.pfx
 *.key

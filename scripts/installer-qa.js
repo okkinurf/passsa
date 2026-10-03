@@ -19,21 +19,33 @@ if (stat.size < 10 * 1024 * 1024) {
 }
 const unpackedExe = path.join(dist, 'win-unpacked', 'PassSa.exe');
 const asar = path.join(dist, 'win-unpacked', 'resources', 'app.asar');
-if (!fs.existsSync(unpackedExe) || !fs.existsSync(asar) || fs.statSync(asar).size < 100_000) {
+const helloHelper = path.join(dist, 'win-unpacked', 'resources', 'app.asar.unpacked', 'scripts', 'windows-hello-helper.exe');
+if (!fs.existsSync(unpackedExe) || !fs.existsSync(asar) || fs.statSync(asar).size < 100_000 || !fs.existsSync(helloHelper)) {
   console.error('Isi aplikasi hasil packaging tidak lengkap.');
   process.exit(1);
 }
-const command = `$ErrorActionPreference='Stop'; $signature = Get-AuthenticodeSignature -LiteralPath '${installer.replaceAll("'", "''")}'; [PSCustomObject]@{ Status=$signature.Status.ToString(); Subject=$signature.SignerCertificate.Subject } | ConvertTo-Json -Compress`;
-const result = spawnSync('pwsh.exe', ['-NoProfile', '-Command', command], { encoding: 'utf8' });
-if (result.status !== 0 || !result.stdout.trim()) {
-  console.error(result.stderr || 'Authenticode tidak dapat diverifikasi.');
-  process.exit(1);
-}
-const signature = JSON.parse(result.stdout.trim());
 const allowUnsigned = process.env.PASSA_ALLOW_UNSIGNED_QA === 'true';
-if (signature.Status !== 'Valid' && !allowUnsigned) {
-  console.error(`Installer belum ditandatangani secara valid (status: ${signature.Status}).`);
-  process.exit(1);
+const expectedSubject = process.env.PASSA_EXPECTED_SIGNER_SUBJECT?.trim();
+const signingTargets = [installer, unpackedExe, helloHelper];
+const signatures = [];
+for (const target of signingTargets) {
+  const command = `$ErrorActionPreference='Stop'; $signature = Get-AuthenticodeSignature -LiteralPath '${target.replaceAll("'", "''")}'; [PSCustomObject]@{ Status=$signature.Status.ToString(); Subject=$signature.SignerCertificate.Subject } | ConvertTo-Json -Compress`;
+  const result = spawnSync('pwsh.exe', ['-NoProfile', '-Command', command], { encoding: 'utf8' });
+  if (result.status !== 0 || !result.stdout.trim()) {
+    console.error(result.stderr || `Authenticode tidak dapat diverifikasi: ${path.basename(target)}.`);
+    process.exit(1);
+  }
+  const signature = JSON.parse(result.stdout.trim());
+  signatures.push({ target: path.basename(target), ...signature });
+  if (signature.Status !== 'Valid' && !allowUnsigned) {
+    console.error(`${path.basename(target)} belum ditandatangani secara valid (status: ${signature.Status}).`);
+    process.exit(1);
+  }
+  if (expectedSubject && signature.Subject !== expectedSubject) {
+    console.error(`Publisher ${path.basename(target)} tidak cocok dengan publisher yang diharapkan.`);
+    process.exit(1);
+  }
 }
 const sha256 = crypto.createHash('sha256').update(fs.readFileSync(installer)).digest('hex');
-console.log(`Installer QA lulus: ${path.basename(installer)}, ${(stat.size / 1024 / 1024).toFixed(1)} MB, signature=${signature.Status}${signature.Subject ? `, ${signature.Subject}` : ''}, sha256=${sha256}.`);
+const signatureSummary = signatures.map(({ target, Status, Subject }) => `${target}=${Status}${Subject ? ` (${Subject})` : ''}`).join('; ');
+console.log(`Installer QA lulus: ${path.basename(installer)}, ${(stat.size / 1024 / 1024).toFixed(1)} MB, ${signatureSummary}, sha256=${sha256}.`);

@@ -9,7 +9,10 @@ const { AtomicJsonStore } = require('./src/storage/atomic-json-store');
 const { AuthService } = require('./src/services/auth-service');
 const { VaultService } = require('./src/services/vault-service');
 const { resolveLoginMethod } = require('./src/services/login-security');
-const { createDummyVaultData, DUMMY_SOURCE } = require('./src/dev/dummy-vault-data');
+const devSkipLoginMode = !app.isPackaged && process.argv.includes('--passsa-dev-skip-login');
+const { createDummyVaultData, DUMMY_SOURCE } = devSkipLoginMode
+  ? require('./src/dev/dummy-vault-data')
+  : {};
 const { GoogleOAuth } = require('./src/google-oauth');
 const { resolveGoogleClientId } = require('./src/google-client-config');
 const { GoogleAuthSession } = require('./src/services/google-auth-session');
@@ -36,7 +39,6 @@ const {
 } = require('./src/services/vault-transfer-service');
 
 const nativeHostMode = process.argv.some((arg) => arg === '--passsa-native-host' || arg.startsWith('--parent-window='));
-const devSkipLoginMode = !app.isPackaged && process.argv.includes('--passsa-dev-skip-login');
 // Development-only launch modes use isolated profiles and never affect the
 // packaged app's profile or login behavior.
 const previewMode = process.argv.includes('--passsa-preview');
