@@ -4,8 +4,8 @@ const crypto = require('node:crypto');
 const { VaultService } = require('../src/services/vault-service');
 
 class MemoryStore {
-  constructor() { this.value = { version: 1, vaults: {} }; }
-  async read() { return structuredClone(this.value); }
+  constructor() { this.value = { version: 1, vaults: {} }; this.readCount = 0; }
+  async read() { this.readCount += 1; return structuredClone(this.value); }
   async write(value) { this.value = structuredClone(value); }
   async update(mutator) { this.value = await mutator(structuredClone(this.value)); return this.read(); }
 }
@@ -15,6 +15,40 @@ function createService() {
   const context = { user: { id: 'user-1' }, key: crypto.randomBytes(32) };
   return new VaultService(store, { context: () => context });
 }
+
+test('inisialisasi vault membuat envelope kosong sekali tanpa menimpa data', async () => {
+  const store = new MemoryStore();
+  const context = { user: { id: 'user-1' }, key: crypto.randomBytes(32) };
+  const service = new VaultService(store, { context: () => context });
+
+  assert.equal(await service.ensureInitialized(), true);
+  assert.equal((await service.list()).length, 0);
+  const added = await service.add({ title: 'Tetap ada', password: 'secret' });
+  assert.equal(await service.ensureInitialized(), false);
+  assert.equal((await service.list()).find((item) => item.id === added.item.id).title, 'Tetap ada');
+});
+
+test('membuka note berulang memakai snapshot vault yang sudah didekripsi', async () => {
+  const store = new MemoryStore();
+  const context = { user: { id: 'user-1' }, key: crypto.randomBytes(32) };
+  const service = new VaultService(store, { context: () => context });
+  const added = await service.add({ title: 'Note cepat', type: 'secure-note', notes: 'Isi note.' });
+  const readsAfterAdd = store.readCount;
+
+  const first = await service.getForEditing(added.item.id);
+  const readsAfterFirstOpen = store.readCount;
+  const second = await service.getForEditing(added.item.id);
+  assert.ok(readsAfterFirstOpen > readsAfterAdd);
+  assert.equal(store.readCount, readsAfterFirstOpen);
+  assert.equal(first.notes, second.notes);
+
+  // Returned data is isolated from the cached plaintext snapshot.
+  first.notes = 'Tidak boleh mengubah cache.';
+  assert.equal((await service.getForEditing(added.item.id)).notes, 'Isi note.');
+  service.clearCache();
+  await service.getForEditing(added.item.id);
+  assert.equal(store.readCount, readsAfterFirstOpen + 1);
+});
 
 test('vault service menjalankan lifecycle entry dan soft delete', async () => {
   const service = createService();
@@ -83,6 +117,23 @@ test('menyalin secret memperbarui statistik penggunaan', async () => {
   assert.equal(second.usage.usageCount, 2);
   assert.ok(second.usage.lastUsedAt);
   assert.deepEqual(second.usage.recentUseHistory.map((entry) => entry.field), ['password', 'username']);
+});
+
+test('authenticator menghasilkan kode TOTP dan mencatat copy sebagai penggunaan', async () => {
+  const service = createService();
+  const added = await service.add({
+    type: 'authenticator',
+    title: 'GitHub 2FA',
+    totp: { issuer: 'GitHub', account: 'okki@example.test', secret: 'JBSWY3DPEHPK3PXP' },
+  });
+  const codes = await service.getTotpCodes([added.item.id]);
+  assert.match(codes[added.item.id].code, /^\d{6}$/);
+  assert.ok(codes[added.item.id].remaining >= 1 && codes[added.item.id].remaining <= 30);
+  const copied = await service.useTotpCode(added.item.id);
+  assert.equal(copied.value, codes[added.item.id].code);
+  assert.equal(copied.usage.field, 'totp');
+  assert.equal(copied.usage.usageCount, 1);
+  assert.equal((await service.list())[0].totp.secret, 'JBSWY3DPEHPK3PXP');
 });
 
 test('Quick Access dapat menyematkan credential dan mencatat aksi copy tanpa menyimpan secret di history', async () => {

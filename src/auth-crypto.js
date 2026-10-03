@@ -25,6 +25,23 @@ function normalizeEmail(value) {
   return String(value ?? '').trim().toLowerCase();
 }
 
+function normalizeUsername(value) {
+  return String(value ?? '').trim().toLowerCase();
+}
+
+function validateUsernameCredentials(username, password) {
+  if (!/^[a-z0-9._-]{3,64}$/.test(username)) {
+    return 'Username harus 3–64 karakter: huruf kecil, angka, titik, garis bawah, atau tanda hubung.';
+  }
+  if (typeof password !== 'string' || password.length < 8) {
+    return 'Password minimal 8 karakter.';
+  }
+  if (password.length > 256) {
+    return 'Password terlalu panjang.';
+  }
+  return null;
+}
+
 function validateCredentials(email, password) {
   const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
   const isUsername = /^[a-z0-9._-]{3,64}$/.test(email);
@@ -79,7 +96,9 @@ async function deriveVaultKey(password, salt, kdf = CURRENT_KDF) {
 
 module.exports = {
   normalizeEmail,
+  normalizeUsername,
   validateCredentials,
+  validateUsernameCredentials,
   hashPassword,
   verifyPassword,
   deriveVaultKey,

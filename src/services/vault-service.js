@@ -1,6 +1,7 @@
 const crypto = require('node:crypto');
 const { encryptVaultData, decryptVaultData } = require('../vault-crypto');
 const { buildEntry, normalizeEntry, normalizeTags } = require('../core/vault-entry');
+const { generateTotp } = require('../totp');
 const { FREE_SOLID_ICONS, FREE_SOLID_ICON_SET, defaultIconForCategory } = require('../core/category-icons');
 const { deriveVaultKey, normalizeKdfParams, isCurrentKdf, LEGACY_KDF, CURRENT_KDF } = require('../auth-crypto');
 
@@ -8,12 +9,45 @@ class VaultService {
   constructor(store, authService) {
     this.store = store;
     this.authService = authService;
+    // Keep one decrypted snapshot for the active session. Opening a note used
+    // to decrypt the complete vault again even though the list had just done
+    // the same work. The cache is memory-only, scoped to the exact vault key,
+    // and invalidated after every write or lock.
+    this.documentCache = null;
+  }
+
+  clearCache() {
+    this.documentCache = null;
+  }
+
+  async documentReference() {
+    const { user, key } = this.authService.context();
+    const cached = this.documentCache;
+    if (cached && cached.userId === user.id && cached.key === key) {
+      if (cached.promise) return cached.promise;
+      return cached.document;
+    }
+
+    const promise = (async () => {
+      const file = await this.store.read();
+      return decryptVaultData(file.vaults[user.id], key);
+    })();
+    this.documentCache = { userId: user.id, key, promise };
+    try {
+      const document = await promise;
+      // Do not retain a failed or superseded session's plaintext snapshot.
+      if (this.documentCache?.promise === promise) {
+        this.documentCache = { userId: user.id, key, document };
+      }
+      return document;
+    } catch (error) {
+      if (this.documentCache?.promise === promise) this.clearCache();
+      throw error;
+    }
   }
 
   async document() {
-    const { user, key } = this.authService.context();
-    const file = await this.store.read();
-    return decryptVaultData(file.vaults[user.id], key);
+    return structuredClone(await this.documentReference());
   }
 
   async envelopeKdf() {
@@ -22,6 +56,14 @@ class VaultService {
     const file = await this.store.read();
     const envelope = file.vaults[user.id];
     return envelope ? normalizeKdfParams(envelope.kdf, LEGACY_KDF) : { ...CURRENT_KDF };
+  }
+
+  async ensureInitialized() {
+    const { user } = this.authService.context();
+    const file = await this.store.read();
+    if (file.vaults?.[user.id]) return false;
+    await this.writeDocument({ version: 2, items: [], categories: [] });
+    return true;
   }
 
   async configureKey(password) {
@@ -59,6 +101,7 @@ class VaultService {
       file.vaults[user.id] = envelope;
       return file;
     });
+    this.clearCache();
   }
 
   async rekey(nextKey, kdf = CURRENT_KDF) {
@@ -123,7 +166,9 @@ class VaultService {
   }
 
   async getForEditing(id) {
-    const item = (await this.list()).find((candidate) => candidate.id === id && !candidate.deletedAt);
+    const document = await this.documentReference();
+    const rawItem = document.items.find((candidate) => candidate.id === id && !candidate.deletedAt);
+    const item = rawItem ? normalizeEntry(structuredClone(rawItem)) : null;
     if (!item) throw new Error('Item tidak ditemukan.');
     const { history = [], ...editable } = item;
     return {
@@ -260,6 +305,49 @@ class VaultService {
     item.updatedAt = new Date().toISOString();
     await this.save(items);
     return { ok: true, item };
+  }
+
+  async getTotpCodes(ids = []) {
+    const requested = new Set(Array.isArray(ids) ? ids.map((id) => String(id || '')) : []);
+    if (!requested.size) return {};
+    const timestamp = Date.now();
+    const epoch = Math.floor(timestamp / 1000);
+    const document = await this.documentReference();
+    const codes = {};
+    for (const rawItem of document.items) {
+      if (!requested.has(rawItem.id) || rawItem.deletedAt) continue;
+      const item = normalizeEntry(rawItem);
+      if (item.type !== 'authenticator' || !item.totp?.secret) continue;
+      const { secret, ...options } = item.totp;
+      const remaining = options.period - (epoch % options.period);
+      codes[item.id] = {
+        code: generateTotp(secret, timestamp, options),
+        remaining,
+        period: options.period,
+      };
+    }
+    return codes;
+  }
+
+  async useTotpCode(id) {
+    const items = await this.list();
+    const item = items.find((candidate) => candidate.id === id && candidate.type === 'authenticator' && !candidate.deletedAt);
+    if (!item || !item.totp?.secret) throw new Error('Authenticator tidak ditemukan.');
+    const timestamp = Date.now();
+    const { secret, ...options } = item.totp;
+    const value = generateTotp(secret, timestamp, options);
+    const usedAt = new Date().toISOString();
+    item.usageCount = (item.usageCount ?? 0) + 1;
+    item.lastUsedAt = usedAt;
+    item.recentUseHistory = [
+      ...(item.recentUseHistory ?? []),
+      { field: 'totp', usedAt },
+    ].slice(-12);
+    await this.save(items);
+    return {
+      value,
+      usage: { id: item.id, field: 'totp', usageCount: item.usageCount, lastUsedAt: item.lastUsedAt, recentUseHistory: item.recentUseHistory },
+    };
   }
 
   async useSecret(id, field) {

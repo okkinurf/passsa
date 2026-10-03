@@ -44,8 +44,23 @@ app.whenReady().then(async () => {
       && !document.querySelector('.auth-mark .fa-lock')
       && card.getBoundingClientRect().width <= 420;
   })()`), 'Layout login sederhana vertikal tidak sesuai.');
+  await win.webContents.executeJavaScript("document.querySelector('#register-tab').click()");
+  const signupSecurityUi = await win.webContents.executeJavaScript(`(() => ({
+    hasLoginModeChoices: Boolean(document.querySelector('#register-security-choice, input[name="register-login-security"]')),
+    hasSettings2fa: Boolean(document.querySelector('#settings-2fa-enable')),
+    hasSettingsDirectLogin: Boolean(document.querySelector('#settings-direct-login-enable')),
+    settingsGrouped: document.querySelector('#settings-2fa-enable')?.closest('.settings-login-section')
+      === document.querySelector('#settings-direct-login-enable')?.closest('.settings-login-section'),
+    note: document.querySelector('#register-security-note')?.textContent || '',
+  }))()`);
+  assert(!signupSecurityUi.hasLoginModeChoices
+    && signupSecurityUi.hasSettings2fa
+    && signupSecurityUi.hasSettingsDirectLogin
+    && signupSecurityUi.settingsGrouped
+    && signupSecurityUi.note.includes('Metode login dapat diatur nanti melalui Pengaturan'), 'Pilihan metode login harus berada di Pengaturan, bukan pada pembuatan akun.');
+  await win.webContents.executeJavaScript("document.querySelector('#login-tab').click()");
   await win.webContents.executeJavaScript(`
-    document.querySelector('#email').value = 'qa@example.test';
+    document.querySelector('#username').value = 'qa@example.test';
     document.querySelector('#password').value = 'password-qa';
     document.querySelector('#auth-form').requestSubmit();
   `);
@@ -103,6 +118,7 @@ app.whenReady().then(async () => {
     tagSearch.value = 'wifi';
     tagSearch.dispatchEvent(new Event('input', { bubbles: true }));
   `);
+  await waitFor(win, "document.querySelectorAll('.tag-overview-card').length === 1 && document.querySelector('.tag-overview-card').dataset.tagFilter === 'wifi'");
   assert(await win.webContents.executeJavaScript("document.querySelectorAll('.tag-overview-card').length === 1 && document.querySelector('.tag-overview-card').dataset.tagFilter === 'wifi'"), 'Pencarian tag tidak memfilter daftar tag.');
   await win.webContents.executeJavaScript("document.querySelector('.tag-overview-card').click()");
   assert(await win.webContents.executeJavaScript("document.querySelectorAll('.vault-item').length === 1 && document.querySelector('.vault-item').textContent.includes('WiFi QA')"), 'Tag tidak memfilter item vault.');
@@ -112,38 +128,62 @@ app.whenReady().then(async () => {
   await win.webContents.executeJavaScript("document.querySelector('.tree-node[data-filter=all]').click()");
   await win.webContents.executeJavaScript("document.querySelector('.tree-node[data-filter=notes]').click()");
   assert(await win.webContents.executeJavaScript("document.querySelector('.vault-content h2').textContent === 'Noted' && document.querySelector('.sidebar-link[data-filter=notes]').classList.contains('active') && document.querySelector('#item-count').textContent === '0 item'"), 'Insight Noted tidak memfilter secure note atau active state tidak sesuai.');
+  await win.webContents.executeJavaScript("document.querySelector('#sidebar-add-item-button').click()");
+  assert(await win.webContents.executeJavaScript(`(() => {
+    return document.querySelector('#item-type').value === 'login'
+      && document.querySelector('#item-type').classList.contains('hidden')
+      && document.querySelector('#item-type-label').classList.contains('hidden');
+  })()`), 'New Credential masih menampilkan pilihan jenis credential.');
+  await win.webContents.executeJavaScript("document.querySelector('#cancel-item').click()");
   await win.webContents.executeJavaScript("document.querySelector('#sidebar-add-note-button').click()");
-  assert(await win.webContents.executeJavaScript("!document.querySelector('#item-modal').classList.contains('hidden') && document.querySelector('#item-type').value === 'secure-note'"), 'Tombol New Noted tidak membuka form Secure Note.');
+  assert(await win.webContents.executeJavaScript(`(() => {
+    return !document.querySelector('#item-modal').classList.contains('hidden')
+      && document.querySelector('#item-type').value === 'secure-note'
+      && document.querySelector('#item-type').classList.contains('hidden')
+      && document.querySelector('#item-type-label').classList.contains('hidden');
+  })()`), 'New Noted tidak membuka form Secure Note tanpa menampilkan pilihan jenis credential.');
   assert(await win.webContents.executeJavaScript(`(() => {
     const mode = document.querySelector('#note-editor-mode');
-    return mode && mode.textContent.includes('Review') && !mode.querySelector('[data-note-mode]')
+    const input = document.querySelector('#item-notes');
+    const preview = document.querySelector('#note-preview');
+    return mode && mode.classList.contains('hidden') && !mode.textContent.includes('Review')
+      && !mode.querySelector('[data-note-mode]')
       && !mode.textContent.includes('Tulis') && !mode.textContent.includes('Preview')
-      && !document.querySelector('#note-preview').classList.contains('hidden');
-  })()`), 'Editor Secure Note masih menampilkan tab Tulis/Preview atau belum berada di mode Review.');
+      && preview.classList.contains('hidden')
+      && !input.classList.contains('hidden')
+      && document.querySelector('#note-editor').classList.contains('keep-note-editor');
+  })()`), 'Editor Secure Note belum memakai permukaan tulis bergaya Keep.');
   assert(await win.webContents.executeJavaScript(`(() => {
     const toolbar = document.querySelector('#note-editor-toolbar');
-    const formats = [...toolbar.querySelectorAll('[data-note-format]')].map((button) => button.dataset.noteFormat);
-    return formats.includes('undo') && formats.includes('redo') && formats.includes('table')
-      && formats.includes('callout') && formats.includes('date')
-      && document.querySelector('#item-notes').maxLength === 20000;
-  })()`), 'Toolbar editor Secure Note belum lengkap.');
-  const emptyNoteTyping = await win.webContents.executeJavaScript(`(() => {
-    const preview = document.querySelector('#note-preview');
-    preview.focus();
-    const paragraph = preview.querySelector('p');
-    const range = document.createRange();
-    range.selectNodeContents(paragraph);
-    range.collapse(true);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-    document.execCommand('insertText', false, 'Catatan baru');
+    return toolbar.classList.contains('hidden')
+      && document.querySelector('#item-notes').maxLength === 20000
+      && document.querySelector('#note-editor-help').textContent.includes('Enter')
+      && document.querySelector('#note-editor-save-state').textContent === 'Siap disimpan';
+  })()`), 'Editor Keep masih menampilkan toolbar berat atau status simpan tidak siap.');
+  const plainNote = await win.webContents.executeJavaScript(`(() => {
+    const input = document.querySelector('#item-notes');
+    input.value = 'Baris satu\\nBaris dua\\n- [ ] Teks biasa';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    const enter = new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true });
+    input.dispatchEvent(enter);
     return {
-      value: document.querySelector('#item-notes').value,
-      placeholder: preview.querySelector('.note-preview-empty'),
+      value: input.value,
+      lines: input.value.split('\\n').length,
+      enterCanceled: enter.defaultPrevented,
+      state: document.querySelector('#note-editor-save-state').textContent,
+      previewHidden: document.querySelector('#note-preview').classList.contains('hidden'),
+      height: Number.parseFloat(getComputedStyle(input).height),
     };
   })()`);
-  assert(emptyNoteTyping.value === 'Catatan baru' && !emptyNoteTyping.placeholder, `Secure Note baru tidak dapat diisi langsung dari Review: ${JSON.stringify(emptyNoteTyping)}`);
+  assert(plainNote.value === 'Baris satu\nBaris dua\n- [ ] Teks biasa'
+    && plainNote.lines === 3
+    && !plainNote.enterCanceled
+    && plainNote.state === 'Perubahan belum disimpan'
+    && plainNote.previewHidden
+    && plainNote.height >= 220, `Editor plain-text Keep tidak menjaga baris atau status draft: ${JSON.stringify(plainNote)}`);
+  // Legacy Markdown toolbar/preview matrix is kept as reference but is not
+  // part of the Keep-style plain-text editor contract.
+  if (false) {
   const formatMatrix = await win.webContents.executeJavaScript(`(() => {
     const input = document.querySelector('#item-notes');
     const preview = document.querySelector('#note-preview');
@@ -167,7 +207,6 @@ app.whenReady().then(async () => {
       strike: apply('strike'),
       bullet: apply('bullet'),
       number: apply('number'),
-      check: apply('check'),
       quote: apply('quote'),
       code: apply('code'),
       codeBlock: apply('code-block'),
@@ -184,7 +223,6 @@ app.whenReady().then(async () => {
     && formatMatrix.strike === '~~Teks pilihan~~'
     && formatMatrix.bullet === '- Teks pilihan'
     && formatMatrix.number === '1. Teks pilihan'
-    && formatMatrix.check === '- [ ] Teks pilihan'
     && formatMatrix.quote === '> Teks pilihan'
     && formatMatrix.code === '`Teks pilihan`'
     && formatMatrix.codeBlock === '```\nTeks pilihan\n```'
@@ -211,14 +249,12 @@ app.whenReady().then(async () => {
     return {
       bullet: apply('bullet'),
       number: apply('number'),
-      check: apply('check'),
       quote: apply('quote'),
       codeBlock: apply('code-block'),
     };
   })()`);
   assert(multilineFormats.bullet === '- Satu\n- Dua\n- Tiga'
     && multilineFormats.number === '1. Satu\n2. Dua\n3. Tiga'
-    && multilineFormats.check === '- [ ] Satu\n- [ ] Dua\n- [ ] Tiga'
     && multilineFormats.quote === '> Satu\n> Dua\n> Tiga'
     && multilineFormats.codeBlock === '```\nSatu\nDua\nTiga\n```', `Format multi-baris tidak konsisten: ${JSON.stringify(multilineFormats)}`);
   const directEntry = await win.webContents.executeJavaScript(`(() => {
@@ -291,8 +327,9 @@ app.whenReady().then(async () => {
     const preview = document.querySelector('#note-preview');
     return preview.querySelector('h1')?.textContent === 'Judul QA'
       && preview.querySelector('.note-preview-table')
-      && preview.querySelectorAll('.note-preview-check-toggle').length === 2;
-  })()`), 'Preview editor tidak merender heading, checklist, dan tabel.');
+      && preview.textContent.includes('[ ] Tugas pertama')
+      && !preview.querySelector('.note-preview-check-toggle');
+  })()`), 'Preview editor tidak merender heading, teks checklist, dan tabel.');
   assert(await win.webContents.executeJavaScript("document.querySelector('#note-preview').isContentEditable && document.querySelector('#note-preview').getAttribute('role') === 'textbox'"), 'Preview Secure Note belum dapat diedit langsung.');
   await win.webContents.executeJavaScript(`(() => {
     const heading = document.querySelector('#note-preview h1');
@@ -300,81 +337,6 @@ app.whenReady().then(async () => {
     heading.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText' }));
   })()`);
   assert(await win.webContents.executeJavaScript("document.querySelector('#item-notes').value.includes('# Judul Diedit') && document.querySelector('#item-notes').value.includes('- [ ] Tugas pertama') && document.querySelector('#item-notes').value.includes('| Kolom | Nilai |')"), 'Perubahan langsung dari Preview tidak dikonversi kembali ke Markdown.');
-  await win.webContents.executeJavaScript("document.querySelector('.note-preview-check-toggle').click()");
-  assert(await win.webContents.executeJavaScript("document.querySelector('#item-notes').value.includes('- [x] Tugas pertama')"), 'Checklist Preview tidak memperbarui Markdown note.');
-  await win.webContents.executeJavaScript(`(() => {
-    const input = document.querySelector('#item-notes');
-    input.value = 'Satu\\nDua\\nTiga\\nEmpat';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    const preview = document.querySelector('#note-preview');
-    const range = document.createRange();
-    range.selectNodeContents(preview);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-    document.dispatchEvent(new Event('selectionchange'));
-    document.querySelector('[data-note-format=check]').click();
-  })()`);
-  const checklistValue = await win.webContents.executeJavaScript(`(() => {
-    const value = document.querySelector('#item-notes').value;
-    return { value, count: (value.match(/^- \\[ \\]/gm) || []).length };
-  })()`);
-  assert(checklistValue.count === 4, `Checklist toolbar tidak menerapkan checkbox ke semua baris yang dipilih: ${JSON.stringify(checklistValue.value)}`);
-  const caretChecklistValue = await win.webContents.executeJavaScript(`(() => {
-    const input = document.querySelector('#item-notes');
-    input.value = '1\\n2\\n3\\n4';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    const preview = document.querySelector('#note-preview');
-    const textNode = [...preview.querySelector('p').childNodes].find((node) => node.nodeType === Node.TEXT_NODE);
-    const range = document.createRange();
-    range.setStart(textNode, 1);
-    range.collapse(true);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-    document.dispatchEvent(new Event('selectionchange'));
-    document.querySelector('[data-note-format=check]').click();
-    const value = input.value;
-    return { value, count: (value.match(/^- \\[ \\]/gm) || []).length };
-  })()`);
-  assert(caretChecklistValue.count === 4, `Checklist toolbar tidak memecah baris saat caret berada di paragraf: ${JSON.stringify(caretChecklistValue.value)}`);
-  const blockChecklistValue = await win.webContents.executeJavaScript(`(() => {
-    const input = document.querySelector('#item-notes');
-    input.value = '';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    const preview = document.querySelector('#note-preview');
-    preview.innerHTML = '<div>1</div><div>2</div><div>3</div><div>4</div>';
-    const range = document.createRange();
-    range.selectNodeContents(preview);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-    document.dispatchEvent(new Event('selectionchange'));
-    document.querySelector('[data-note-format=check]').click();
-    const value = input.value;
-    return { value, count: (value.match(/^- \\[ \\]/gm) || []).length };
-  })()`);
-  assert(blockChecklistValue.count === 4, `Checklist toolbar tidak mempertahankan baris pada blok editor: ${JSON.stringify(blockChecklistValue.value)}`);
-  const deletedChecklistValue = await win.webContents.executeJavaScript(`(() => {
-    const input = document.querySelector('#item-notes');
-    input.value = '- [ ] 1\\n- [ ] 2\\n- [ ] 3\\n- [ ] 4';
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    const preview = document.querySelector('#note-preview');
-    const second = preview.querySelectorAll('.note-preview-check')[1];
-    const range = document.createRange();
-    range.selectNodeContents(second);
-    const selection = window.getSelection();
-    selection.removeAllRanges();
-    selection.addRange(range);
-    document.execCommand('delete');
-    preview.dispatchEvent(new Event('input', { bubbles: true }));
-    return {
-      value: input.value,
-      checkboxes: preview.querySelectorAll('.note-preview-check-toggle').length,
-      visibleText: preview.textContent.replace(/\\s+/g, ' ').trim(),
-    };
-  })()`);
-  assert(deletedChecklistValue.checkboxes === 3 && !deletedChecklistValue.value.includes('- [ ] 2'), `Menghapus satu checklist meninggalkan markup duplikat: ${JSON.stringify(deletedChecklistValue)}`);
   await win.webContents.executeJavaScript(`(() => {
     const input = document.querySelector('#item-notes');
     input.value = 'Teks pilihan';
@@ -394,14 +356,23 @@ app.whenReady().then(async () => {
     return input.value;
   })()`);
   assert(await win.webContents.executeJavaScript("document.querySelector('#item-notes').value.includes('| Kolom 1 | Kolom 2 |') && document.querySelector('#item-notes').value.includes('Catatan')"), 'Insert tabel dan callout pada editor tidak bekerja.');
+  }
   await win.webContents.executeJavaScript("document.querySelector('#cancel-item').click(); document.querySelector('.tree-node[data-filter=all]').click();");
   await win.webContents.executeJavaScript("document.querySelector('#search-input').value = 'tidak-ada'; document.querySelector('#search-input').dispatchEvent(new Event('input', { bubbles: true }))");
+  await waitFor(win, "!document.querySelector('#empty-state').classList.contains('hidden')");
   assert(await win.webContents.executeJavaScript("document.querySelector('#empty-state').classList.contains('hidden') === false && document.querySelector('#items-header').classList.contains('hidden') && getComputedStyle(document.querySelector('#items-header')).display === 'none'"), 'State kosong masih menampilkan header tabel di bagian bawah.');
   await win.webContents.executeJavaScript("document.querySelector('#search-input').value = ''; document.querySelector('#search-input').dispatchEvent(new Event('input', { bubbles: true }))");
+  await waitFor(win, "document.querySelector('#empty-state').classList.contains('hidden')");
   await win.webContents.executeJavaScript("document.querySelector('.tree-node[data-filter=tags]').click(); document.querySelector('.tag-overview-card[data-tag-filter=wifi]').click()");
   assert(await win.webContents.executeJavaScript("document.querySelectorAll('.vault-item').length === 1 && document.querySelector('.vault-item').textContent.includes('WiFi QA')"), 'Filter tag tidak dapat dipakai lagi setelah reset.');
   await win.webContents.executeJavaScript("document.querySelector('[data-action=edit]').click()");
-  assert(await win.webContents.executeJavaScript("!document.querySelector('#item-modal').classList.contains('hidden') && document.querySelector('#modal-title').textContent === 'Edit Item' && document.querySelector('#item-title').value === 'WiFi QA'"), 'Credential lama tidak dapat dibuka dalam mode edit.');
+  assert(await win.webContents.executeJavaScript(`(() => {
+    return !document.querySelector('#item-modal').classList.contains('hidden')
+      && document.querySelector('#modal-title').textContent === 'Edit Item'
+      && document.querySelector('#item-title').value === 'WiFi QA'
+      && !document.querySelector('#item-type').classList.contains('hidden')
+      && !document.querySelector('#item-type-label').classList.contains('hidden');
+  })()`), 'Credential lama tidak dapat dibuka dalam mode edit atau pilihan jenis tidak tersedia.');
   assert(await win.webContents.executeJavaScript("Number(getComputedStyle(document.querySelector('#item-modal')).zIndex) > Number(getComputedStyle(document.querySelector('#sidebar-collapse-button')).zIndex)"), 'Modal edit masih berada di bawah tombol collapse sidebar.');
   assert(await win.webContents.executeJavaScript("!document.querySelector('#password-history').classList.contains('hidden') && document.querySelector('#password-history-count').textContent.includes('1 versi') && document.querySelector('.password-history-value input').type === 'password' && document.querySelector('[data-history-toggle]').offsetParent !== null && document.querySelector('[data-history-toggle] i').classList.contains('fa-eye')"), 'Password history tidak tampil tersamarkan dengan ikon mata.');
   await win.webContents.executeJavaScript("document.querySelector('[data-history-toggle]').click()");
@@ -417,12 +388,8 @@ app.whenReady().then(async () => {
   await win.webContents.executeJavaScript(`(() => {
     document.querySelector('#item-title').value = 'Catatan QA';
     const noteInput = document.querySelector('#item-notes');
-    noteInput.value = '';
+    noteInput.value = 'Versi pertama note.\\nBaris kedua.';
     noteInput.dispatchEvent(new Event('input', { bubbles: true }));
-    const notePreview = document.querySelector('#note-preview');
-    notePreview.focus();
-    notePreview.querySelector('p').textContent = 'Versi pertama note.';
-    notePreview.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: 'Versi pertama note.' }));
     document.querySelector('#item-tags').value = 'qa, note';
     document.querySelector('#item-form').requestSubmit();
   })()`);
@@ -434,7 +401,7 @@ app.whenReady().then(async () => {
   await win.webContents.executeJavaScript("document.querySelector('#close-note-detail').click(); document.querySelector('.tree-node[data-filter=notes]').click();");
   await waitFor(win, "document.querySelectorAll('.vault-item').length === 1");
   await win.webContents.executeJavaScript("document.querySelector('.vault-item').click()");
-  assert(await win.webContents.executeJavaScript("!document.querySelector('#note-detail-modal').classList.contains('hidden') && document.querySelector('#note-detail-title').textContent === 'Catatan QA' && document.querySelector('#note-detail-notes').textContent === 'Versi pertama note.'"), 'Secure Note tidak membuka popup detail saat kartunya diklik.');
+  assert(await win.webContents.executeJavaScript("!document.querySelector('#note-detail-modal').classList.contains('hidden') && document.querySelector('#note-detail-title').textContent === 'Catatan QA' && document.querySelector('#note-detail-notes').textContent.includes('Versi pertama note.') && document.querySelector('#note-detail-notes').textContent.includes('Baris kedua.')"), 'Secure Note tidak membuka popup detail saat kartunya diklik.');
   await win.webContents.executeJavaScript("document.querySelector('#note-detail-edit').click();");
   await waitFor(win, "!document.querySelector('#item-modal').classList.contains('hidden')");
   assert(await win.webContents.executeJavaScript("document.querySelector('#password-history-title').textContent.includes('Note History') && document.querySelector('#password-history-note').textContent.includes('catatan')"), 'Form Secure Note masih menampilkan Password History.');
@@ -449,6 +416,10 @@ app.whenReady().then(async () => {
     return entry && entry.getAttribute('aria-expanded') === 'false' && !entry.classList.contains('is-expanded');
   })()`), 'Riwayat Secure Note tidak dimulai dalam keadaan compact.');
   await win.webContents.executeJavaScript("document.querySelector('#note-detail-history-list [data-note-history-expand]').click()");
+  assert(await win.webContents.executeJavaScript(`(() => {
+    const entry = document.querySelector('#note-detail-history-list [data-note-history-expand]');
+    return entry.dataset.noteHistoryRendered === 'true' && entry.querySelector('.note-history-markdown').textContent.includes('Versi pertama note.');
+  })()`), 'Isi Markdown riwayat Secure Note tidak dirender saat versi diperluas.');
   assert(await win.webContents.executeJavaScript(`(() => {
     const entry = document.querySelector('#note-detail-history-list [data-note-history-expand]');
     return entry.getAttribute('aria-expanded') === 'true' && entry.classList.contains('is-expanded');
@@ -516,8 +487,36 @@ app.whenReady().then(async () => {
   `);
   await waitFor(win, "document.querySelector('#item-modal').classList.contains('hidden') && document.querySelectorAll('.vault-item').length === 3");
   assert(await win.webContents.executeJavaScript("[...document.querySelectorAll('.vault-item')].some((item) => item.textContent.includes('Item Baru E2E'))"), 'Item baru dari form UI tidak muncul setelah disimpan.');
+  await win.webContents.executeJavaScript("document.querySelector('#sidebar-add-authenticator-button').click()");
+  assert(await win.webContents.executeJavaScript(`(() => {
+    return document.querySelector('#item-type').value === 'authenticator'
+      && document.querySelector('#authenticator-fields').classList.contains('hidden') === false
+      && document.querySelector('.item-login-fields').classList.contains('hidden')
+      && document.querySelector('#item-password').required === false
+      && document.querySelector('#item-totp-account').required
+      && document.querySelector('#item-totp-secret').required;
+  })()`), 'Form Authenticator tidak menampilkan field TOTP atau masih meminta password login.');
+  await win.webContents.executeJavaScript(`(() => {
+    document.querySelector('#item-title').value = 'GitHub Authenticator';
+    document.querySelector('#item-totp-issuer').value = 'GitHub';
+    document.querySelector('#item-totp-account').value = 'qa@example.test';
+    document.querySelector('#generate-totp-secret').click();
+  })()`);
+  assert(await win.webContents.executeJavaScript("document.querySelector('#item-totp-secret').value.length >= 32 && document.querySelector('#item-totp-secret').value.match(/^[A-Z2-7]+$/)"), 'Generate key Base32 tidak menghasilkan secret yang valid.');
+  await win.webContents.executeJavaScript("document.querySelector('#item-form').requestSubmit()");
+  await waitFor(win, "document.querySelector('#item-modal').classList.contains('hidden')");
+  await win.webContents.executeJavaScript("document.querySelector('.tree-node[data-filter=authenticator]').click()");
+  await waitFor(win, "document.querySelector('.authenticator-item')");
+  await waitFor(win, "document.querySelector('.authenticator-item [data-totp-code]').textContent === '123 456'");
+  assert(await win.webContents.executeJavaScript("document.querySelector('.authenticator-item [data-totp-timer]').textContent === '30s' && document.querySelector('.authenticator-item [data-action=copy-totp]')"), 'Kode TOTP live tidak dirender pada item Authenticator.');
+  await win.webContents.executeJavaScript("document.querySelector('.authenticator-item [data-action=copy-totp]').click()");
+  await waitFor(win, "document.querySelector('.authenticator-item .item-usage').textContent.includes('1 kali')");
+  assert(await win.webContents.executeJavaScript("document.querySelector('#item-count').textContent === '1 item'"), 'Filter Authenticator tidak memfilter item TOTP.');
   await win.webContents.executeJavaScript("document.querySelector('#settings-button').click()");
   assert(await win.webContents.executeJavaScript("document.querySelector('#settings-theme') && document.querySelector('#settings-theme').value === 'system'"), 'Pilihan tema Ikuti Windows tidak tampil sebagai default.');
+  assert(await win.webContents.executeJavaScript("document.querySelectorAll('input[name=\"settings-palette\"]').length === 4 && document.querySelector('input[name=\"settings-palette\"][value=\"rose\"]').checked"), 'Menu palet warna tidak tampil dengan pilihan Rosewood sebagai default.');
+  await win.webContents.executeJavaScript("(() => { const palette = document.querySelector('input[name=\"settings-palette\"][value=\"ocean\"]'); palette.click(); })()");
+  assert(await win.webContents.executeJavaScript("document.documentElement.dataset.palette === 'ocean' && localStorage.getItem('passsa-palette') === 'ocean' && document.querySelector('.theme-palette-option[data-palette-option=\"ocean\"]').classList.contains('selected')"), 'Palet Ocean tidak diterapkan atau tidak tersimpan.');
   await win.webContents.executeJavaScript("(() => { const theme = document.querySelector('#settings-theme'); theme.value = 'dark'; theme.dispatchEvent(new Event('change', { bubbles: true })); })()");
   assert(await win.webContents.executeJavaScript("document.documentElement.dataset.theme === 'dark' && localStorage.getItem('passsa-theme') === 'dark'"), 'Mode tema gelap manual tidak diterapkan atau tidak tersimpan.');
   await win.webContents.executeJavaScript("document.querySelector('#close-settings').click(); document.querySelector('.tree-node[data-filter=tags]').click()");
@@ -525,7 +524,7 @@ app.whenReady().then(async () => {
   await win.webContents.executeJavaScript("document.querySelector('.tree-node[data-filter=all]').click(); document.querySelector('#settings-button').click()");
   await win.webContents.executeJavaScript("(() => { const theme = document.querySelector('#settings-theme'); theme.value = 'light'; theme.dispatchEvent(new Event('change', { bubbles: true })); })()");
   assert(await win.webContents.executeJavaScript("document.documentElement.dataset.theme === 'light'"), 'Mode tema terang manual tidak diterapkan.');
-  await win.webContents.executeJavaScript("(() => { const theme = document.querySelector('#settings-theme'); theme.value = 'system'; theme.dispatchEvent(new Event('change', { bubbles: true })); document.querySelector('#close-settings').click(); })()");
+  await win.webContents.executeJavaScript("(() => { const theme = document.querySelector('#settings-theme'); theme.value = 'system'; theme.dispatchEvent(new Event('change', { bubbles: true })); document.querySelector('input[name=\"settings-palette\"][value=\"rose\"]').click(); document.querySelector('#close-settings').click(); })()");
   assert(await win.webContents.executeJavaScript("document.documentElement.dataset.themePreference === 'system' && document.querySelector('#settings-modal').classList.contains('hidden')"), 'Mode Ikuti Windows tidak dapat dipulihkan atau pengaturan tidak tertutup.');
   if (!skipGoogle) {
     assert(await win.webContents.executeJavaScript("!document.querySelector('#google-login-button') && document.querySelector('#settings-button')"), 'Google masih tampil sebagai metode login awal.');
@@ -552,7 +551,7 @@ app.whenReady().then(async () => {
     await win.webContents.executeJavaScript("document.querySelector('#close-settings').click()");
     assert(await win.webContents.executeJavaScript("document.querySelector('#settings-modal').classList.contains('hidden')"), 'Modal pengaturan tidak dapat ditutup.');
   }
-  console.log(`E2E smoke lulus: login lokal, tema system/light/dark, render vault, kategori collapsed, insight Noted/New Noted, pencarian/chip tags, edit credential lama, tambah/simpan item, layout responsive${skipGoogle ? '' : ', dan Google hanya tersedia di Pengaturan Cloud Sync'}.`);
+  console.log(`E2E smoke lulus: login lokal, tema system/light/dark, render vault, kategori collapsed, insight Noted/New Noted, Authenticator TOTP, pencarian/chip tags, edit credential lama, tambah/simpan item, layout responsive${skipGoogle ? '' : ', dan Google hanya tersedia di Pengaturan Cloud Sync'}.`);
   win.destroy();
   app.quit();
 }).catch((error) => {

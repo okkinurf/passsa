@@ -4,7 +4,10 @@ const { deriveVaultKey, normalizeKdfParams, CURRENT_KDF } = require('../auth-cry
 
 const EXPORT_AAD = Buffer.from('PassSa encrypted vault export v1', 'utf8');
 const MAX_IMPORT_BYTES = 25 * 1024 * 1024;
-const CSV_HEADERS = ['title', 'type', 'username', 'password', 'website', 'group', 'description', 'tags', 'favorite', 'custom_fields'];
+const CSV_HEADERS = [
+  'title', 'type', 'username', 'password', 'website', 'group', 'description', 'tags', 'favorite', 'custom_fields',
+  'totp_secret', 'totp_issuer', 'totp_account', 'totp_algorithm', 'totp_digits', 'totp_period',
+];
 
 function validateTransferPassword(password) {
   if (typeof password !== 'string' || password.length < 8) return 'Password export minimal 8 karakter.';
@@ -94,6 +97,12 @@ function documentToCsv(document) {
       item.tags.join(', '),
       item.favorite ? 'true' : 'false',
       JSON.stringify(item.fields ?? []),
+      item.totp?.secret ?? '',
+      item.totp?.issuer ?? '',
+      item.totp?.account ?? '',
+      item.totp?.algorithm ?? '',
+      item.totp?.digits ?? '',
+      item.totp?.period ?? '',
     ]);
   }
   return rows.map((row) => row.map(csvEscape).join(',')).join('\r\n') + '\r\n';
@@ -157,9 +166,15 @@ function csvToDocument(text) {
     tags: findHeader(headers, ['tags', 'tag']),
     favorite: findHeader(headers, ['favorite', 'favourite', 'favorit', 'star', 'favorite status']),
     fields: findHeader(headers, ['custom fields', 'custom_fields', 'fields', 'field']),
+    totpSecret: findHeader(headers, ['totp secret', 'totp_secret', 'authenticator secret', '2fa secret']),
+    totpIssuer: findHeader(headers, ['totp issuer', 'totp_issuer', 'authenticator issuer']),
+    totpAccount: findHeader(headers, ['totp account', 'totp_account', 'authenticator account']),
+    totpAlgorithm: findHeader(headers, ['totp algorithm', 'totp_algorithm', 'authenticator algorithm']),
+    totpDigits: findHeader(headers, ['totp digits', 'totp_digits', 'authenticator digits']),
+    totpPeriod: findHeader(headers, ['totp period', 'totp_period', 'authenticator period']),
   };
-  if (indexes.title < 0 || indexes.password < 0) {
-    throw new Error('CSV harus memiliki kolom title/nama dan password.');
+  if (indexes.title < 0) {
+    throw new Error('CSV harus memiliki kolom title/nama.');
   }
   const items = [];
   const errors = [];
@@ -176,6 +191,14 @@ function csvToDocument(text) {
         tags: cell(row, indexes.tags),
         favorite: parseBoolean(cell(row, indexes.favorite)),
         fields: parseCustomFields(cell(row, indexes.fields, false)),
+        totp: indexes.totpSecret >= 0 ? {
+          secret: cell(row, indexes.totpSecret),
+          issuer: cell(row, indexes.totpIssuer),
+          account: cell(row, indexes.totpAccount),
+          algorithm: cell(row, indexes.totpAlgorithm) || undefined,
+          digits: Number(cell(row, indexes.totpDigits)) || undefined,
+          period: Number(cell(row, indexes.totpPeriod)) || undefined,
+        } : undefined,
       };
       items.push(normalizeEntry(buildEntry(input)));
     } catch (error) {

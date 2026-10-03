@@ -41,7 +41,7 @@ function matchesUrl(savedUrl, currentUrl, mode = 'host') {
 
 function findAutofillMatches(entries, currentUrl) {
   return (Array.isArray(entries) ? entries : [])
-    .filter((entry) => entry?.type !== 'secure-note' && !entry?.deletedAt && entry?.url && matchesUrl(entry.url, currentUrl, entry.autofillMode || 'host'));
+    .filter((entry) => (entry?.type === undefined || entry?.type === 'login') && !entry?.deletedAt && entry?.url && matchesUrl(entry.url, currentUrl, entry.autofillMode || 'host'));
 }
 
 module.exports = { findAutofillMatches, matchesUrl, parseWebUrl, registrableDomain };

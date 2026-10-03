@@ -1,7 +1,9 @@
 const crypto = require('node:crypto');
 const {
   normalizeEmail,
+  normalizeUsername,
   validateCredentials,
+  validateUsernameCredentials,
   hashPassword,
   verifyPassword,
   deriveVaultKey,
@@ -31,14 +33,33 @@ class AuthService {
     return { user: this.currentUser, key: this.vaultKey };
   }
 
-  async register(input = {}) {
-    const email = normalizeEmail(input.email);
-    const error = validateCredentials(email, input.password);
+  publicUser(user, provider = 'local') {
+    return {
+      id: user.id,
+      username: user.username || user.email,
+      email: user.email,
+      provider,
+      ...(user.googleEmail ? { googleEmail: user.googleEmail } : {}),
+    };
+  }
+
+  async findUserById(userId) {
+    const auth = await this.store.read();
+    return auth.users.find((candidate) => candidate.id === userId) || null;
+  }
+
+  async register(input = {}, options = {}) {
+    const hasUsername = Object.prototype.hasOwnProperty.call(input, 'username');
+    const identifier = hasUsername ? normalizeUsername(input.username) : normalizeEmail(input.email);
+    const error = hasUsername
+      ? validateUsernameCredentials(identifier, input.password)
+      : validateCredentials(identifier, input.password);
     if (error) return { ok: false, message: error };
     const password = await hashPassword(input.password);
     const user = {
       id: crypto.randomUUID(),
-      email,
+      ...(hasUsername ? { username: identifier } : {}),
+      email: identifier,
       salt: password.salt,
       passwordHash: password.hash,
       passwordKdf: password.kdf,
@@ -48,24 +69,35 @@ class AuthService {
     let duplicate = false;
     await this.store.update((auth) => {
       auth.users ||= [];
-      if (auth.users.some((candidate) => candidate.email === email)) duplicate = true;
+      if (auth.users.some((candidate) => hasUsername
+        ? (candidate.username || candidate.email) === identifier
+        : candidate.email === identifier)) duplicate = true;
       else auth.users.push(user);
       return auth;
     });
-    if (duplicate) return { ok: false, message: 'Email sudah terdaftar.' };
-    await this.openSession(user, input.password, CURRENT_KDF);
-    return { ok: true, user: this.currentUser };
+    if (duplicate) return { ok: false, message: hasUsername ? 'Username sudah terdaftar.' : 'Email sudah terdaftar.' };
+    if (options.openSession !== false) {
+      await this.openSession(user, input.password, CURRENT_KDF, options.provider || 'local');
+    }
+    return { ok: true, user: this.currentUser || this.publicUser(user, options.provider || 'local') };
   }
 
-  async login(input = {}) {
-    const email = normalizeEmail(input.email);
-    if (validateCredentials(email, input.password)) {
-      return { ok: false, message: 'Email atau password salah.' };
+  async login(input = {}, options = {}) {
+    const hasUsername = Object.prototype.hasOwnProperty.call(input, 'username');
+    const identifier = hasUsername ? normalizeUsername(input.username) : normalizeEmail(input.email);
+    const invalid = hasUsername
+      ? validateUsernameCredentials(identifier, input.password)
+      : validateCredentials(identifier, input.password);
+    const invalidMessage = hasUsername ? 'Username atau password salah.' : 'Email atau password salah.';
+    if (invalid) {
+      return { ok: false, message: invalidMessage };
     }
     const auth = await this.store.read();
-    const user = auth.users.find((candidate) => candidate.email === email);
+    const user = auth.users.find((candidate) => hasUsername
+      ? (candidate.username || candidate.email) === identifier
+      : candidate.email === identifier);
     if (!user || !(await verifyPassword(input.password, user))) {
-      return { ok: false, message: 'Email atau password salah.' };
+      return { ok: false, message: invalidMessage };
     }
     let changed = false;
     if (!user.vaultSalt) {
@@ -86,8 +118,10 @@ class AuthService {
       latest.users[index] = { ...latest.users[index], ...user };
       return latest;
     });
-    await this.openSession(user, input.password, user.vaultKdf ?? LEGACY_KDF);
-    return { ok: true, user: this.currentUser };
+    if (options.openSession !== false) {
+      await this.openSession(user, input.password, user.vaultKdf ?? LEGACY_KDF, options.provider || 'local');
+    }
+    return { ok: true, user: this.currentUser || this.publicUser(user, options.provider || 'local') };
   }
 
   async verifyCurrentPassword(password) {
@@ -95,7 +129,7 @@ class AuthService {
     return verifyPassword(String(password || ''), this.currentUserRecord);
   }
 
-  async googleLogin(input = {}) {
+  async googleLogin(input = {}, options = {}) {
     const googleEmail = normalizeEmail(input.email);
     const localIdentifier = normalizeEmail(input.localIdentifier || googleEmail);
     const googleSub = String(input.googleSub || '').trim();
@@ -110,8 +144,8 @@ class AuthService {
       return { ok: false, message: 'Identitas Google tidak cocok dengan akun lokal.' };
     }
     const result = existing
-      ? await this.login({ email: existing.email, password: input.password })
-      : await this.register({ email: googleEmail, password: input.password });
+      ? await this.login({ email: existing.email, password: input.password }, options)
+      : await this.register({ email: googleEmail, password: input.password }, { ...options, provider: 'google' });
     if (!result.ok) return result;
     await this.store.update((latest) => {
       const user = latest.users.find((candidate) => candidate.id === result.user.id);
@@ -122,10 +156,16 @@ class AuthService {
       user.googleLinkedAt ||= new Date().toISOString();
       return latest;
     });
-    this.currentUserRecord.googleSub = googleSub;
-    this.currentUserRecord.googleEmail = googleEmail;
-    this.currentUser = { ...this.currentUser, provider: 'google', googleEmail };
-    return { ok: true, user: this.currentUser };
+    if (this.currentUserRecord?.id === result.user.id) {
+      this.currentUserRecord.googleSub = googleSub;
+      this.currentUserRecord.googleEmail = googleEmail;
+      this.currentUser = { ...this.currentUser, provider: 'google', googleEmail };
+      return { ok: true, user: this.currentUser };
+    }
+    return {
+      ok: true,
+      user: { ...result.user, provider: 'google', googleEmail },
+    };
   }
 
   async linkGoogleToSession(input = {}) {
@@ -218,13 +258,32 @@ class AuthService {
   }
 
   async openSession(user, password, vaultKdf = CURRENT_KDF, provider = 'local') {
-    this.currentUser = { id: user.id, email: user.email, provider, ...(user.googleEmail ? { googleEmail: user.googleEmail } : {}) };
+    this.currentUser = {
+      id: user.id,
+      username: user.username || user.email,
+      email: user.email,
+      provider,
+      ...(user.googleEmail ? { googleEmail: user.googleEmail } : {}),
+    };
     this.currentUserRecord = user;
     await this.unlockVault(password, vaultKdf);
   }
 
+  async openSessionForUser(userId, password, provider = 'local') {
+    const user = await this.findUserById(userId);
+    if (!user) throw new Error('Akun tidak lagi tersedia.');
+    await this.openSession(user, password, user.vaultKdf ?? LEGACY_KDF, provider);
+    return { ok: true, user: this.currentUser };
+  }
+
   openSessionWithKey(user, key, vaultKdf = CURRENT_KDF, provider = 'local') {
-    this.currentUser = { id: user.id, email: user.email, provider, ...(user.googleEmail ? { googleEmail: user.googleEmail } : {}) };
+    this.currentUser = {
+      id: user.id,
+      username: user.username || user.email,
+      email: user.email,
+      provider,
+      ...(user.googleEmail ? { googleEmail: user.googleEmail } : {}),
+    };
     this.currentUserRecord = user;
     this.replaceVaultKey(Buffer.from(key), vaultKdf);
   }

@@ -8,15 +8,22 @@ const path = require('node:path');
 const { AtomicJsonStore } = require('./src/storage/atomic-json-store');
 const { AuthService } = require('./src/services/auth-service');
 const { VaultService } = require('./src/services/vault-service');
+const { resolveLoginMethod } = require('./src/services/login-security');
+const { createDummyVaultData, DUMMY_SOURCE } = require('./src/dev/dummy-vault-data');
 const { GoogleOAuth } = require('./src/google-oauth');
 const { resolveGoogleClientId } = require('./src/google-client-config');
 const { GoogleAuthSession } = require('./src/services/google-auth-session');
 const { GoogleDriveClient } = require('./src/services/google-drive-client');
 const { DriveSyncService } = require('./src/services/drive-sync-service');
+const { S3SyncService } = require('./src/services/s3-sync-service');
 const { GoogleTokenStore } = require('./src/storage/google-token-store');
 const { GoogleClientSecretStore } = require('./src/storage/google-client-secret-store');
 const { GoogleUnlockStore } = require('./src/storage/google-unlock-store');
+const { S3CredentialStore } = require('./src/storage/s3-credential-store');
 const { WindowsHelloStore } = require('./src/storage/windows-hello-store');
+const { DirectLoginStore } = require('./src/storage/direct-login-store');
+const { TotpStore, hashRecoveryCode } = require('./src/storage/totp-store');
+const { buildOtpAuthUri, generateSecret, normalizeSecret, verifyTotp } = require('./src/totp');
 const { findAutofillMatches } = require('./src/services/autofill-matcher');
 const { assertTrustedSender, createMutationSerializer } = require('./src/main/ipc-helpers');
 const {
@@ -29,9 +36,24 @@ const {
 } = require('./src/services/vault-transfer-service');
 
 const nativeHostMode = process.argv.some((arg) => arg === '--passsa-native-host' || arg.startsWith('--parent-window='));
+const devSkipLoginMode = !app.isPackaged && process.argv.includes('--passsa-dev-skip-login');
+// Development-only launch modes use isolated profiles and never affect the
+// packaged app's profile or login behavior.
+const previewMode = process.argv.includes('--passsa-preview');
+if (previewMode || devSkipLoginMode) {
+  const profileLabel = devSkipLoginMode ? 'Dev' : 'Preview';
+  app.setName(`PassSa ${profileLabel} ${process.pid}`);
+  app.setAppUserModelId(`id.passsa.${profileLabel.toLowerCase()}.${process.pid}`);
+  app.setPath('userData', path.join(app.getPath('temp'), `PassSa-${profileLabel}-${process.pid}`));
+}
 // Keep the desktop build usable on Windows environments where Chromium's GPU process is unavailable.
+if (!app.isPackaged || previewMode) {
+  app.commandLine.appendSwitch('disable-gpu');
+  app.commandLine.appendSwitch('disable-gpu-compositing');
+  app.commandLine.appendSwitch('no-sandbox');
+}
 app.disableHardwareAcceleration();
-const hasSingleInstanceLock = nativeHostMode ? true : app.requestSingleInstanceLock();
+const hasSingleInstanceLock = nativeHostMode || previewMode || devSkipLoginMode ? true : app.requestSingleInstanceLock();
 if (!hasSingleInstanceLock) app.quit();
 
 let authService;
@@ -41,7 +63,10 @@ let googleAuthSession;
 let googleTokenStore;
 let googleUnlockStore;
 let windowsHelloStore;
+let directLoginStore;
+let totpStore;
 let driveSyncService;
+let s3SyncService;
 let appSettingsStore;
 let mainWindow;
 let quickAccessWindow;
@@ -53,9 +78,59 @@ let minimizeToTray = false;
 let isQuitting = false;
 let quickAccessHotkeyRegistered = false;
 let quickAccessEnabled = true;
+let devBypassCredentials = null;
+const QUICK_ACCESS_SHORTCUT = 'Alt+Shift+P';
 let activeTheme = 'light';
+let activePalette = 'rose';
+const THEME_PALETTES = new Set(['rose', 'ocean', 'forest', 'violet', 'sunset', 'amber', 'teal', 'indigo', 'coral', 'slate']);
 const serializeMutation = createMutationSerializer();
 const clipboardTimers = new Set();
+const twoFactorChallenges = new Map();
+const TWO_FACTOR_CHALLENGE_TTL_MS = 5 * 60 * 1000;
+
+function removeTwoFactorChallenge(challengeId) {
+  const challenge = twoFactorChallenges.get(challengeId);
+  if (!challenge) return;
+  challenge.key?.fill(0);
+  challenge.key = null;
+  challenge.password = null;
+  challenge.secret = null;
+  challenge.recoveryCodes = null;
+  twoFactorChallenges.delete(challengeId);
+}
+
+function clearTwoFactorChallenges() {
+  for (const challengeId of twoFactorChallenges.keys()) removeTwoFactorChallenge(challengeId);
+}
+
+function createTwoFactorChallenge(payload) {
+  const challengeId = nodeCrypto.randomUUID();
+  twoFactorChallenges.set(challengeId, {
+    ...payload,
+    challengeId,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + TWO_FACTOR_CHALLENGE_TTL_MS,
+    attempts: 0,
+  });
+  return challengeId;
+}
+
+function getTwoFactorChallenge(challengeId) {
+  const challenge = twoFactorChallenges.get(String(challengeId || ''));
+  if (!challenge) return null;
+  if (challenge.expiresAt <= Date.now()) {
+    removeTwoFactorChallenge(challenge.challengeId);
+    return null;
+  }
+  return challenge;
+}
+
+function generateRecoveryCodes(count = 10) {
+  return Array.from({ length: count }, () => {
+    const raw = nodeCrypto.randomBytes(10).toString('hex').toUpperCase();
+    return `${raw.slice(0, 5)}-${raw.slice(5, 10)}-${raw.slice(10, 15)}-${raw.slice(15)}`;
+  });
+}
 
 function nativeHostMetadataCandidates() {
   const appData = process.env.APPDATA || process.env.LOCALAPPDATA || process.cwd();
@@ -113,9 +188,13 @@ if (nativeHostMode) runNativeHostMode();
 
 function publicEntry(entry) {
   if (!entry) return entry;
-  const { password: _password, history: _history, noteHistory: _noteHistory, ...summary } = entry;
+  const { password: _password, history: _history, noteHistory: _noteHistory, totp: rawTotp, ...summary } = entry;
   if (Array.isArray(summary.fields)) {
     summary.fields = summary.fields.map(({ id, label, type, required }) => ({ id, label, type, required: Boolean(required) }));
+  }
+  if (rawTotp) {
+    const { secret: _secret, ...totp } = rawTotp;
+    summary.totp = totp;
   }
   return summary;
 }
@@ -229,13 +308,43 @@ function clearSensitiveState(reason = 'Vault dikunci.') {
   clipboardTimers.clear();
   clipboard.clear();
   quickAccessWindow?.hide();
+  vaultService?.clearCache();
+  clearTwoFactorChallenges();
   authService?.logout();
   googleAuthSession?.clear();
   if (mainWindow && !mainWindow.isDestroyed()) mainWindow.webContents.send('session:locked', reason);
 }
 
+async function unlockWithDirectLogin() {
+  const record = await directLoginStore.getActive();
+  if (!record) return { ok: false, code: 'NOT_CONFIGURED', message: 'Login langsung belum diaktifkan di perangkat ini.' };
+  let key;
+  try {
+    const user = await authService.findUserById(record.userId);
+    if (!user) {
+      await directLoginStore.clear(record.userId);
+      return { ok: false, code: 'NOT_CONFIGURED', message: 'Akun login langsung tidak ditemukan. Masuk dengan username dan password.' };
+    }
+    if (await totpStore.get(user.id)) {
+      await directLoginStore.clear(user.id);
+      return { ok: false, code: 'TWO_FACTOR_ENABLED', message: 'Akun ini memakai 2FA. Masuk dengan username, password, dan kode Authenticator.' };
+    }
+    key = directLoginStore.decrypt(record);
+    authService.openSessionWithKey(user, key, record.kdf, 'local');
+    await vaultService.document();
+    return { ok: true, user: authService.session(), directLogin: true };
+  } catch (error) {
+    vaultService.clearCache();
+    authService.logout();
+    await directLoginStore.clear(record.userId).catch(() => undefined);
+    return { ok: false, message: error.message || 'Login langsung gagal. Silakan masuk dengan username dan password.' };
+  } finally {
+    key?.fill(0);
+  }
+}
+
 function publicQuickAccessEntry(entry) {
-  return {
+  const result = {
     id: entry.id,
     type: entry.type,
     title: entry.title,
@@ -249,6 +358,11 @@ function publicQuickAccessEntry(entry) {
     lastUsedAt: entry.lastUsedAt ?? null,
     recentUseHistory: Array.isArray(entry.recentUseHistory) ? entry.recentUseHistory.slice(-12) : [],
   };
+  if (entry.totp) {
+    const { secret: _secret, ...totp } = entry.totp;
+    result.totp = totp;
+  }
+  return result;
 }
 
 function showMainWindow() {
@@ -272,7 +386,7 @@ function positionQuickAccessWindow() {
 
 function syncQuickAccessTheme() {
   if (!quickAccessWindow || quickAccessWindow.isDestroyed() || quickAccessWindow.webContents.isLoading()) return;
-  quickAccessWindow.webContents.send('quick-access:theme', activeTheme);
+  quickAccessWindow.webContents.send('quick-access:theme', { theme: activeTheme, palette: activePalette });
 }
 
 function createQuickAccessWindow() {
@@ -328,9 +442,9 @@ function toggleQuickAccess() {
 
 function setQuickAccessHotkey(enabled) {
   quickAccessEnabled = enabled === true;
-  globalShortcut.unregister('Alt+Shift+P');
-  quickAccessHotkeyRegistered = quickAccessEnabled && globalShortcut.register('Alt+Shift+P', toggleQuickAccess);
-  if (quickAccessEnabled && !quickAccessHotkeyRegistered) console.warn('Quick Access shortcut Alt+Shift+P tidak dapat didaftarkan; fallback jendela aktif digunakan.');
+  globalShortcut.unregister(QUICK_ACCESS_SHORTCUT);
+  quickAccessHotkeyRegistered = quickAccessEnabled && globalShortcut.register(QUICK_ACCESS_SHORTCUT, toggleQuickAccess);
+  if (quickAccessEnabled && !quickAccessHotkeyRegistered) console.warn(`Quick Access shortcut ${QUICK_ACCESS_SHORTCUT} tidak dapat didaftarkan; fallback jendela aktif digunakan.`);
   if (!quickAccessEnabled) quickAccessWindow?.hide();
   return quickAccessHotkeyRegistered;
 }
@@ -473,14 +587,183 @@ function registerIpc() {
     quickAccessWindow?.hide();
   });
 
-  const authenticate = async (input, registering) => {
-    const result = registering ? await authService.register(input) : await authService.login(input);
+  const startTwoFactorSetup = async (pendingAuth) => {
+    const issuer = 'PassSa';
+    const account = pendingAuth.account || pendingAuth.user.email;
+    const secret = generateSecret();
+    const algorithm = 'SHA1';
+    const digits = 6;
+    const period = 30;
+    const otpAuthUri = buildOtpAuthUri({ issuer, account, secret, algorithm, digits, period });
+    const recoveryCodes = generateRecoveryCodes();
+    const challengeId = createTwoFactorChallenge({
+      ...pendingAuth,
+      kind: 'setup',
+      secret,
+      account,
+      issuer,
+      algorithm,
+      digits,
+      period,
+      recoveryCodes,
+    });
+    return {
+      ok: true,
+      requires2faSetup: true,
+      user: authService.publicUser(pendingAuth.user, pendingAuth.provider || 'local'),
+      twoFactor: {
+        challengeId,
+        expiresAt: twoFactorChallenges.get(challengeId).expiresAt,
+        issuer,
+        account,
+        manualKey: secret,
+        otpAuthUri,
+        digits,
+        period,
+      },
+    };
+  };
+
+  const startTwoFactorVerification = (pendingAuth) => {
+    const challengeId = createTwoFactorChallenge({ ...pendingAuth, kind: 'verify' });
+    return {
+      ok: true,
+      requires2fa: true,
+      user: authService.publicUser(pendingAuth.user, pendingAuth.provider || 'local'),
+      twoFactor: {
+        challengeId,
+        expiresAt: twoFactorChallenges.get(challengeId).expiresAt,
+      },
+    };
+  };
+
+  const beginPasswordAuthentication = async (input, registering) => {
+    const result = registering
+      ? await authService.register(input, { openSession: false })
+      : await authService.login(input, { openSession: false });
     if (!result.ok) return result;
+    const pendingAuth = {
+      method: 'password',
+      userId: result.user.id,
+      user: result.user,
+      password: String(input.password || ''),
+      provider: result.user.provider || 'local',
+    };
+    const twoFactor = await totpStore.get(result.user.id);
+    const loginMethod = resolveLoginMethod({
+      twoFactorEnabled: Boolean(twoFactor),
+    });
+    if (loginMethod === 'two-factor') return startTwoFactorVerification(pendingAuth);
+    return finalizePasswordAuthentication(pendingAuth);
+  };
+
+  const finalizePasswordAuthentication = async (pendingAuth) => {
     try {
-      await vaultService.configureKey(input.password);
-      await vaultService.upgradeKdf(input.password);
-      return result;
+      await authService.openSessionForUser(pendingAuth.userId, pendingAuth.password, pendingAuth.provider || 'local');
+      await vaultService.configureKey(pendingAuth.password);
+      await vaultService.upgradeKdf(pendingAuth.password);
+      let sync;
+      if (pendingAuth.googleChallengeId) {
+        const googlePending = googleAuthSession.get(pendingAuth.googleChallengeId);
+        googleAuthSession.consume(pendingAuth.googleChallengeId);
+        await googleTokenStore.save(googlePending.profile.email, googlePending.tokens);
+        await googleUnlockStore.save(googlePending.profile.email, {
+          localIdentifier: authService.session().email,
+          password: pendingAuth.password,
+          googleSub: googlePending.profile.sub,
+        });
+        try {
+          sync = await driveSyncService.sync({ password: pendingAuth.password });
+        } catch (error) {
+          sync = { ok: false, status: 'error', message: error.message };
+        }
+      }
+      let directLogin;
+      if (pendingAuth.enableDirectLogin) {
+        try {
+          const context = authService.context();
+          if (await totpStore.get(context.user.id)) throw new Error('Akun dengan 2FA tidak dapat memakai login langsung.');
+          await directLoginStore.save(context.user, context.key, authService.vaultKdf());
+          directLogin = { enabled: true };
+        } catch (error) {
+          directLogin = { enabled: false, message: error.message || 'Login langsung tidak dapat diaktifkan.' };
+        }
+      }
+      return {
+        ok: true,
+        user: authService.session(),
+        twoFactorEnabled: false,
+        ...(directLogin ? { directLogin } : {}),
+        ...(sync ? { sync } : {}),
+      };
     } catch (error) {
+      vaultService.clearCache();
+      authService.logout();
+      throw error;
+    }
+  };
+
+  const finalizeTwoFactorAuthentication = async (pendingAuth) => {
+    if (pendingAuth.method === 'hello') {
+      try {
+        authService.openSessionWithKey(pendingAuth.user, pendingAuth.key, pendingAuth.kdf, pendingAuth.provider || 'local');
+        await vaultService.document();
+        return { ok: true, user: authService.session() };
+      } catch (error) {
+        vaultService.clearCache();
+        authService.logout();
+        throw error;
+      }
+    }
+    if (pendingAuth.method === 'session') return { ok: true, user: authService.session(), twoFactorEnabled: true };
+    return finalizePasswordAuthentication(pendingAuth);
+  };
+
+  const authenticate = (input, registering) => beginPasswordAuthentication(input, registering);
+
+  const seedDevelopmentVault = async () => {
+    if (app.isPackaged || !devSkipLoginMode) return;
+    const document = await vaultService.document();
+    if (document.items.some((item) => item.source === DUMMY_SOURCE)) return;
+
+    const { items, categories } = createDummyVaultData();
+    const categoryPaths = new Set(document.categories.map((category) => String(category.path || '').toLowerCase()));
+    document.items.push(...items);
+    document.categories.push(...categories.filter((category) => {
+      const pathKey = category.path.toLowerCase();
+      if (categoryPaths.has(pathKey)) return false;
+      categoryPaths.add(pathKey);
+      return true;
+    }));
+    await vaultService.writeDocument(document);
+  };
+
+  const startDevBypassSession = async () => {
+    if (app.isPackaged || !devSkipLoginMode) {
+      return { ok: false, message: 'Lewati login hanya tersedia lewat perintah development.' };
+    }
+    if (authService.session()) return { ok: true, user: authService.session(), devMode: true };
+
+    let result;
+    if (!devBypassCredentials) {
+      devBypassCredentials = {
+        username: 'developer',
+        password: nodeCrypto.randomBytes(36).toString('base64url'),
+      };
+      result = await authService.register(devBypassCredentials);
+    } else {
+      result = await authService.login(devBypassCredentials);
+    }
+    if (!result.ok) return result;
+
+    try {
+      await vaultService.configureKey(devBypassCredentials.password);
+      await vaultService.ensureInitialized();
+      await vaultService.document();
+      await seedDevelopmentVault();
+      return { ok: true, user: authService.session(), devMode: true };
+    } catch (error) {
+      vaultService.clearCache();
       authService.logout();
       throw error;
     }
@@ -488,26 +771,27 @@ function registerIpc() {
 
   const authenticateGoogle = async (input) => {
     const pending = googleAuthSession.get(input.challengeId);
-    const credentials = { email: pending.profile.email, googleSub: pending.profile.sub, localIdentifier: input.localIdentifier, password: input.password };
-    const result = await authService.googleLogin(credentials);
+    const credentials = {
+      email: pending.profile.email,
+      googleSub: pending.profile.sub,
+      localIdentifier: input.localIdentifier,
+      password: input.password,
+    };
+    const result = await authService.googleLogin(credentials, { openSession: false, provider: 'google' });
     if (!result.ok) return result;
-    googleAuthSession.consume(input.challengeId);
-    try {
-      await vaultService.configureKey(input.password);
-      await vaultService.upgradeKdf(input.password);
-      await googleTokenStore.save(pending.profile.email, pending.tokens);
-      await googleUnlockStore.save(pending.profile.email, { localIdentifier: result.user.email, password: input.password, googleSub: pending.profile.sub });
-      let sync;
-      try {
-        sync = await driveSyncService.sync({ password: input.password });
-      } catch (error) {
-        sync = { ok: false, status: 'error', message: error.message };
-      }
-      return { ...result, sync };
-    } catch (error) {
-      authService.logout();
-      throw error;
-    }
+    const pendingAuth = {
+      method: 'password',
+      userId: result.user.id,
+      user: result.user,
+      password: String(input.password || ''),
+      provider: 'google',
+      googleChallengeId: input.challengeId,
+      account: pending.profile.email,
+    };
+    const twoFactor = await totpStore.get(result.user.id);
+    return twoFactor
+      ? startTwoFactorVerification(pendingAuth)
+      : finalizePasswordAuthentication(pendingAuth);
   };
 
   const authenticateGoogleForSession = async (input) => {
@@ -527,6 +811,8 @@ function registerIpc() {
 
   handle('auth:register', (input) => authenticate(input, true), true);
   handle('auth:login', (input) => authenticate(input, false), true);
+  handle('auth:dev-bypass-status', () => ({ enabled: devSkipLoginMode && !app.isPackaged }));
+  handle('auth:dev-bypass-login', () => startDevBypassSession(), true);
   handle('auth:google-start', async () => {
     const result = await googleOAuth.start((url) => shell.openExternal(url));
     if (!result.ok) return result;
@@ -539,11 +825,175 @@ function registerIpc() {
     const savedUnlock = await googleUnlockStore.load(result.profile.email);
     if (savedUnlock) {
       const automatic = await authenticateGoogle({ challengeId: challenge.challengeId, ...savedUnlock });
-      if (automatic.ok) return { ...automatic, autoCompleted: true };
+      if (automatic.ok && !automatic.requires2fa && !automatic.requires2faSetup) return { ...automatic, autoCompleted: true };
+      if (automatic.ok && (automatic.requires2fa || automatic.requires2faSetup)) return automatic;
     }
     return { ok: true, profile: challenge.profile, challengeId: challenge.challengeId, expiresAt: challenge.expiresAt };
   });
   handle('auth:google-complete', (input) => authenticateGoogle(input), true);
+  handle('auth:2fa-copy-setup-key', (input = {}) => {
+    const challenge = getTwoFactorChallenge(input.challengeId);
+    if (!challenge || challenge.kind !== 'setup') {
+      return { ok: false, code: 'TWO_FACTOR_EXPIRED', message: 'Sesi setup 2FA sudah kedaluwarsa. Silakan mulai login kembali.' };
+    }
+    const secret = String(challenge.secret || '');
+    if (!secret) return { ok: false, message: 'Kunci setup tidak tersedia.' };
+    clipboard.writeText(secret);
+    scheduleClipboardClear(secret);
+    return { ok: true };
+  }, true);
+  handle('auth:2fa-complete', async (input = {}) => {
+    const challenge = getTwoFactorChallenge(input.challengeId);
+    if (!challenge) return { ok: false, code: 'TWO_FACTOR_EXPIRED', message: 'Sesi 2FA sudah kedaluwarsa. Silakan mulai login kembali.' };
+    const recovery = Boolean(input.recovery);
+    let accepted = false;
+    if (challenge.kind === 'setup') {
+      let setupSecret = challenge.secret;
+      if (input.setupSecret) {
+        try {
+          setupSecret = normalizeSecret(input.setupSecret);
+        } catch {
+          return { ok: false, code: 'TWO_FACTOR_SECRET_INVALID', message: 'Kunci Base32 tidak valid. Gunakan hanya huruf A–Z dan angka 2–7.' };
+        }
+        if (setupSecret.length < 16) {
+          return { ok: false, code: 'TWO_FACTOR_SECRET_TOO_SHORT', message: 'Kunci Base32 terlalu pendek. Gunakan secret minimal 16 karakter.' };
+        }
+      }
+      const verification = verifyTotp(setupSecret, input.code, {
+        algorithm: challenge.algorithm,
+        digits: challenge.digits,
+        period: challenge.period,
+        window: 1,
+      });
+      accepted = verification.ok;
+      if (accepted) {
+        await totpStore.save(challenge.userId, {
+          version: 1,
+          secret: setupSecret,
+          issuer: challenge.issuer,
+          account: challenge.account,
+          algorithm: challenge.algorithm,
+          digits: challenge.digits,
+          period: challenge.period,
+          enabledAt: new Date().toISOString(),
+          lastAcceptedStep: verification.step,
+          recoveryCodeHashes: challenge.recoveryCodes.map(hashRecoveryCode),
+        });
+        await directLoginStore.clear(challenge.userId).catch(() => undefined);
+      }
+    } else if (challenge.kind === 'verify') {
+      if (recovery) {
+        accepted = await totpStore.consumeRecoveryCode(challenge.userId, input.code);
+      } else {
+        const record = await totpStore.get(challenge.userId);
+        if (record) {
+          const verification = verifyTotp(record.secret, input.code, {
+            algorithm: record.algorithm,
+            digits: record.digits,
+            period: record.period,
+            window: 1,
+          });
+          accepted = verification.ok && await totpStore.acceptStep(challenge.userId, verification.step);
+        }
+      }
+    }
+
+    if (!accepted) {
+      challenge.attempts += 1;
+      if (challenge.attempts >= 5) removeTwoFactorChallenge(challenge.challengeId);
+      return {
+        ok: false,
+        code: 'TWO_FACTOR_INVALID',
+        message: challenge.attempts >= 5
+          ? 'Terlalu banyak percobaan. Silakan mulai login kembali.'
+          : recovery ? 'Recovery code tidak valid atau sudah digunakan.' : 'Kode Google Authenticator salah atau sudah digunakan.',
+      };
+    }
+
+    const recoveryCodes = challenge.kind === 'setup' ? [...challenge.recoveryCodes] : null;
+    let result;
+    try {
+      result = await finalizeTwoFactorAuthentication(challenge);
+    } catch (error) {
+      removeTwoFactorChallenge(challenge.challengeId);
+      throw error;
+    }
+    removeTwoFactorChallenge(challenge.challengeId);
+    return {
+      ...result,
+      twoFactorEnabled: true,
+      ...(recoveryCodes ? { recoveryCodes } : {}),
+    };
+  }, true);
+  handle('auth:2fa-status', async () => {
+    const session = authService.session();
+    if (!session) return { ok: false, message: 'Sesi telah berakhir. Silakan masuk kembali.' };
+    return { ok: true, supported: true, ...(await totpStore.status(session.id)) };
+  });
+  handle('auth:direct-login-status', async () => {
+    const record = await directLoginStore.getActive();
+    const session = authService.session();
+    const matchingSession = !session || session.id === record?.userId;
+    const user = record ? await authService.findUserById(record.userId) : null;
+    const twoFactorEnabled = Boolean(user && await totpStore.get(user.id));
+    return {
+      ok: true,
+      supported: process.platform === 'win32' && safeStorage.isEncryptionAvailable(),
+      enabled: Boolean(record && user && !twoFactorEnabled && matchingSession),
+      twoFactorEnabled,
+      username: record?.username || user?.username || user?.email || null,
+    };
+  });
+  handle('auth:direct-login-enable', async (input = {}) => {
+    const context = authService.context();
+    if (!(await authService.verifyCurrentPassword(input.password))) {
+      return { ok: false, message: 'Password vault saat ini salah.' };
+    }
+    if (await totpStore.get(context.user.id)) {
+      return { ok: false, message: 'Nonaktifkan 2FA terlebih dahulu. Login langsung tidak meminta kode Authenticator.' };
+    }
+    await directLoginStore.save(context.user, context.key, authService.vaultKdf());
+    return { ok: true, enabled: true, message: 'Login langsung aktif di perangkat ini.' };
+  }, true);
+  handle('auth:direct-login-disable', async () => {
+    const session = authService.session();
+    if (!session) return { ok: false, message: 'Sesi telah berakhir. Silakan masuk kembali.' };
+    await directLoginStore.clear(session.id);
+    return { ok: true, enabled: false, message: 'Login langsung dinonaktifkan di perangkat ini.' };
+  }, true);
+  handle('auth:direct-login-unlock', () => unlockWithDirectLogin(), true);
+  handle('auth:2fa-setup-start', async () => {
+    const session = authService.session();
+    if (!session) return { ok: false, message: 'Sesi telah berakhir. Silakan masuk kembali.' };
+    if (await totpStore.get(session.id)) return { ok: false, message: 'Google Authenticator sudah aktif.' };
+    return startTwoFactorSetup({
+      method: 'session',
+      userId: session.id,
+      user: authService.currentUserRecord,
+      provider: session.provider || 'local',
+      account: session.email,
+    });
+  }, true);
+  handle('auth:2fa-disable', async (input = {}) => {
+    const session = authService.session();
+    if (!session) return { ok: false, message: 'Sesi telah berakhir. Silakan masuk kembali.' };
+    if (!(await authService.verifyCurrentPassword(input.password))) {
+      return { ok: false, message: 'Password atau kode Authenticator salah.' };
+    }
+    const record = await totpStore.get(session.id);
+    if (!record) return { ok: false, message: 'Google Authenticator tidak aktif.' };
+    const verification = verifyTotp(record.secret, input.code, {
+      algorithm: record.algorithm,
+      digits: record.digits,
+      period: record.period,
+      window: 1,
+    });
+    if (!verification.ok || !(await totpStore.acceptStep(session.id, verification.step))) {
+      return { ok: false, message: 'Password atau kode Authenticator salah atau sudah digunakan.' };
+    }
+    await totpStore.remove(session.id);
+    return { ok: true, enabled: false, message: '2FA dinonaktifkan. Login berikutnya menggunakan password saja.' };
+  }, true);
   handle('auth:session', async () => {
     const session = authService.session();
     if (session || app.isPackaged || process.env.PASSA_DEV_BYPASS_AUTH !== 'true') return session;
@@ -551,25 +1001,44 @@ function registerIpc() {
     const password = process.env.PASSA_TEST_PASSWORD;
     if (!email || !password) return null;
     const result = await authenticate({ email, password }, false);
-    return result.ok ? result.user : null;
+    return result.ok && !result.requires2fa && !result.requires2faSetup ? result.user : null;
   }, true);
-  handle('auth:logout', () => {
+  handle('auth:logout', async () => {
+    const session = authService.session();
+    let directLoginCleared = true;
+    if (session) {
+      try {
+        await directLoginStore.clear(session.id);
+      } catch {
+        directLoginCleared = false;
+      }
+    }
     clearSensitiveState('Anda telah keluar.');
-    return { ok: true };
+    return {
+      ok: directLoginCleared,
+      ...(directLoginCleared ? {} : { message: 'Sesi ditutup, tetapi preferensi login langsung belum dapat dihapus. Periksa kembali Pengaturan sebelum menutup aplikasi.' }),
+    };
   }, true);
   handle('auth:lock', () => {
     clearSensitiveState('Vault otomatis dikunci karena tidak aktif.');
     return { ok: true };
   }, true);
   handle('auth:hello-status', async (input = {}) => {
-    const requestedEmail = String(input.email || '').trim().toLowerCase();
+    const requestedUsername = String(input.username || input.email || '').trim().toLowerCase();
     const session = authService.session();
-    const email = requestedEmail || session?.email;
-    if (!email) return { ok: true, supported: process.platform === 'win32', enabled: false };
+    const username = requestedUsername || session?.username || session?.email;
+    if (!username) return { ok: true, supported: process.platform === 'win32', enabled: false };
     const auth = await authService.store.read();
-    const user = auth.users.find((candidate) => candidate.email === email);
+    const user = auth.users.find((candidate) => (candidate.username || candidate.email) === username);
     const record = user ? await windowsHelloStore.get(user.id) : null;
-    return { ok: true, supported: process.platform === 'win32', enabled: Boolean(record), email };
+    const twoFactor = user ? await totpStore.status(user.id) : { enabled: false };
+    return {
+      ok: true,
+      supported: process.platform === 'win32',
+      enabled: Boolean(record),
+      twoFactorEnabled: twoFactor.enabled,
+      username,
+    };
   });
   handle('auth:hello-enable', async (input = {}) => {
     const context = authService.context();
@@ -588,10 +1057,10 @@ function registerIpc() {
     return { ok: true, enabled: false, message: 'Unlock Windows Hello dinonaktifkan.' };
   }, true);
   handle('auth:hello-unlock', async (input = {}) => {
-    const email = String(input.email || '').trim().toLowerCase();
-    if (!email) return { ok: false, message: 'Masukkan email atau username terlebih dahulu.' };
+    const username = String(input.username || input.email || '').trim().toLowerCase();
+    if (!username) return { ok: false, message: 'Masukkan username terlebih dahulu.' };
     const auth = await authService.store.read();
-    const user = auth.users.find((candidate) => candidate.email === email);
+    const user = auth.users.find((candidate) => (candidate.username || candidate.email) === username);
     const record = user ? await windowsHelloStore.get(user.id) : null;
     if (!user || !record) return { ok: false, code: 'NOT_CONFIGURED', message: 'Windows Hello belum diaktifkan untuk akun ini.' };
     const verification = await verifyWindowsHelloDevice();
@@ -599,10 +1068,15 @@ function registerIpc() {
     let key;
     try {
       key = windowsHelloStore.decrypt(record);
-      authService.openSessionWithKey(user, key, record.kdf);
-      await vaultService.document();
-      return { ok: true, user: authService.session() };
+      const pendingAuth = { method: 'hello', user, userId: user.id, key, kdf: record.kdf };
+      const twoFactor = await totpStore.get(user.id);
+      const result = twoFactor
+        ? startTwoFactorVerification(pendingAuth)
+        : await finalizeTwoFactorAuthentication(pendingAuth);
+      key = null;
+      return result;
     } catch (error) {
+      vaultService.clearCache();
       authService.logout();
       return { ok: false, message: 'Vault tidak dapat dibuka dengan kunci Windows Hello.' };
     } finally {
@@ -619,6 +1093,15 @@ function registerIpc() {
         await windowsHelloStore.save(context.user, context.key, authService.vaultKdf());
       } catch {
         // Password change remains successful; user can re-enable Windows Hello from Settings.
+      }
+    }
+    const directRecord = await directLoginStore.getActive().catch(() => null);
+    if (directRecord?.userId === result.user.id) {
+      try {
+        const context = authService.context();
+        await directLoginStore.save(context.user, context.key, authService.vaultKdf());
+      } catch {
+        await directLoginStore.clear(result.user.id).catch(() => undefined);
       }
     }
     const session = authService.session();
@@ -748,12 +1231,15 @@ function registerIpc() {
     mainWindow.setSize(width, Math.max(bounds.height, 620), true);
     return { ok: true, mode: nextMode, width };
   });
-  handle('window:set-theme', (theme) => {
+  handle('window:set-theme', (input) => {
+    const theme = typeof input === 'string' ? input : input?.theme;
+    const palette = typeof input === 'object' && input ? input.palette : activePalette;
     const nextTheme = theme === 'dark' ? 'dark' : 'light';
     activeTheme = nextTheme;
+    activePalette = THEME_PALETTES.has(palette) ? palette : 'rose';
     mainWindow.setBackgroundColor(nextTheme === 'dark' ? '#170d15' : '#fbf7f9');
     syncQuickAccessTheme();
-    return { ok: true, theme: nextTheme };
+    return { ok: true, theme: nextTheme, palette: activePalette };
   });
   handle('settings:get-app', async () => {
     const settings = await appSettingsStore.read();
@@ -763,6 +1249,7 @@ function registerIpc() {
       startWithWindows,
       minimizeToTray: Boolean(settings.minimizeToTray),
       quickAccessEnabled: settings.quickAccessEnabled !== false,
+      quickAccessRegistered: quickAccessHotkeyRegistered,
     };
   });
   handle('settings:set-app', async (input = {}) => {
@@ -786,11 +1273,21 @@ function registerIpc() {
       app.setLoginItemSettings(loginItemSettings);
     } catch { /* startup settings are unavailable on unsupported platforms */ }
     minimizeToTray = nextMinimizeToTray;
-    setQuickAccessHotkey(nextQuickAccessEnabled);
+    const quickAccessRegistered = setQuickAccessHotkey(nextQuickAccessEnabled);
     refreshTrayMenu();
-    return { ok: true, startWithWindows, minimizeToTray: nextMinimizeToTray, quickAccessEnabled: nextQuickAccessEnabled };
+    return { ok: true, startWithWindows, minimizeToTray: nextMinimizeToTray, quickAccessEnabled: nextQuickAccessEnabled, quickAccessRegistered };
   }, true);
   handle('sync:now', () => driveSyncService.sync(), true);
+  handle('sync:info', async () => {
+    const session = authService.session();
+    if (!session) return { ok: false, message: 'Sesi telah berakhir. Silakan masuk kembali.' };
+    const snapshot = await vaultService.exportEncryptedSnapshot();
+    return {
+      ok: true,
+      email: session.googleEmail || null,
+      sizeBytes: Buffer.byteLength(JSON.stringify(snapshot), 'utf8'),
+    };
+  });
   handle('sync:disconnect', async () => {
     const session = authService.session();
     const googleAccount = session?.googleEmail || session?.email;
@@ -803,8 +1300,13 @@ function registerIpc() {
     await googleUnlockStore.clear();
     return authService.disconnectGoogle();
   }, true);
+  handle('s3:info', () => s3SyncService.info());
+  handle('s3:connect', (input) => s3SyncService.connect(input), true);
+  handle('s3:sync-now', (input = {}) => s3SyncService.sync({ password: input.password }), true);
+  handle('s3:disconnect', () => s3SyncService.disconnect(), true);
   handle('vault:list', async () => (await vaultService.list()).map(publicEntry));
   handle('vault:get', (id) => vaultService.getForEditing(id));
+  handle('vault:totp-codes', (ids) => vaultService.getTotpCodes(ids), true);
   handle('vault:add', async (input) => publicResult(await vaultService.add(input)), true);
   handle('vault:update', async (input) => publicResult(await vaultService.update(input)), true);
   handle('vault:favorite', async (id) => publicResult(await vaultService.toggleFavorite(id)), true);
@@ -826,6 +1328,12 @@ function registerIpc() {
     scheduleClipboardClear(result.value);
     return { ok: true, ...result.usage };
   }, true);
+  handle('vault:copy-totp', async (id) => {
+    const result = await vaultService.useTotpCode(id);
+    clipboard.writeText(result.value);
+    scheduleClipboardClear(result.value);
+    return { ok: true, ...result.usage };
+  }, true);
   handle('vault:copy', (value) => {
     authService.context();
     const text = String(value ?? '').slice(0, 1024);
@@ -836,7 +1344,18 @@ function registerIpc() {
   quickHandle('quick-access:list', async () => {
     if (!authService?.session()) return { ok: false, code: 'LOCKED', message: 'Buka PassSa untuk membuka Quick Access.' };
     const entries = await vaultService.list();
-    return { ok: true, items: entries.filter((entry) => !entry.deletedAt).map(publicQuickAccessEntry) };
+    const items = entries.filter((entry) => !entry.deletedAt).map(publicQuickAccessEntry);
+    const totpCodes = await vaultService.getTotpCodes(items.filter((entry) => entry.type === 'authenticator').map((entry) => entry.id));
+    return {
+      ok: true,
+      items: items.map((entry) => entry.type === 'authenticator'
+        ? { ...entry, totpCode: totpCodes[entry.id]?.code || '', totpRemaining: totpCodes[entry.id]?.remaining || 0 }
+        : entry),
+    };
+  });
+  quickHandle('quick-access:totp-codes', async (ids) => {
+    if (!authService?.session()) return {};
+    return vaultService.getTotpCodes(ids);
   });
   quickHandle('quick-access:clear-recent', async () => {
     if (!authService?.session()) return { ok: false, code: 'LOCKED', message: 'Vault sedang terkunci.' };
@@ -881,13 +1400,16 @@ function registerIpc() {
   });
   quickHandle('quick-access:copy', async ({ id, field } = {}) => {
     if (!authService?.session()) return { ok: false, code: 'LOCKED', message: 'Vault sedang terkunci.' };
-    const allowedFields = new Set(['url', 'username', 'password']);
+    const allowedFields = new Set(['url', 'username', 'password', 'totp']);
     if (!allowedFields.has(field)) return { ok: false, message: 'Aksi copy tidak valid.' };
-    const result = await vaultService.useSecret(String(id || ''), field);
+    const result = field === 'totp'
+      ? await vaultService.useTotpCode(String(id || ''))
+      : await vaultService.useSecret(String(id || ''), field);
     if (!result.value) return { ok: false, message: field === 'url' ? 'Item ini belum memiliki alamat situs.' : 'Field credential ini masih kosong.' };
     clipboard.writeText(result.value);
     scheduleClipboardClear(result.value);
-    return { ok: true, field, usage: result.usage, message: `${field === 'url' ? 'Alamat situs' : field === 'username' ? 'Username' : 'Password'} disalin. Clipboard dibersihkan dalam 30 detik.` };
+    const label = field === 'totp' ? 'Kode 2FA' : field === 'url' ? 'Alamat situs' : field === 'username' ? 'Username' : 'Password';
+    return { ok: true, field, usage: result.usage, message: `${label} disalin. Clipboard dibersihkan dalam 30 detik.` };
   }, true);
 }
 
@@ -905,11 +1427,22 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
+      sandbox: app.isPackaged && !previewMode,
     },
   });
   mainWindow = win;
   win.removeMenu();
+  if (devSkipLoginMode) {
+    win.once('ready-to-show', () => {
+      if (win.isDestroyed()) return;
+      win.setAlwaysOnTop(true);
+      win.show();
+      win.focus();
+      setTimeout(() => {
+        if (!win.isDestroyed()) win.setAlwaysOnTop(false);
+      }, 1200);
+    });
+  }
   win.webContents.on('before-input-event', (event, input) => {
     const modifiers = Array.isArray(input.modifiers) ? input.modifiers : [];
     if (quickAccessEnabled
@@ -950,6 +1483,8 @@ if (hasSingleInstanceLock && !nativeHostMode) app.whenReady().then(async () => {
   const authStore = new AtomicJsonStore(path.join(userData, 'auth.json'), () => ({ version: 1, users: [] }));
   const vaultStore = new AtomicJsonStore(path.join(userData, 'vault.json'), () => ({ version: 1, vaults: {} }));
   const syncStateStore = new AtomicJsonStore(path.join(userData, 'sync-state.json'), () => ({ version: 1, users: {} }));
+  const s3SyncStateStore = new AtomicJsonStore(path.join(userData, 's3-sync-state.json'), () => ({ version: 1, users: {} }));
+  const s3CredentialStore = new S3CredentialStore(path.join(userData, 's3-credentials.json'), safeStorage);
   appSettingsStore = new AtomicJsonStore(path.join(userData, 'app-settings.json'), () => ({ version: 1, minimizeToTray: false, quickAccessEnabled: true }));
   const appSettings = await appSettingsStore.read();
   minimizeToTray = Boolean(appSettings.minimizeToTray);
@@ -961,15 +1496,22 @@ if (hasSingleInstanceLock && !nativeHostMode) app.whenReady().then(async () => {
   googleTokenStore = new GoogleTokenStore(path.join(userData, 'google-token.json'), safeStorage);
   googleUnlockStore = new GoogleUnlockStore(path.join(userData, 'google-unlock.json'), safeStorage);
   windowsHelloStore = new WindowsHelloStore(path.join(userData, 'windows-hello.json'), safeStorage, fs);
+  directLoginStore = new DirectLoginStore(path.join(userData, 'direct-login.json'), safeStorage);
+  totpStore = new TotpStore(path.join(userData, 'totp.json'), safeStorage);
   const driveClient = new GoogleDriveClient({ clientId: googleClientId, clientSecret: googleClientSecret, tokenStore: googleTokenStore, fetchFn: googleFetch });
   driveSyncService = new DriveSyncService({ driveClient, vaultService, stateStore: syncStateStore });
+  s3SyncService = new S3SyncService({ vaultService, credentialStore: s3CredentialStore, stateStore: s3SyncStateStore });
   registerIpc();
   await startAutofillBridge();
+  const directLoginResult = await unlockWithDirectLogin().catch((error) => ({ ok: false, message: error.message }));
+  if (!directLoginResult.ok && directLoginResult.code !== 'NOT_CONFIGURED') {
+    console.warn(directLoginResult.message || 'Login langsung tidak dapat dibuka.');
+  }
   powerMonitor.on('lock-screen', () => clearSensitiveState('Vault dikunci karena Windows terkunci.'));
   powerMonitor.on('suspend', () => clearSensitiveState('Vault dikunci karena perangkat masuk mode sleep.'));
   createWindow();
-  createTray();
-  setQuickAccessHotkey(quickAccessEnabled);
+  if (app.isPackaged && !previewMode) createTray();
+  if (!previewMode) setQuickAccessHotkey(quickAccessEnabled);
   try {
     if (minimizeToTray && app.getLoginItemSettings().wasOpenedAtLogin) mainWindow.hide();
   } catch { /* startup metadata is unavailable in development */ }
@@ -980,6 +1522,9 @@ if (hasSingleInstanceLock && !nativeHostMode) app.whenReady().then(async () => {
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
+}).catch((error) => {
+  console.error(error);
+  app.quit();
 });
 
 app.on('window-all-closed', () => {

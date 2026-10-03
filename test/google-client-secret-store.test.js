@@ -21,3 +21,12 @@ test('client secret Google disimpan terenkripsi dan terikat client ID', async (t
   assert.equal(await store.load('client-1'), 'secret-value');
   assert.equal(await store.load('client-lain'), '');
 });
+
+test('credential Google rusak tidak menghalangi startup lokal', async (t) => {
+  const directory = await fs.mkdtemp(path.join(os.tmpdir(), 'passsa-google-client-invalid-'));
+  t.after(() => fs.rm(directory, { recursive: true, force: true }));
+  const target = path.join(directory, 'credential.json');
+  await fs.writeFile(target, JSON.stringify({ version: 1, encrypted: 'not-a-valid-credential' }));
+  const store = new GoogleClientSecretStore(target, fakeSafeStorage);
+  assert.equal(await store.load('client-1'), '');
+});

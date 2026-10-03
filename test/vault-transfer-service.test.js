@@ -44,6 +44,37 @@ test('CSV portable menjaga field umum dan escaping', () => {
   assert.deepEqual(imported.items[0].tags, ['kerja', 'demo']);
 });
 
+test('CSV portable membawa authenticator tanpa mengubah secret menjadi field login', () => {
+  const csv = documentToCsv({
+    version: 2,
+    categories: [],
+    items: [{
+      title: 'GitHub 2FA',
+      type: 'authenticator',
+      username: '',
+      password: '',
+      url: '',
+      notes: '',
+      group: 'Internet',
+      tags: [],
+      favorite: false,
+      totp: {
+        secret: 'JBSWY3DPEHPK3PXP',
+        issuer: 'GitHub',
+        account: 'okki@example.test',
+        algorithm: 'sha1',
+        digits: 6,
+        period: 30,
+      },
+    }],
+  });
+  const imported = csvToDocument(csv);
+  assert.equal(imported.items[0].type, 'authenticator');
+  assert.equal(imported.items[0].password, '');
+  assert.equal(imported.items[0].totp.secret, 'JBSWY3DPEHPK3PXP');
+  assert.equal(imported.items[0].totp.account, 'okki@example.test');
+});
+
 test('merge import melewati duplikat berdasarkan title, username, dan website', () => {
   const merged = mergeDocuments(document, document, 'merge');
   assert.equal(merged.added, 0);

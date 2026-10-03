@@ -19,6 +19,7 @@ test('daftar autofill hanya mengembalikan entry aktif yang cocok', () => {
   const entries = [
     { id: 'a', title: 'Example', url: 'https://example.com' },
     { id: 'note', title: 'Secure note', type: 'secure-note', url: 'https://example.com' },
+    { id: 'totp', title: 'Authenticator', type: 'authenticator', url: 'https://example.com' },
     { id: 'b', title: 'Other', url: 'https://other.com' },
     { id: 'c', title: 'Deleted', url: 'https://example.com', deletedAt: new Date().toISOString() },
   ];

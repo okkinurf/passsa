@@ -1,4 +1,6 @@
 const THEME_STORAGE_KEY = 'passsa-theme';
+const PALETTE_STORAGE_KEY = 'passsa-palette';
+const PALETTE_NAMES = new Set(['rose', 'ocean', 'forest', 'violet', 'sunset', 'amber', 'teal', 'indigo', 'coral', 'slate']);
 const systemThemeQuery = typeof window.matchMedia === 'function'
   ? window.matchMedia('(prefers-color-scheme: dark)')
   : null;
@@ -7,16 +9,27 @@ function normalizeThemePreference(value) {
   return ['system', 'light', 'dark'].includes(value) ? value : 'system';
 }
 
-function applyQuickTheme(theme) {
+function applyQuickTheme(input) {
+  const theme = typeof input === 'object' && input ? input.theme : input;
+  let palette = typeof input === 'object' && input ? input.palette : '';
+  if (!PALETTE_NAMES.has(palette)) {
+    try { palette = localStorage.getItem(PALETTE_STORAGE_KEY); } catch { palette = ''; }
+  }
   const resolved = theme === 'dark' ? 'dark' : 'light';
   document.documentElement.dataset.theme = resolved;
+  document.documentElement.dataset.palette = PALETTE_NAMES.has(palette) ? palette : 'rose';
   document.documentElement.style.colorScheme = resolved;
 }
 
 function applyStoredTheme() {
   let preference = 'system';
+  let palette = 'rose';
   try { preference = normalizeThemePreference(localStorage.getItem(THEME_STORAGE_KEY)); } catch { /* gunakan tema sistem */ }
-  applyQuickTheme(preference === 'system' ? (systemThemeQuery?.matches ? 'dark' : 'light') : preference);
+  try { palette = localStorage.getItem(PALETTE_STORAGE_KEY) || 'rose'; } catch { /* gunakan palet default */ }
+  applyQuickTheme({
+    theme: preference === 'system' ? (systemThemeQuery?.matches ? 'dark' : 'light') : preference,
+    palette,
+  });
 }
 
 applyStoredTheme();
@@ -68,32 +81,54 @@ function formatRecent(value) {
 function lastAction(entry) {
   const record = entry.recentUseHistory?.at(-1);
   if (!record) return formatRecent(entry.lastUsedAt);
-  const label = record.field === 'password' ? 'Password' : record.field === 'username' ? 'Username' : record.field === 'note' ? 'Catatan dibuka' : 'Link';
+  const label = record.field === 'password' ? 'Password' : record.field === 'username' ? 'Username' : record.field === 'note' ? 'Catatan dibuka' : record.field === 'totp' ? 'Kode 2FA' : 'Link';
   return `${label}${record.field === 'note' ? '' : ' disalin'} · ${formatRecent(record.usedAt)}`;
 }
 
 function matches(entry, query) {
   if (!query) return true;
-  return [entry.title, entry.username, entry.url, entry.group, ...(entry.tags || [])]
+  return [entry.title, entry.username, entry.url, entry.group, entry.totp?.issuer, entry.totp?.account, ...(entry.tags || [])]
     .some((value) => String(value || '').toLowerCase().includes(query));
+}
+
+function formatTotpCode(value) {
+  const code = String(value || '').replace(/\s/g, '');
+  if (!code) return '••• •••';
+  const midpoint = Math.ceil(code.length / 2);
+  return `${code.slice(0, midpoint)} ${code.slice(midpoint)}`;
+}
+
+function totpRemainingLabel(value) {
+  const remaining = Number(value);
+  return Number.isFinite(remaining) && remaining > 0 ? `${Math.max(0, Math.floor(remaining))}s` : '—';
 }
 
 function entryMarkup(entry) {
   const title = escapeHtml(entry.title);
-  const meta = escapeHtml([entry.username || 'Tanpa username', entry.url || entry.group || 'Login lokal'].filter(Boolean).join(' · '));
+  const isAuthenticator = entry.type === 'authenticator';
+  const meta = escapeHtml(isAuthenticator
+    ? [entry.totp?.issuer || 'Authenticator', entry.totp?.account || 'Tanpa akun'].join(' · ')
+    : [entry.username || 'Tanpa username', entry.url || entry.group || 'Login lokal'].filter(Boolean).join(' · '));
   const safeId = escapeHtml(entry.id);
   const isNote = entry.type === 'secure-note';
-  const recentLabel = isNote ? (entry.lastUsedAt ? lastAction(entry) : 'Secure note') : lastAction(entry);
-  return `<article class="quick-entry" data-id="${safeId}" tabindex="0" aria-label="Buka ${title}">
+  const recentLabel = isNote ? (entry.lastUsedAt ? lastAction(entry) : 'Secure note') : isAuthenticator ? (entry.lastUsedAt ? lastAction(entry) : 'Authenticator') : lastAction(entry);
+  return `<article class="quick-entry${isAuthenticator ? ' authenticator-entry' : ''}" data-id="${safeId}" tabindex="0" aria-label="Buka ${title}">
     <div class="quick-entry-main">
       <div class="quick-entry-title"><button class="quick-pin ${entry.quickPinned ? 'active' : ''}" type="button" data-quick-action="pin" aria-pressed="${String(Boolean(entry.quickPinned))}" aria-label="${entry.quickPinned ? 'Lepas pin' : 'Pin'} ${title}" title="${entry.quickPinned ? 'Lepas pin' : 'Pin'}"><i class="fa-${entry.quickPinned ? 'solid' : 'regular'} fa-star" aria-hidden="true"></i></button><strong>${title}</strong></div>
       <small class="quick-entry-meta">${meta}</small>
       <small class="quick-entry-recent">${escapeHtml(recentLabel)}</small>
     </div>
-    ${isNote ? '<span class="quick-entry-recent">Catatan</span>' : `<div class="quick-entry-actions" aria-label="Aksi ${title}">
-      <button class="quick-action" type="button" data-quick-action="copy" data-field="url" title="Salin alamat situs" aria-label="Salin alamat situs" ${entry.url ? '' : 'disabled'}>↗</button>
-      <button class="quick-action" type="button" data-quick-action="copy" data-field="username" title="Salin username" aria-label="Salin username" ${entry.username ? '' : 'disabled'}>@</button>
-      <button class="quick-action" type="button" data-quick-action="copy" data-field="password" title="Salin password" aria-label="Salin password">🔑</button>
+    ${isNote ? '<span class="quick-entry-recent">Catatan</span>' : isAuthenticator ? `<div class="quick-entry-actions quick-totp-actions" aria-label="Aksi ${title}">
+      <div class="quick-totp-panel">
+        <span class="quick-totp-label">KODE 2FA</span>
+        <strong class="quick-totp-code" data-quick-totp-code aria-label="Kode 2FA ${title}">${formatTotpCode(entry.totpCode)}</strong>
+        <small class="quick-totp-timer" data-quick-totp-timer>${totpRemainingLabel(entry.totpRemaining)}</small>
+      </div>
+      <button class="quick-action quick-totp-copy" type="button" data-quick-action="copy" data-field="totp" title="Salin kode 2FA" aria-label="Salin kode 2FA ${title}"><i class="fa-solid fa-copy" aria-hidden="true"></i></button>
+    </div>` : `<div class="quick-entry-actions" aria-label="Aksi ${title}">
+      <button class="quick-action" type="button" data-quick-action="copy" data-field="url" title="Salin alamat situs" aria-label="Salin alamat situs ${title}" ${entry.url ? '' : 'disabled'}><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i></button>
+      <button class="quick-action" type="button" data-quick-action="copy" data-field="username" title="Salin username" aria-label="Salin username ${title}" ${entry.username ? '' : 'disabled'}><i class="fa-solid fa-at" aria-hidden="true"></i></button>
+      <button class="quick-action" type="button" data-quick-action="copy" data-field="password" title="Salin password" aria-label="Salin password ${title}"><i class="fa-solid fa-key" aria-hidden="true"></i></button>
     </div>`}
   </article>`;
 }
@@ -117,6 +152,7 @@ function render() {
   clearRecentButton.classList.toggle('hidden', Boolean(query) || recent.length === 0);
   renderList(pinnedList, pinned);
   renderList(recentList, recent);
+  refreshTotpCodes();
   const hasVisibleSection = pinned.length > 0 || recent.length > 0;
   emptyState.classList.toggle('hidden', hasVisibleSection);
   emptyTitle.textContent = query ? 'Tidak ada credential ditemukan' : 'Belum ada credential di Quick Access';
@@ -171,12 +207,41 @@ async function loadEntries() {
 
 function showCopyFeedback(button, message) {
   button.classList.add('copy-success');
-  const original = button.textContent;
-  button.textContent = '✓';
-  setTimeout(() => { button.classList.remove('copy-success'); button.textContent = original; }, 800);
+  const original = button.innerHTML;
+  button.innerHTML = '<i class="fa-solid fa-check" aria-hidden="true"></i>';
+  setTimeout(() => { button.classList.remove('copy-success'); button.innerHTML = original; }, 800);
   status.textContent = message;
   clearTimeout(refreshTimer);
   refreshTimer = setTimeout(() => { status.textContent = ''; }, 2600);
+}
+
+let totpRefreshInFlight = false;
+
+async function refreshTotpCodes() {
+  if (totpRefreshInFlight || document.visibilityState === 'hidden') return;
+  const ids = entries.filter((entry) => entry.type === 'authenticator').map((entry) => entry.id);
+  if (!ids.length || typeof window.passsaQuick.totpCodes !== 'function') return;
+  totpRefreshInFlight = true;
+  try {
+    const codes = await window.passsaQuick.totpCodes(ids);
+    for (const [id, data] of Object.entries(codes || {})) {
+      const row = [...document.querySelectorAll('.authenticator-entry')]
+        .find((candidate) => candidate.dataset.id === id);
+      if (!row || !data?.code) continue;
+      const codeElement = row.querySelector('[data-quick-totp-code]');
+      const timerElement = row.querySelector('[data-quick-totp-timer]');
+      const formatted = formatTotpCode(data.code);
+      if (codeElement) {
+        codeElement.textContent = formatted;
+        codeElement.setAttribute('aria-label', `Kode 2FA ${data.code}`);
+      }
+      if (timerElement) timerElement.textContent = totpRemainingLabel(data.remaining);
+    }
+  } catch {
+    // Quick Access tetap menampilkan placeholder jika sesi sedang berakhir.
+  } finally {
+    totpRefreshInFlight = false;
+  }
 }
 
 async function handleAction(event) {
@@ -271,7 +336,7 @@ document.addEventListener('keydown', (event) => {
     return;
   }
   if (event.key === 'Enter' && event.target === searchInput) {
-    const first = document.querySelector('.quick-entry [data-quick-action="copy"][data-field="password"]');
+    const first = document.querySelector('.quick-entry [data-quick-action="copy"][data-field="password"], .quick-entry [data-quick-action="copy"][data-field="totp"]');
     if (first) first.click();
   }
 });
@@ -292,3 +357,4 @@ function resetSearchAndLoad() {
 window.passsaQuick.onRefresh(resetSearchAndLoad);
 loadEntries();
 searchInput.focus();
+setInterval(refreshTotpCodes, 1000);

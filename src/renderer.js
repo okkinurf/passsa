@@ -10,18 +10,53 @@ const loginTab = document.querySelector('#login-tab');
 const registerTab = document.querySelector('#register-tab');
 const title = document.querySelector('#form-title');
 const subtitle = document.querySelector('#form-subtitle');
-const emailInput = document.querySelector('#email');
+const usernameInput = document.querySelector('#username');
 const passwordInput = document.querySelector('#password');
 const message = document.querySelector('#message');
 const submitButton = document.querySelector('#submit-button');
 const togglePassword = document.querySelector('#toggle-password');
 const helloLoginButton = document.querySelector('#hello-login-button');
+const directLoginButton = document.querySelector('#direct-login-button');
+const directLoginHelp = document.querySelector('#direct-login-help');
+const registerSecurityNote = document.querySelector('#register-security-note');
+const devBypassButton = document.querySelector('#dev-bypass-button');
+const devBypassHelp = document.querySelector('#dev-bypass-help');
 const helloLoginMessage = document.querySelector('#message');
 const syncButton = document.querySelector('#sync-button');
 const settingsButton = document.querySelector('#settings-button');
 const logoutButton = document.querySelector('#logout-button');
 const itemModal = document.querySelector('#item-modal');
 const noteDetailModal = document.querySelector('#note-detail-modal');
+const authenticatorDetailModal = document.querySelector('#authenticator-detail-modal');
+const credentialDetailModal = document.querySelector('#credential-detail-modal');
+const credentialDetailTitle = document.querySelector('#credential-detail-title');
+const credentialDetailSubtitle = document.querySelector('#credential-detail-subtitle');
+const credentialDetailUrl = document.querySelector('#credential-detail-url');
+const credentialDetailUsername = document.querySelector('#credential-detail-username');
+const credentialDetailPassword = document.querySelector('#credential-detail-password');
+const credentialDetailGroup = document.querySelector('#credential-detail-group');
+const credentialDetailUsage = document.querySelector('#credential-detail-usage');
+const credentialDetailNotes = document.querySelector('#credential-detail-notes');
+const closeCredentialDetailButton = document.querySelector('#close-credential-detail');
+const credentialDetailCopyUrlButton = document.querySelector('#credential-detail-copy-url');
+const credentialDetailCopyUsernameButton = document.querySelector('#credential-detail-copy-username');
+const credentialDetailCopyPasswordButton = document.querySelector('#credential-detail-copy-password');
+const toggleCredentialDetailPasswordButton = document.querySelector('#toggle-credential-detail-password');
+const credentialDetailCloseSecondaryButton = document.querySelector('#credential-detail-close-secondary');
+const credentialDetailEditButton = document.querySelector('#credential-detail-edit');
+const authenticatorDetailTitle = document.querySelector('#authenticator-detail-title');
+const authenticatorDetailSubtitle = document.querySelector('#authenticator-detail-subtitle');
+const authenticatorDetailCode = document.querySelector('#authenticator-detail-code');
+const authenticatorDetailTimer = document.querySelector('#authenticator-detail-timer');
+const authenticatorDetailUsage = document.querySelector('#authenticator-detail-usage');
+const authenticatorDetailIssuer = document.querySelector('#authenticator-detail-issuer');
+const authenticatorDetailAccount = document.querySelector('#authenticator-detail-account');
+const authenticatorDetailGroup = document.querySelector('#authenticator-detail-group');
+const authenticatorDetailConfig = document.querySelector('#authenticator-detail-config');
+const authenticatorDetailNotes = document.querySelector('#authenticator-detail-notes');
+const closeAuthenticatorDetailButton = document.querySelector('#close-authenticator-detail');
+const authenticatorDetailCopyButton = document.querySelector('#authenticator-detail-copy');
+const authenticatorDetailEditButton = document.querySelector('#authenticator-detail-edit');
 const noteDetailTitle = document.querySelector('#note-detail-title');
 const noteDetailMeta = document.querySelector('#note-detail-meta');
 const noteDetailNotes = document.querySelector('#note-detail-notes');
@@ -66,6 +101,16 @@ const categoryForm = document.querySelector('#category-form');
 const tagInput = document.querySelector('#item-tags');
 const tagSuggestions = document.querySelector('#tag-suggestions');
 const itemTypeInput = document.querySelector('#item-type');
+const authenticatorFields = document.querySelector('#authenticator-fields');
+const itemTotpIssuer = document.querySelector('#item-totp-issuer');
+const itemTotpAccount = document.querySelector('#item-totp-account');
+const itemTotpSecret = document.querySelector('#item-totp-secret');
+const toggleItemTotpSecret = document.querySelector('#toggle-item-totp-secret');
+const itemTotpUri = document.querySelector('#item-totp-uri');
+const itemTotpAlgorithm = document.querySelector('#item-totp-algorithm');
+const itemTotpDigits = document.querySelector('#item-totp-digits');
+const itemTotpPeriod = document.querySelector('#item-totp-period');
+const itemTotpMessage = document.querySelector('#item-totp-message');
 const itemNotesLabel = document.querySelector('#item-notes-label');
 const itemNotesInput = document.querySelector('#item-notes');
 const noteEditor = document.querySelector('#note-editor');
@@ -74,6 +119,7 @@ const noteEditorMode = document.querySelector('#note-editor-mode');
 const notePreview = document.querySelector('#note-preview');
 const noteHeadingLevel = document.querySelector('#note-heading-level');
 const noteEditorStatus = document.querySelector('#note-editor-status');
+const noteEditorSaveState = document.querySelector('#note-editor-save-state');
 const itemLoginFields = [...document.querySelectorAll('.item-login-fields')];
 const customFieldsList = document.querySelector('#custom-fields-list');
 const addCustomFieldButton = document.querySelector('#add-custom-field');
@@ -92,16 +138,103 @@ const sidebarNavigationSearch = document.querySelector('#sidebar-navigation-sear
 const sidebarTooltip = document.querySelector('#sidebar-tooltip');
 const sidebarAddItemButton = document.querySelector('#sidebar-add-item-button');
 const sidebarAddNoteButton = document.querySelector('#sidebar-add-note-button');
+const sidebarAddAuthenticatorButton = document.querySelector('#sidebar-add-authenticator-button');
 const sidebarAddTagButton = document.querySelector('#sidebar-add-tag-button');
 const settingsModal = document.querySelector('#settings-modal');
 const closeSettingsButton = document.querySelector('#close-settings');
 const closeSettingsSecondaryButton = document.querySelector('#close-settings-secondary');
 const settingsGoogleConnect = document.querySelector('#settings-google-connect');
+const twoFactorModal = document.querySelector('#two-factor-modal');
+const twoFactorForm = document.querySelector('#two-factor-form');
+const twoFactorTitle = document.querySelector('#two-factor-title');
+const twoFactorSetupPanel = document.querySelector('#two-factor-setup-panel');
+const twoFactorManualKey = document.querySelector('#two-factor-manual-key');
+const copyTwoFactorManualKeyButton = document.querySelector('#copy-two-factor-manual-key');
+const twoFactorKeySourceInputs = [...document.querySelectorAll('input[name="two-factor-key-source"]')];
+const twoFactorGeneratedKeyBlock = document.querySelector('#two-factor-generated-key-block');
+const twoFactorExistingKeyPanel = document.querySelector('#two-factor-existing-key-panel');
+const twoFactorExistingKey = document.querySelector('#two-factor-existing-key');
+const toggleTwoFactorExistingKeyButton = document.querySelector('#toggle-two-factor-existing-key');
+const twoFactorUriDetails = document.querySelector('#two-factor-uri-details');
+const twoFactorOtpAuthUri = document.querySelector('#two-factor-otpauth-uri');
+const twoFactorInstructions = document.querySelector('#two-factor-instructions');
+const twoFactorCodeLabel = document.querySelector('#two-factor-code-label');
+const twoFactorCode = document.querySelector('#two-factor-code');
+const twoFactorRecoveryToggle = document.querySelector('#two-factor-recovery-toggle');
+const twoFactorRecoveryField = document.querySelector('#two-factor-recovery-field');
+const twoFactorRecoveryCode = document.querySelector('#two-factor-recovery-code');
+const twoFactorMessage = document.querySelector('#two-factor-message');
+const twoFactorRecoveryPanel = document.querySelector('#two-factor-recovery-panel');
+const twoFactorRecoveryCodes = document.querySelector('#two-factor-recovery-codes');
+const copyTwoFactorRecoveryCodesButton = document.querySelector('#copy-two-factor-recovery-codes');
+const twoFactorRecoveryConfirm = document.querySelector('#two-factor-recovery-confirm');
+const twoFactorSubmit = document.querySelector('#two-factor-submit');
+const twoFactorFinish = document.querySelector('#two-factor-finish');
+const closeTwoFactorButton = document.querySelector('#close-two-factor');
+const cancelTwoFactorButton = document.querySelector('#cancel-two-factor');
+
+const modalFocusOrigins = new WeakMap();
+const focusableModalSelector = [
+  'a[href]', 'button:not([disabled])', 'input:not([disabled])', 'select:not([disabled])',
+  'textarea:not([disabled])', '[tabindex]:not([tabindex="-1"])',
+].join(',');
+
+function rememberModalFocus(modal) {
+  const active = document.activeElement;
+  if (active instanceof HTMLElement && active !== document.body) modalFocusOrigins.set(modal, active);
+}
+
+function restoreModalFocus(modal) {
+  const origin = modalFocusOrigins.get(modal);
+  modalFocusOrigins.delete(modal);
+  if (origin?.isConnected) requestAnimationFrame(() => origin.focus({ preventScroll: true }));
+}
+
+function constrainModalFocus(event) {
+  if (event.key !== 'Tab') return;
+  const modal = [confirmModal, itemModal, noteDetailModal, authenticatorDetailModal, credentialDetailModal, settingsModal, categoryModal, bulkModal, twoFactorModal]
+    .find((candidate) => !candidate.classList.contains('hidden'));
+  if (!modal) return;
+  const controls = [...modal.querySelectorAll(focusableModalSelector)]
+    .filter((element) => element.getClientRects().length > 0);
+  if (!controls.length) return;
+  const first = controls[0];
+  const last = controls.at(-1);
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
 const settingsGoogleDisconnect = document.querySelector('#settings-google-disconnect');
 const settingsGooglePassword = document.querySelector('#settings-google-password');
 const settingsGooglePasswordLabel = document.querySelector('#settings-google-password-label');
 const settingsGoogleStatus = document.querySelector('#settings-google-status');
+const settingsGoogleDetails = document.querySelector('#settings-google-details');
+const settingsGoogleEmail = document.querySelector('#settings-google-email');
+const settingsGoogleSize = document.querySelector('#settings-google-size');
 const settingsGoogleMessage = document.querySelector('#settings-google-message');
+const settingsS3Status = document.querySelector('#settings-s3-status');
+const settingsS3Details = document.querySelector('#settings-s3-details');
+const settingsS3Location = document.querySelector('#settings-s3-location');
+const settingsS3Account = document.querySelector('#settings-s3-account');
+const settingsS3Form = document.querySelector('#settings-s3-form');
+const settingsS3Endpoint = document.querySelector('#settings-s3-endpoint');
+const settingsS3Region = document.querySelector('#settings-s3-region');
+const settingsS3Bucket = document.querySelector('#settings-s3-bucket');
+const settingsS3Prefix = document.querySelector('#settings-s3-prefix');
+const settingsS3AccessKey = document.querySelector('#settings-s3-access-key');
+const settingsS3SecretKey = document.querySelector('#settings-s3-secret-key');
+const settingsS3SessionToken = document.querySelector('#settings-s3-session-token');
+const settingsS3Message = document.querySelector('#settings-s3-message');
+const settingsS3Connect = document.querySelector('#settings-s3-connect');
+const settingsS3Sync = document.querySelector('#settings-s3-sync');
+const settingsS3Disconnect = document.querySelector('#settings-s3-disconnect');
+const settingsS3PasswordPanel = document.querySelector('#settings-s3-password-panel');
+const settingsS3UnlockPassword = document.querySelector('#settings-s3-unlock-password');
+const settingsS3Unlock = document.querySelector('#settings-s3-unlock');
 const changePasswordForm = document.querySelector('#change-password-form');
 const settingsCurrentPassword = document.querySelector('#settings-current-password');
 const settingsNewPassword = document.querySelector('#settings-new-password');
@@ -113,6 +246,25 @@ const settingsHelloPassword = document.querySelector('#settings-hello-password')
 const settingsHelloMessage = document.querySelector('#settings-hello-message');
 const settingsHelloEnable = document.querySelector('#settings-hello-enable');
 const settingsHelloDisable = document.querySelector('#settings-hello-disable');
+const settingsTwoFactorEnable = document.querySelector('#settings-2fa-enable');
+const settingsLoginMethodStatus = document.querySelector('#settings-login-method-status');
+const settingsPasswordMethodStatus = document.querySelector('#settings-password-method-status');
+const settingsTwoFactorDisableOpen = document.querySelector('#settings-2fa-disable-open');
+const settingsTwoFactorDisablePanel = document.querySelector('#settings-2fa-disable-panel');
+const settingsTwoFactorPassword = document.querySelector('#settings-2fa-current-password');
+const settingsTwoFactorCode = document.querySelector('#settings-2fa-current-code');
+const settingsTwoFactorMessage = document.querySelector('#settings-2fa-message');
+const settingsTwoFactorDisableSubmit = document.querySelector('#settings-2fa-disable-submit');
+const settingsTwoFactorDisableCancel = document.querySelector('#settings-2fa-disable-cancel');
+const settingsDirectLoginStatus = document.querySelector('#settings-direct-login-status');
+const settingsDirectLoginDetails = document.querySelector('#settings-direct-login-details');
+const settingsDirectLoginEnable = document.querySelector('#settings-direct-login-enable');
+const settingsDirectLoginDisable = document.querySelector('#settings-direct-login-disable');
+const settingsDirectLoginPanel = document.querySelector('#settings-direct-login-panel');
+const settingsDirectLoginPassword = document.querySelector('#settings-direct-login-password');
+const settingsDirectLoginMessage = document.querySelector('#settings-direct-login-message');
+const settingsDirectLoginConfirm = document.querySelector('#settings-direct-login-confirm');
+const settingsDirectLoginCancel = document.querySelector('#settings-direct-login-cancel');
 const settingsExportFormat = document.querySelector('#settings-export-format');
 const settingsExportPasswordFields = document.querySelector('#settings-export-password-fields');
 const settingsExportPassword = document.querySelector('#settings-export-password');
@@ -131,7 +283,22 @@ const settingsQuickAccess = document.querySelector('#settings-quick-access');
 const settingsAppMessage = document.querySelector('#settings-app-message');
 const settingsTheme = document.querySelector('#settings-theme');
 const settingsThemeHelp = document.querySelector('#settings-theme-help');
+const settingsPaletteInputs = [...document.querySelectorAll('input[name="settings-palette"]')];
+const settingsPaletteHelp = document.querySelector('#settings-palette-help');
 const THEME_STORAGE_KEY = 'passsa-theme';
+const PALETTE_STORAGE_KEY = 'passsa-palette';
+const PALETTE_LABELS = {
+  rose: 'Rosewood',
+  ocean: 'Ocean',
+  forest: 'Forest',
+  violet: 'Violet',
+  sunset: 'Sunset',
+  amber: 'Amber',
+  teal: 'Teal',
+  indigo: 'Indigo',
+  coral: 'Coral',
+  slate: 'Slate',
+};
 const systemThemeQuery = typeof window.matchMedia === 'function'
   ? window.matchMedia('(prefers-color-scheme: dark)')
   : null;
@@ -151,14 +318,110 @@ const selectedIds = new Set();
 const collapsedBranches = new Set();
 let mode = 'login';
 let currentUser = null;
+let settingsTwoFactorEnabled = null;
+let settingsDirectLoginEnabled = null;
 let settingsGoogleChallengeId = null;
+let twoFactorChallengeId = null;
+let twoFactorSetupMode = false;
+let twoFactorRecoveryMode = false;
+let twoFactorCompletedResult = null;
 let currentFilter = 'all';
 let currentGroup = null;
 let currentGroupPrefix = null;
 let currentTag = null;
 let noteDetailCurrentId = null;
+let noteDetailHistoryEntries = [];
+let authenticatorDetailCurrentId = null;
+let authenticatorDetailRefreshTimer = null;
+let authenticatorDetailRefreshInFlight = false;
+let authenticatorDetailCopyFeedbackTimer = null;
+let authenticatorDetailCopyRequestId = 0;
+let credentialDetailCurrentItem = null;
+let credentialDetailOpenRequestId = 0;
+let credentialDetailCopyFeedbackTimer = null;
+let credentialDetailCopyRequestId = 0;
+let formNoteHistoryEntries = [];
 let idleLockTimer;
 let initializeSidebarCollapsed = true;
+let sidebarCountsDirty = true;
+let sidebarTreeDirty = true;
+let tagTreeDirty = true;
+let renderItemsFrame = null;
+let virtualItemsFrame = null;
+let renderedVirtualRange = null;
+let totpRefreshInFlight = false;
+
+const VIRTUALIZE_ITEM_THRESHOLD = 300;
+const VIRTUAL_ITEM_HEIGHT = 88;
+const VIRTUAL_ITEM_OVERSCAN = 8;
+
+function normalizeRendererItem(item) {
+  const tags = Array.isArray(item?.tags)
+    ? item.tags
+    : String(item?.tags ?? '').split(',').map((tag) => tag.trim()).filter(Boolean);
+  const searchText = [
+    item?.title,
+    item?.username,
+    item?.url,
+    item?.notes,
+    item?.group,
+    item?.totp?.issuer,
+    item?.totp?.account,
+    ...tags,
+    ...(Array.isArray(item?.fields) ? item.fields.map((field) => field?.label) : []),
+  ].map((value) => String(value ?? '').toLowerCase()).filter(Boolean).join('\u0001');
+  return { ...item, tags, _searchText: searchText };
+}
+
+function markItemDataDirty() {
+  sidebarCountsDirty = true;
+  tagTreeDirty = true;
+}
+
+function markCategoryDataDirty() {
+  sidebarTreeDirty = true;
+}
+
+function replaceRendererItem(nextItem) {
+  if (!nextItem?.id) return;
+  const index = items.findIndex((item) => item.id === nextItem.id);
+  if (index < 0) return;
+  items[index] = normalizeRendererItem(nextItem);
+  markItemDataDirty();
+}
+
+function scheduleRenderItems() {
+  if (renderItemsFrame !== null) return;
+  renderItemsFrame = requestAnimationFrame(() => {
+    renderItemsFrame = null;
+    renderItems();
+  });
+}
+
+function scheduleVirtualItemsRender() {
+  if (virtualItemsFrame !== null) return;
+  const scrollContainer = document.querySelector('.items-scroll');
+  if (!scrollContainer || !itemsList.classList.contains('is-virtualized') || !renderedVirtualRange) return;
+
+  // Keep the current DOM window while the viewport is still inside its
+  // overscan buffer. Rebuilding every row on every wheel event causes visible
+  // flashes and repeatedly restarts row entrance animations.
+  const visibleStart = Math.floor(scrollContainer.scrollTop / VIRTUAL_ITEM_HEIGHT);
+  const visibleEnd = Math.ceil((scrollContainer.scrollTop + scrollContainer.clientHeight) / VIRTUAL_ITEM_HEIGHT);
+  // Leave a few rows of hysteresis so scrolling through the overscan window
+  // does not rebuild the DOM on every row boundary.
+  const edgeBuffer = 2;
+  const nearTopEdge = renderedVirtualRange.start > 0
+    && visibleStart <= renderedVirtualRange.start + edgeBuffer;
+  const nearBottomEdge = renderedVirtualRange.end < visibleItems.length
+    && visibleEnd >= renderedVirtualRange.end - edgeBuffer;
+  if (!nearTopEdge && !nearBottomEdge) return;
+
+  virtualItemsFrame = requestAnimationFrame(() => {
+    virtualItemsFrame = null;
+    renderItems({ virtualScroll: true });
+  });
+}
 
 function updateMaximizeControl(maximized) {
   if (!windowMaximizeButton) return;
@@ -204,16 +467,43 @@ function updateThemeHelp(preference, resolved = resolveTheme(preference)) {
     : `Mode ${resolved === 'dark' ? 'gelap' : 'terang'} dipilih secara manual.`;
 }
 
+function normalizePalettePreference(value) {
+  return Object.hasOwn(PALETTE_LABELS, value) ? value : 'rose';
+}
+
+function getPalettePreference() {
+  try {
+    return normalizePalettePreference(localStorage.getItem(PALETTE_STORAGE_KEY));
+  } catch {
+    return 'rose';
+  }
+}
+
+function applyPalette(preference = getPalettePreference(), resolvedTheme = document.documentElement.dataset.theme || resolveTheme(getThemePreference())) {
+  const normalized = normalizePalettePreference(preference);
+  document.documentElement.dataset.palette = normalized;
+  settingsPaletteInputs.forEach((input) => {
+    const selected = input.value === normalized;
+    input.checked = selected;
+    input.closest('.theme-palette-option')?.classList.toggle('selected', selected);
+  });
+  if (settingsPaletteHelp) settingsPaletteHelp.textContent = `${PALETTE_LABELS[normalized]} · ikon ikut warna tema`;
+  try {
+    const nativeThemeUpdate = window.passsa.setTheme?.(resolvedTheme, normalized);
+    nativeThemeUpdate?.catch?.(() => undefined);
+  } catch { /* Palet Quick Access tetap diperbarui saat bridge native belum siap. */ }
+  try {
+    localStorage.setItem(PALETTE_STORAGE_KEY, normalized);
+  } catch { /* Preferensi warna tetap diterapkan jika storage tidak tersedia. */ }
+}
+
 function applyTheme(preference = getThemePreference()) {
   const normalized = normalizeThemePreference(preference);
   const resolved = resolveTheme(normalized);
   document.documentElement.dataset.themePreference = normalized;
   document.documentElement.dataset.theme = resolved;
   document.documentElement.style.colorScheme = resolved;
-  try {
-    const nativeThemeUpdate = window.passsa.setTheme?.(resolved);
-    nativeThemeUpdate?.catch?.(() => undefined);
-  } catch { /* Renderer tetap dapat berganti tema jika native overlay belum siap. */ }
+  applyPalette(getPalettePreference(), resolved);
   try {
     localStorage.setItem(THEME_STORAGE_KEY, normalized);
   } catch { /* Preferensi tema tetap diterapkan jika storage tidak tersedia. */ }
@@ -418,8 +708,9 @@ document.addEventListener('keydown', (event) => {
 
 function setMode(nextMode) {
   mode = nextMode;
-  emailInput.readOnly = false;
+  usernameInput.readOnly = false;
   const registering = mode === 'register';
+  registerSecurityNote?.classList.toggle('hidden', !registering);
   document.querySelector('.tabs').dataset.mode = registering ? 'register' : 'login';
   loginTab.classList.toggle('active', !registering);
   registerTab.classList.toggle('active', registering);
@@ -434,17 +725,254 @@ function setMode(nextMode) {
   form.reset();
   setMessage('');
   helloLoginButton?.classList.add('hidden');
-  emailInput.focus();
+  usernameInput.focus();
 }
 
 function setMessage(text, success = false) {
   setInlineMessage(message, text, success);
 }
 
+function resetTwoFactorModalFields() {
+  twoFactorChallengeId = null;
+  twoFactorSetupMode = false;
+  twoFactorRecoveryMode = false;
+  twoFactorCompletedResult = null;
+  twoFactorForm.reset();
+  twoFactorManualKey.textContent = '';
+  twoFactorExistingKey.value = '';
+  twoFactorExistingKey.type = 'password';
+  updateSecretToggle(toggleTwoFactorExistingKeyButton, false);
+  const generatedKeyInput = twoFactorKeySourceInputs.find((input) => input.value === 'generated');
+  if (generatedKeyInput) generatedKeyInput.checked = true;
+  twoFactorGeneratedKeyBlock.classList.remove('hidden');
+  twoFactorExistingKeyPanel.classList.add('hidden');
+  twoFactorExistingKey.required = false;
+  twoFactorUriDetails.classList.remove('hidden');
+  twoFactorOtpAuthUri.textContent = '';
+  twoFactorRecoveryCodes.replaceChildren();
+  twoFactorRecoveryConfirm.checked = false;
+  twoFactorSetupPanel.classList.add('hidden');
+  twoFactorRecoveryPanel.classList.add('hidden');
+  twoFactorRecoveryField.classList.add('hidden');
+  twoFactorCode.classList.remove('hidden');
+  twoFactorCodeLabel.classList.remove('hidden');
+  twoFactorCode.required = true;
+  twoFactorRecoveryCode.required = false;
+  twoFactorRecoveryToggle.classList.remove('hidden');
+  twoFactorSubmit.classList.remove('hidden');
+  twoFactorFinish.classList.add('hidden');
+  closeTwoFactorButton.disabled = false;
+  cancelTwoFactorButton.disabled = false;
+  setInlineMessage(twoFactorMessage, '');
+}
+
+function isUsingExistingTwoFactorKey() {
+  return twoFactorKeySourceInputs.find((input) => input.checked)?.value === 'existing';
+}
+
+function updateTwoFactorKeySource() {
+  const useExisting = isUsingExistingTwoFactorKey();
+  twoFactorGeneratedKeyBlock.classList.toggle('hidden', useExisting);
+  twoFactorExistingKeyPanel.classList.toggle('hidden', !useExisting);
+  twoFactorExistingKey.required = useExisting;
+  twoFactorUriDetails.classList.toggle('hidden', useExisting);
+  if (useExisting) twoFactorExistingKey.focus();
+}
+
+function openTwoFactorModal(result) {
+  const setup = Boolean(result?.requires2faSetup);
+  const challenge = result?.twoFactor;
+  if (!challenge?.challengeId) {
+    setMessage('Sesi 2FA tidak valid. Silakan mulai login kembali.');
+    return;
+  }
+  resetTwoFactorModalFields();
+  twoFactorChallengeId = challenge.challengeId;
+  twoFactorSetupMode = setup;
+  twoFactorTitle.textContent = setup ? 'Aktifkan Google Authenticator' : 'Verifikasi Google Authenticator';
+  twoFactorInstructions.textContent = setup
+    ? 'Masukkan kode pertama dari Authenticator untuk mengaktifkan 2FA.'
+    : 'Masukkan kode 6 digit yang sedang tampil di Google Authenticator. Kode ini hanya berlaku sebentar.';
+  if (setup) {
+    twoFactorSetupPanel.classList.remove('hidden');
+    twoFactorManualKey.textContent = challenge.manualKey || '';
+    twoFactorOtpAuthUri.textContent = challenge.otpAuthUri || '';
+    twoFactorCodeLabel.textContent = 'Kode 6 digit';
+  } else {
+    twoFactorCodeLabel.textContent = 'Kode 6 digit';
+  }
+  rememberModalFocus(twoFactorModal);
+  twoFactorModal.classList.remove('hidden');
+  requestAnimationFrame(() => twoFactorCode.focus());
+}
+
+function closeTwoFactorModal() {
+  if (twoFactorCompletedResult) return;
+  resetTwoFactorModalFields();
+  twoFactorModal.classList.add('hidden');
+  restoreModalFocus(twoFactorModal);
+}
+
+async function finishTwoFactorResult(result) {
+  twoFactorCompletedResult = null;
+  closeTwoFactorModal();
+  await showVault(result.user);
+  await loadTwoFactorStatus();
+  await loadDirectLoginStatus();
+  if (result.sync?.message) showVaultNotice(result.sync.message, !result.sync.ok);
+}
+
+function renderRecoveryCodes(codes) {
+  twoFactorRecoveryCodes.replaceChildren(...(codes || []).map((code) => {
+    const item = document.createElement('li');
+    const value = document.createElement('code');
+    value.textContent = code;
+    item.append(value);
+    return item;
+  }));
+}
+
+copyTwoFactorRecoveryCodesButton?.addEventListener('click', async () => {
+  const codes = [...twoFactorRecoveryCodes.querySelectorAll('code')]
+    .map((code) => code.textContent.trim())
+    .filter(Boolean);
+  if (!codes.length) return;
+
+  copyTwoFactorRecoveryCodesButton.disabled = true;
+  try {
+    const result = await window.passsa.copySecret(codes.join('\n'));
+    if (!result?.ok) throw new Error(result?.message || 'Recovery code tidak dapat disalin.');
+    const icon = copyTwoFactorRecoveryCodesButton.querySelector('i');
+    const label = copyTwoFactorRecoveryCodesButton.querySelector('span');
+    icon?.classList.replace('fa-copy', 'fa-check');
+    if (label) label.textContent = 'Tersalin';
+    copyTwoFactorRecoveryCodesButton.setAttribute('aria-label', 'Semua recovery code tersalin');
+    setInlineMessage(twoFactorMessage, 'Semua recovery code disalin. Clipboard dibersihkan dalam 30 detik.', true);
+    setTimeout(() => {
+      icon?.classList.replace('fa-check', 'fa-copy');
+      if (label) label.textContent = 'Salin semua';
+      copyTwoFactorRecoveryCodesButton.setAttribute('aria-label', 'Salin semua recovery code');
+    }, 1800);
+  } catch (error) {
+    setInlineMessage(twoFactorMessage, error.message || 'Recovery code tidak dapat disalin.');
+  } finally {
+    copyTwoFactorRecoveryCodesButton.disabled = false;
+  }
+});
+
+async function loadTwoFactorStatus() {
+  const status = document.querySelector('#settings-2fa-status');
+  const details = document.querySelector('#settings-2fa-details');
+  if (!status || !window.passsa.twoFactorStatus) return;
+  try {
+    const result = await window.passsa.twoFactorStatus();
+    if (!result.ok) {
+      settingsTwoFactorEnabled = null;
+      status.textContent = 'Tidak tersedia';
+      if (details) details.textContent = result.message || 'Status 2FA tidak dapat dibaca.';
+      settingsTwoFactorEnable?.classList.add('hidden');
+      settingsTwoFactorDisableOpen?.classList.add('hidden');
+      updateSettingsLoginMethodSummary();
+      return;
+    }
+    settingsTwoFactorEnabled = Boolean(result.enabled);
+    status.textContent = result.enabled ? 'Aktif' : 'Belum aktif';
+    const configurable = result.supported !== false;
+    settingsTwoFactorEnable?.classList.toggle('hidden', !configurable || result.enabled);
+    settingsTwoFactorDisableOpen?.classList.toggle('hidden', !configurable || !result.enabled);
+    if (!result.enabled) settingsTwoFactorDisablePanel?.classList.add('hidden');
+    if (details) {
+      details.textContent = result.enabled
+        ? `Password + kode 6 digit. Recovery code tersisa: ${result.recoveryCodesRemaining ?? 0}.`
+        : 'Mode login menggunakan password saja. Authenticator dapat diaktifkan kapan saja.';
+    }
+    updateSettingsLoginMethodSummary();
+  } catch (error) {
+    settingsTwoFactorEnabled = null;
+    status.textContent = 'Tidak tersedia';
+    if (details) details.textContent = error.message || 'Status 2FA tidak dapat dibaca.';
+    settingsTwoFactorEnable?.classList.add('hidden');
+    settingsTwoFactorDisableOpen?.classList.add('hidden');
+    updateSettingsLoginMethodSummary();
+  }
+}
+
+function updateSettingsLoginMethodSummary() {
+  if (settingsTwoFactorEnabled === null || settingsDirectLoginEnabled === null) {
+    if (settingsLoginMethodStatus) settingsLoginMethodStatus.textContent = 'Status tidak tersedia';
+    if (settingsPasswordMethodStatus) settingsPasswordMethodStatus.textContent = 'Status tidak tersedia';
+    return;
+  }
+  const method = settingsTwoFactorEnabled
+    ? 'password-2fa'
+    : settingsDirectLoginEnabled
+      ? 'direct-login'
+      : 'password';
+  if (settingsLoginMethodStatus) {
+    settingsLoginMethodStatus.textContent = method === 'password-2fa'
+      ? 'Password + 2FA'
+      : method === 'direct-login'
+        ? 'Login langsung'
+        : 'Password saja';
+    settingsLoginMethodStatus.dataset.state = 'active';
+  }
+  if (settingsPasswordMethodStatus) {
+    settingsPasswordMethodStatus.textContent = method === 'password' ? 'Aktif' : 'Nonaktif';
+    settingsPasswordMethodStatus.dataset.state = method === 'password' ? 'active' : 'inactive';
+  }
+}
+
+async function loadDirectLoginStatus() {
+  if (!window.passsa.directLoginStatus) {
+    settingsDirectLoginEnabled = null;
+    updateSettingsLoginMethodSummary();
+    return;
+  }
+  try {
+    const result = await window.passsa.directLoginStatus();
+    const enabled = result?.ok && result.enabled === true;
+    const supported = result?.supported === true;
+    const hasTwoFactor = result?.twoFactorEnabled === true;
+    settingsDirectLoginEnabled = enabled;
+    if (result && typeof result.twoFactorEnabled === 'boolean') settingsTwoFactorEnabled = hasTwoFactor;
+    directLoginButton?.classList.toggle('hidden', !enabled);
+    directLoginHelp?.classList.toggle('hidden', !enabled);
+    if (directLoginButton && enabled && result.username) {
+      directLoginButton.textContent = `Masuk langsung sebagai ${result.username}`;
+      directLoginButton.insertAdjacentHTML('afterbegin', '<i class="fa-solid fa-unlock-keyhole" aria-hidden="true"></i> ');
+    }
+    if (settingsDirectLoginStatus) settingsDirectLoginStatus.textContent = enabled ? 'Aktif di perangkat ini' : hasTwoFactor ? 'Tidak tersedia saat 2FA aktif' : 'Nonaktif';
+    settingsDirectLoginEnable?.classList.toggle('hidden', !supported || enabled || hasTwoFactor);
+    settingsDirectLoginDisable?.classList.toggle('hidden', !enabled);
+    if (settingsDirectLoginDetails) {
+      settingsDirectLoginDetails.textContent = enabled
+        ? `Login langsung aktif untuk ${result.username || 'akun ini'}. Vault akan dibuka otomatis pada perangkat ini.`
+        : hasTwoFactor
+          ? 'Nonaktif selama Authenticator aktif.'
+          : supported
+            ? 'Buka vault tanpa memasukkan password setiap kali.'
+            : 'Fitur login langsung memerlukan penyimpanan aman Windows.';
+    }
+    if (!enabled) settingsDirectLoginPanel?.classList.add('hidden');
+    updateSettingsLoginMethodSummary();
+    return result;
+  } catch (error) {
+    settingsDirectLoginEnabled = null;
+    directLoginButton?.classList.add('hidden');
+    directLoginHelp?.classList.add('hidden');
+    if (settingsDirectLoginStatus) settingsDirectLoginStatus.textContent = 'Tidak tersedia';
+    if (settingsDirectLoginDetails) settingsDirectLoginDetails.textContent = error.message || 'Status login langsung tidak dapat dibaca.';
+    settingsDirectLoginEnable?.classList.add('hidden');
+    settingsDirectLoginDisable?.classList.add('hidden');
+    updateSettingsLoginMethodSummary();
+    return null;
+  }
+}
+
 async function refreshHelloLoginState() {
   if (!helloLoginButton || mode !== 'login' || !window.passsa.helloStatus) return;
   try {
-    const result = await window.passsa.helloStatus(emailInput.value);
+    const result = await window.passsa.helloStatus(usernameInput.value);
     helloLoginButton.classList.toggle('hidden', !result?.supported || !result.enabled);
   } catch {
     helloLoginButton.classList.add('hidden');
@@ -454,7 +982,7 @@ async function refreshHelloLoginState() {
 async function refreshHelloSettingsState() {
   if (!settingsHelloStatus || !window.passsa.helloStatus) return;
   try {
-    const result = await window.passsa.helloStatus(currentUser?.email);
+    const result = await window.passsa.helloStatus(currentUser?.username || currentUser?.email);
     if (!result.supported) {
       settingsHelloStatus.textContent = 'Windows Hello hanya tersedia pada Windows 10/11 dengan perangkat autentikasi yang aktif.';
       settingsHelloEnable.disabled = true;
@@ -489,6 +1017,114 @@ function updateSecretToggle(button, visible, label = 'password') {
   button.dataset.visible = String(Boolean(visible));
 }
 
+const RENDERER_BASE32_ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+function generateRendererTotpSecret() {
+  const bytes = new Uint8Array(20);
+  crypto.getRandomValues(bytes);
+  let buffer = 0;
+  let bits = 0;
+  let secret = '';
+  for (const byte of bytes) {
+    buffer = (buffer << 8) | byte;
+    bits += 8;
+    while (bits >= 5) {
+      bits -= 5;
+      secret += RENDERER_BASE32_ALPHABET[(buffer >> bits) & 31];
+    }
+  }
+  if (bits > 0) secret += RENDERER_BASE32_ALPHABET[(buffer << (5 - bits)) & 31];
+  return secret;
+}
+
+function parseTotpUri(value) {
+  const source = String(value || '').trim();
+  if (!source) throw new Error('Tempel URI otpauth terlebih dahulu.');
+  let parsed;
+  try {
+    parsed = new URL(source);
+  } catch {
+    throw new Error('URI otpauth tidak valid.');
+  }
+  if (parsed.protocol !== 'otpauth:' || parsed.hostname.toLowerCase() !== 'totp') {
+    throw new Error('URI harus menggunakan format otpauth://totp/.');
+  }
+  const label = decodeURIComponent(parsed.pathname.replace(/^\/+/, ''));
+  const separator = label.indexOf(':');
+  const labelIssuer = separator >= 0 ? label.slice(0, separator) : '';
+  const labelAccount = separator >= 0 ? label.slice(separator + 1) : label;
+  const secret = parsed.searchParams.get('secret') || '';
+  if (!secret) throw new Error('URI tidak memiliki secret Base32.');
+  return {
+    issuer: parsed.searchParams.get('issuer') || labelIssuer,
+    account: parsed.searchParams.get('account') || labelAccount,
+    secret,
+    algorithm: String(parsed.searchParams.get('algorithm') || 'SHA1').toLowerCase(),
+    digits: Number(parsed.searchParams.get('digits') || 6),
+    period: Number(parsed.searchParams.get('period') || 30),
+  };
+}
+
+function updateTotpPeriodOption(period) {
+  if (!itemTotpPeriod) return;
+  const value = String(period);
+  if (![...itemTotpPeriod.options].some((option) => option.value === value)) {
+    const option = document.createElement('option');
+    option.value = value;
+    option.textContent = `${value} detik`;
+    itemTotpPeriod.append(option);
+  }
+  itemTotpPeriod.value = value;
+}
+
+function applyTotpUriToForm() {
+  try {
+    const parsed = parseTotpUri(itemTotpUri?.value);
+    itemTotpIssuer.value = parsed.issuer || '';
+    itemTotpAccount.value = parsed.account || '';
+    itemTotpSecret.value = parsed.secret;
+    itemTotpSecret.type = 'password';
+    updateSecretToggle(toggleItemTotpSecret, false, 'kunci setup');
+    itemTotpAlgorithm.value = parsed.algorithm;
+    itemTotpDigits.value = String(parsed.digits);
+    updateTotpPeriodOption(parsed.period);
+    setInlineMessage(itemTotpMessage, 'URI berhasil digunakan. Periksa data lalu simpan item.', true);
+    itemTotpSecret.focus();
+  } catch (error) {
+    setInlineMessage(itemTotpMessage, error.message || 'URI otpauth tidak dapat digunakan.');
+  }
+}
+
+function resetTotpFormFields() {
+  if (!itemTotpIssuer) return;
+  itemTotpIssuer.value = '';
+  itemTotpAccount.value = '';
+  itemTotpSecret.value = '';
+  itemTotpSecret.type = 'password';
+  itemTotpUri.value = '';
+  itemTotpAlgorithm.value = 'sha1';
+  itemTotpDigits.value = '6';
+  updateTotpPeriodOption(30);
+  updateSecretToggle(toggleItemTotpSecret, false, 'kunci setup');
+  setInlineMessage(itemTotpMessage, '');
+}
+
+async function copyTotpSecretFromForm() {
+  const secret = String(itemTotpSecret?.value || '').trim();
+  if (!secret) {
+    setInlineMessage(itemTotpMessage, 'Isi atau generate kunci setup terlebih dahulu.');
+    itemTotpSecret?.focus();
+    return;
+  }
+  try {
+    const result = await window.passsa.copySecret(secret);
+    if (result?.ok === false) throw new Error(result.message || 'Kunci setup gagal disalin.');
+    setInlineMessage(itemTotpMessage, 'Kunci setup disalin. Clipboard dibersihkan dalam 30 detik.', true);
+  } catch (error) {
+    setInlineMessage(itemTotpMessage, error.message || 'Kunci setup gagal disalin.');
+  }
+}
+
 function updateTitlebarSyncStatus(user = currentUser) {
   const connected = Boolean(user?.googleEmail);
   titlebarSyncStatus.classList.toggle('connected', connected);
@@ -498,7 +1134,7 @@ function updateTitlebarSyncStatus(user = currentUser) {
 }
 
 function userAvatarLabel(user) {
-  const source = String(user?.displayName || user?.name || user?.email || 'User')
+  const source = String(user?.displayName || user?.name || user?.username || user?.email || 'User')
     .split('@')[0]
     .replace(/[._-]+/g, ' ')
     .trim();
@@ -509,15 +1145,16 @@ function userAvatarLabel(user) {
 
 function updateSidebarUser(user) {
   const avatar = document.querySelector('#user-avatar');
-  const email = document.querySelector('#user-email');
+  const username = document.querySelector('#user-username');
   const plan = document.querySelector('.sidebar-user small');
-  if (email) email.textContent = user?.email || 'user@email.com';
+  const displayUsername = user?.username || user?.email || 'username';
+  if (username) username.textContent = displayUsername;
   if (avatar) {
     const initials = userAvatarLabel(user);
     avatar.textContent = initials;
     avatar.dataset.initials = String(initials.length);
-    avatar.dataset.sidebarTooltip = `Akun: ${user?.email || 'lokal'}`;
-    avatar.setAttribute('aria-label', `Akun ${user?.email || 'lokal'}`);
+    avatar.dataset.sidebarTooltip = `Akun: ${displayUsername}`;
+    avatar.setAttribute('aria-label', `Akun ${displayUsername}`);
   }
   if (plan) plan.textContent = user?.provider === 'google' ? 'Google Drive terhubung' : 'Vault lokal';
 }
@@ -549,6 +1186,17 @@ function clearVaultState() {
   currentTag = null;
   collapsedBranches.clear();
   initializeSidebarCollapsed = true;
+  sidebarCountsDirty = true;
+  sidebarTreeDirty = true;
+  tagTreeDirty = true;
+  if (renderItemsFrame !== null) {
+    cancelAnimationFrame(renderItemsFrame);
+    renderItemsFrame = null;
+  }
+  if (virtualItemsFrame !== null) {
+    cancelAnimationFrame(virtualItemsFrame);
+    virtualItemsFrame = null;
+  }
   itemForm.reset();
   renderPasswordHistory([], false);
   bulkForm.reset();
@@ -567,9 +1215,13 @@ function clearVaultState() {
   bulkModal.classList.add('hidden');
   categoryModal.classList.add('hidden');
   settingsModal.classList.add('hidden');
+  twoFactorModal.classList.add('hidden');
+  resetTwoFactorModalFields();
   settingsGooglePassword.value = '';
   setSettingsMessage('');
   vaultNotice.classList.add('hidden');
+  closeAuthenticatorDetail();
+  closeCredentialDetail();
 }
 
 function collapseAllSidebarBranches() {
@@ -587,6 +1239,7 @@ function showAuth(reason = '') {
   authView.classList.remove('hidden');
   setMode('login');
   if (reason) setMessage(reason);
+  loadDirectLoginStatus();
 }
 
 function resetIdleLock() {
@@ -609,19 +1262,63 @@ function tagTone(tag) {
   return ['rose', 'amber', 'teal', 'blue', 'violet'][hash % 5];
 }
 
-function renderItems({ preserveScroll = true } = {}) {
+async function refreshAuthenticatorCodes() {
+  if (totpRefreshInFlight || vaultView.classList.contains('hidden')) return;
+  const ids = visibleItems
+    .filter((item) => item.type === 'authenticator' && !item.deletedAt)
+    .map((item) => item.id);
+  if (!ids.length || typeof window.passsa.listTotpCodes !== 'function') return;
+  totpRefreshInFlight = true;
+  try {
+    const codes = await window.passsa.listTotpCodes(ids);
+    for (const [id, data] of Object.entries(codes || {})) {
+      const row = [...itemsList.querySelectorAll('.authenticator-item')]
+        .find((candidate) => candidate.dataset.id === id);
+      if (!row || !data?.code) continue;
+      const code = String(data.code);
+      const midpoint = Math.ceil(code.length / 2);
+      const codeElement = row.querySelector('[data-totp-code]');
+      const timerElement = row.querySelector('[data-totp-timer]');
+      if (codeElement) {
+        codeElement.textContent = `${code.slice(0, midpoint)} ${code.slice(midpoint)}`;
+        codeElement.setAttribute('aria-label', `Kode 2FA ${code}`);
+      }
+      if (timerElement) timerElement.textContent = `${Math.max(0, Number(data.remaining) || 0)}s`;
+    }
+  } catch {
+    // The vault can be locked while the list is visible. Keep the last safe UI
+    // state and let the session-lock event take care of clearing the view.
+  } finally {
+    totpRefreshInFlight = false;
+  }
+}
+
+function renderItems({ preserveScroll = true, virtualScroll = false } = {}) {
+  if (renderItemsFrame !== null) {
+    cancelAnimationFrame(renderItemsFrame);
+    renderItemsFrame = null;
+  }
   const scrollContainer = document.querySelector('.items-scroll');
   const scrollTop = preserveScroll ? (scrollContainer?.scrollTop ?? 0) : 0;
   const restoreScroll = () => {
     if (preserveScroll && scrollContainer) scrollContainer.scrollTop = scrollTop;
   };
-  renderSidebarCounts();
+  if (sidebarCountsDirty) {
+    renderSidebarCounts();
+    sidebarCountsDirty = false;
+  }
+  if (sidebarTreeDirty) {
+    renderCustomCategories();
+    sidebarTreeDirty = false;
+  }
   filterSidebarNavigation();
   if (currentFilter === 'tags' && !currentTag) {
     renderTagsOverview();
     syncBulkToolbar();
-    renderTagTree();
-    renderCustomCategories();
+    if (tagTreeDirty) {
+      renderTagTree();
+      tagTreeDirty = false;
+    }
     filterSidebarNavigation();
     restoreScroll();
     return;
@@ -633,12 +1330,12 @@ function renderItems({ preserveScroll = true } = {}) {
       : !item.deletedAt
         && (currentFilter !== 'favorites' || item.favorite)
         && (currentFilter !== 'notes' || item.type === 'secure-note')
+        && (currentFilter !== 'authenticator' || item.type === 'authenticator')
         && (currentFilter !== 'tags' || (item.tags ?? []).length > 0)
         && (!currentGroup || item.group === currentGroup)
         && (!currentGroupPrefix || item.group === currentGroupPrefix || item.group.startsWith(`${currentGroupPrefix}/`))
         && (!currentTag || (item.tags ?? []).some((tag) => tag.toLowerCase() === currentTag.toLowerCase()));
-    const matchesSearch = [item.title, item.username, item.url, item.notes, item.group, ...(item.tags ?? []), ...(item.fields ?? []).map((field) => field.label)]
-      .some((value) => String(value).toLowerCase().includes(query));
+    const matchesSearch = !query || item._searchText.includes(query);
     return belongsToView && matchesSearch;
   }).sort(compareItems);
   visibleItems = filtered;
@@ -650,24 +1347,86 @@ function renderItems({ preserveScroll = true } = {}) {
   itemsList.classList.toggle('hidden', filtered.length === 0);
   itemsHeader.classList.toggle('hidden', filtered.length === 0);
   if (filtered.length === 0) {
-    emptyState.querySelector('h3').textContent = items.length ? 'Item tidak ditemukan' : 'Vault Anda masih kosong';
+    emptyState.querySelector('h3').textContent = items.length
+      ? 'Item tidak ditemukan'
+      : currentFilter === 'authenticator' ? 'Belum ada authenticator' : 'Vault Anda masih kosong';
     emptyState.querySelector('p').textContent = items.length
       ? 'Coba gunakan kata pencarian yang berbeda.'
-      : 'Tambahkan login pertama Anda. Data akan dienkripsi dan disimpan hanya di komputer ini.';
+      : currentFilter === 'authenticator'
+        ? 'Tambahkan item Authenticator untuk membuat kode 2FA secara lokal.'
+        : 'Tambahkan login pertama Anda. Data akan dienkripsi dan disimpan hanya di komputer ini.';
   }
-  itemsList.innerHTML = filtered.map((item, index) => `
-    <article class="vault-item ${selectedIds.has(item.id) ? 'selected' : ''} ${item.type === 'secure-note' ? 'note-card' : ''}" data-id="${escapeHtml(item.id)}" data-item-index="${Math.min(index, 10)}" ${item.type === 'secure-note' ? `tabindex="0" role="button" aria-label="Buka catatan ${escapeHtml(item.title)}"` : ''}>
+  const virtualized = filtered.length > VIRTUALIZE_ITEM_THRESHOLD;
+  const viewportHeight = scrollContainer?.clientHeight || 640;
+  const startIndex = virtualized
+    ? Math.max(0, Math.floor(scrollTop / VIRTUAL_ITEM_HEIGHT) - VIRTUAL_ITEM_OVERSCAN)
+    : 0;
+  const visibleCount = virtualized
+    ? Math.ceil(viewportHeight / VIRTUAL_ITEM_HEIGHT) + (VIRTUAL_ITEM_OVERSCAN * 2)
+    : filtered.length;
+  const endIndex = Math.min(filtered.length, startIndex + visibleCount);
+  const renderedItems = filtered.slice(startIndex, endIndex);
+  renderedVirtualRange = virtualized ? { start: startIndex, end: endIndex } : null;
+  const beforeHeight = virtualized ? startIndex * VIRTUAL_ITEM_HEIGHT : 0;
+  const afterHeight = virtualized ? Math.max(0, (filtered.length - endIndex) * VIRTUAL_ITEM_HEIGHT) : 0;
+  itemsList.classList.toggle('is-virtualized', virtualized);
+  itemsList.innerHTML = `${virtualized && beforeHeight ? '<div class="virtual-list-spacer" aria-hidden="true">&#8203;</div>' : ''}${renderedItems.map((item, offset) => renderVaultItem(item, startIndex + offset)).join('')}${virtualized && afterHeight ? '<div class="virtual-list-spacer" aria-hidden="true">&#8203;</div>' : ''}`;
+  if (virtualized) {
+    const spacerHeights = [beforeHeight, afterHeight].filter((height) => height > 0);
+    itemsList.querySelectorAll('.virtual-list-spacer').forEach((spacer, index) => {
+      const height = spacerHeights[index] ?? 0;
+      spacer.style.height = `${height}px`;
+      spacer.style.minHeight = `${height}px`;
+    });
+  }
+  syncBulkToolbar();
+  if (tagTreeDirty) {
+    renderTagTree();
+    tagTreeDirty = false;
+  }
+  filterSidebarNavigation();
+  refreshAuthenticatorCodes();
+  if (!virtualScroll) restoreScroll();
+}
+
+function renderVaultItem(item, index) {
+  const isNote = item.type === 'secure-note';
+  const isAuthenticator = item.type === 'authenticator';
+  const isCredential = !isNote && !isAuthenticator;
+  const rowLabel = isNote
+    ? `Buka catatan ${item.title}`
+    : isAuthenticator
+      ? `Buka authenticator ${item.title}`
+      : `Buka detail credential ${item.title}`;
+  const typeIcon = isNote
+    ? '<i class="fa-solid fa-note-sticky item-type-icon" aria-hidden="true"></i>'
+    : isAuthenticator
+      ? '<i class="fa-solid fa-shield-halved item-type-icon" aria-hidden="true"></i>'
+      : '';
+  const itemSubtitle = isNote
+    ? 'Secure Note'
+    : isAuthenticator
+      ? `${item.totp?.issuer || 'Authenticator'} · ${item.group || 'Umum'}`
+      : `${item.group || 'Umum'} · ${item.url || 'Login lokal'}`;
+  const accountLabel = isNote
+    ? 'Catatan aman'
+    : isAuthenticator
+      ? (item.totp?.account || 'Tanpa akun')
+      : (item.username || 'Tanpa username');
+  return `
+    <article class="vault-item ${selectedIds.has(item.id) ? 'selected' : ''} ${isNote ? 'note-card' : ''} ${isAuthenticator ? 'authenticator-item' : ''} ${isCredential ? 'credential-card' : ''}" data-id="${escapeHtml(item.id)}" data-item-index="${Math.min(index, 10)}" tabindex="0" role="button" aria-label="${escapeHtml(rowLabel)}">
       <input class="item-select" type="checkbox" data-select-id="${escapeHtml(item.id)}" aria-label="Pilih ${escapeHtml(item.title)}" ${selectedIds.has(item.id) ? 'checked' : ''} />
-      <div class="item-main"><strong>${item.favorite ? '★ ' : ''}${item.type === 'secure-note' ? '<i class="fa-solid fa-note-sticky item-type-icon" aria-hidden="true"></i> ' : ''}${escapeHtml(item.title)}</strong><small>${item.type === 'secure-note' ? 'Secure Note' : escapeHtml(item.group || 'Umum')} · ${escapeHtml(item.type === 'secure-note' ? 'Catatan terenkripsi' : (item.url || 'Login lokal'))}</small></div>
+      <div class="item-main"><strong>${item.favorite ? '★ ' : ''}${typeIcon}${typeIcon ? ' ' : ''}${escapeHtml(item.title)}</strong><small>${escapeHtml(itemSubtitle)}</small>${isAuthenticator ? `<small class="authenticator-account"><i class="fa-solid fa-user" aria-hidden="true"></i>${escapeHtml(accountLabel)}</small>` : ''}</div>
       <div class="item-tags-cell">${(item.tags ?? []).length ? `<div class="item-tags">${item.tags.slice(0, 2).map((tag) => `<button class="tag-chip tone-${tagTone(tag)}" type="button" data-tag-filter="${escapeHtml(tag)}"><span class="tag-dot" aria-hidden="true"></span>#${escapeHtml(tag)}</button>`).join('')}${item.tags.length > 2 ? `<button class="tag-overflow-toggle" type="button" data-tag-overflow="true" aria-expanded="false" aria-label="Lihat ${item.tags.length - 2} tags lainnya">+${item.tags.length - 2}</button><span class="tag-overflow-menu" role="listbox">${item.tags.slice(2).map((tag) => `<button class="tag-chip tone-${tagTone(tag)}" type="button" data-tag-filter="${escapeHtml(tag)}"><span class="tag-dot" aria-hidden="true"></span>#${escapeHtml(tag)}</button>`).join('')}</span>` : ''}</div>` : '<span class="item-muted">—</span>'}</div>
-      <div class="item-login"><span>${escapeHtml(item.type === 'secure-note' ? 'Catatan aman' : (item.username || 'Tanpa username'))}</span><small class="item-usage">${item.type === 'secure-note' ? 'Terenkripsi di vault' : `Dipakai ${item.usageCount ?? 0} kali`}</small></div>
+      <div class="item-login">${isAuthenticator ? `<div class="totp-code-panel"><span class="totp-code-label">KODE 2FA</span><div class="totp-code-wrap"><span class="totp-code" data-totp-code aria-label="Kode 2FA ${escapeHtml(item.title)}">••• •••</span><small class="totp-timer" data-totp-timer>—</small></div><small class="item-usage">Dipakai ${item.usageCount ?? 0} kali</small></div>` : `<span>${escapeHtml(accountLabel)}</span><small class="item-usage">${isNote ? 'Terenkripsi di vault' : `Dipakai ${item.usageCount ?? 0} kali`}</small>`}</div>
       <div class="item-actions">
         ${item.deletedAt ? `
           <button class="item-action" data-action="restore" title="Pulihkan" aria-label="Pulihkan ${escapeHtml(item.title)}"><i class="fa-solid fa-rotate-left" aria-hidden="true"></i></button>
           <button class="item-action danger" data-action="purge" title="Hapus permanen" aria-label="Hapus permanen ${escapeHtml(item.title)}"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
         ` : `
           <button class="item-action" data-action="favorite" title="Favorit" aria-label="${item.favorite ? 'Hapus dari' : 'Tambahkan ke'} favorit: ${escapeHtml(item.title)}"><i class="fa-${item.favorite ? 'solid' : 'regular'} fa-star" aria-hidden="true"></i></button>
-          ${item.type === 'secure-note' ? '' : `
+          ${isNote ? '' : isAuthenticator ? `
+          <button class="item-action" data-action="copy-totp" title="Salin kode 2FA" aria-label="Salin kode 2FA ${escapeHtml(item.title)}"><i class="fa-solid fa-copy" aria-hidden="true"></i></button>` : `
           <button class="item-action" data-action="copy-user" title="Salin username" aria-label="Salin username ${escapeHtml(item.title)}"><i class="fa-solid fa-user" aria-hidden="true"></i></button>
           <button class="item-action" data-action="copy-password" title="Salin password" aria-label="Salin password ${escapeHtml(item.title)}"><i class="fa-solid fa-key" aria-hidden="true"></i></button>
           <button class="item-action" data-action="copy-url" title="Salin alamat situs" aria-label="Salin alamat situs ${escapeHtml(item.title)}"><i class="fa-solid fa-link" aria-hidden="true"></i></button>`}
@@ -675,16 +1434,11 @@ function renderItems({ preserveScroll = true } = {}) {
           <button class="item-action danger" data-action="delete" title="Pindah ke Sampah" aria-label="Pindahkan ${escapeHtml(item.title)} ke Sampah"><i class="fa-solid fa-trash-can" aria-hidden="true"></i></button>
         `}
       </div>
-      <div class="item-description">
-        <span>${escapeHtml(item.notes || 'Tidak ada deskripsi')}</span>
+      <div class="item-description ${isAuthenticator ? 'authenticator-description' : ''}">
+        <span>${escapeHtml(item.notes || (isAuthenticator ? 'Kode 2FA tersimpan terenkripsi' : 'Tidak ada deskripsi'))}</span>
       </div>
     </article>
-  `).join('');
-  syncBulkToolbar();
-  renderTagTree();
-  renderCustomCategories();
-  filterSidebarNavigation();
-  restoreScroll();
+  `;
 }
 
 function renderTagsOverview() {
@@ -756,18 +1510,37 @@ function renderTagTree() {
 }
 
 function renderSidebarCounts() {
-  const activeItems = items.filter((item) => !item.deletedAt);
+  const counts = {
+    all: 0,
+    favorites: 0,
+    trash: 0,
+    notes: 0,
+    authenticator: 0,
+    tags: new Set(),
+  };
+  for (const item of items) {
+    if (item.deletedAt) {
+      counts.trash += 1;
+      continue;
+    }
+    counts.all += 1;
+    if (item.favorite) counts.favorites += 1;
+    if (item.type === 'secure-note') counts.notes += 1;
+    if (item.type === 'authenticator') counts.authenticator += 1;
+    for (const tag of item.tags ?? []) counts.tags.add(tag);
+  }
   const setCount = (id, value) => {
     const element = document.querySelector(`#${id}`);
     if (!element) return;
     element.textContent = value > 0 ? String(value) : '';
     element.dataset.zero = String(value <= 0);
   };
-  setCount('sidebar-all-count', activeItems.length);
-  setCount('sidebar-favorites-count', activeItems.filter((item) => item.favorite).length);
-  setCount('sidebar-trash-count', items.filter((item) => item.deletedAt).length);
-  setCount('sidebar-notes-count', activeItems.filter((item) => item.type === 'secure-note').length);
-  setCount('sidebar-tags-count', new Set(activeItems.flatMap((item) => item.tags ?? [])).size);
+  setCount('sidebar-all-count', counts.all);
+  setCount('sidebar-favorites-count', counts.favorites);
+  setCount('sidebar-trash-count', counts.trash);
+  setCount('sidebar-notes-count', counts.notes);
+  setCount('sidebar-authenticator-count', counts.authenticator);
+  setCount('sidebar-tags-count', counts.tags.size);
 }
 
 function knownTags() {
@@ -795,13 +1568,27 @@ function formatHistoryDate(value) {
   return new Intl.DateTimeFormat('id-ID', { dateStyle: 'medium', timeStyle: 'short' }).format(timestamp);
 }
 
-function renderNoteHistoryEntry(entry, version, { includeTitle = false, renderMarkdown = false } = {}) {
+function noteHistoryPreview(value, maxLength = 280) {
+  const source = String(value || 'Tidak ada isi catatan.').replace(/\r\n?/g, '\n').trim();
+  if (source.length <= maxLength) return source;
+  return `${source.slice(0, maxLength).trimEnd()}…`;
+}
+
+function renderNoteHistoryEntry(entry, version, {
+  includeTitle = false,
+  renderMarkdown = false,
+  source = '',
+  historyIndex = -1,
+} = {}) {
   const notes = renderMarkdown
     ? renderNoteMarkdown(entry.notes || 'Tidak ada isi catatan.')
-    : `<p>${escapeHtml(entry.notes || 'Tidak ada isi catatan.')}</p>`;
+    : `<p>${escapeHtml(noteHistoryPreview(entry.notes))}</p>`;
   const tags = Array.isArray(entry.tags) ? entry.tags : [];
+  const sourceAttributes = source && historyIndex >= 0
+    ? ` data-note-history-source="${escapeHtml(source)}" data-note-history-index="${historyIndex}"`
+    : '';
   return `
-    <div class="note-history-entry" data-note-history-expand tabindex="0" role="button" aria-expanded="false" aria-label="Buka Versi ${version}">
+    <div class="note-history-entry" data-note-history-expand${sourceAttributes} tabindex="0" role="button" aria-expanded="false" aria-label="Buka Versi ${version}">
       <div class="note-history-entry-meta">
         <strong>Versi ${version}</strong>
         <small>${escapeHtml(formatHistoryDate(entry.savedAt))}</small>
@@ -841,10 +1628,15 @@ function renderNoteDetail(item) {
   }).join('');
 
   const history = Array.isArray(item.noteHistory) ? item.noteHistory.slice().reverse() : [];
+  noteDetailHistoryEntries = history;
   noteDetailHistoryCount.textContent = history.length ? `(${history.length} versi)` : '';
   noteDetailHistoryList.classList.toggle('is-scrollable', history.length > 3);
   noteDetailHistoryList.innerHTML = history.length
-    ? history.map((entry, index) => renderNoteHistoryEntry(entry, history.length - index, { includeTitle: true, renderMarkdown: true })).join('')
+    ? history.map((entry, index) => renderNoteHistoryEntry(entry, history.length - index, {
+      includeTitle: true,
+      source: 'detail',
+      historyIndex: index,
+    })).join('')
     : '<p class="note-history-empty">Belum ada perubahan pada catatan ini.</p>';
 }
 
@@ -852,9 +1644,11 @@ async function openNoteDetail(id) {
   try {
     const item = await window.passsa.getItem(id);
     if (!item || item.type !== 'secure-note') return;
+    rememberModalFocus(noteDetailModal);
     noteDetailCurrentId = id;
     renderNoteDetail(item);
     noteDetailModal.classList.remove('hidden');
+    requestAnimationFrame(() => closeNoteDetailButton.focus());
   } catch (error) {
     showVaultNotice(error.message || 'Detail catatan tidak dapat dibuka.', true);
   }
@@ -862,7 +1656,273 @@ async function openNoteDetail(id) {
 
 function closeNoteDetail() {
   noteDetailCurrentId = null;
+  noteDetailHistoryEntries = [];
   noteDetailModal.classList.add('hidden');
+  restoreModalFocus(noteDetailModal);
+}
+
+function formatAuthenticatorCode(code) {
+  const value = String(code ?? '').replace(/\s+/g, '');
+  if (!value) return '••• •••';
+  const midpoint = Math.ceil(value.length / 2);
+  return `${value.slice(0, midpoint)} ${value.slice(midpoint)}`;
+}
+
+function renderAuthenticatorDetail(item) {
+  if (!item) return;
+  const totp = item.totp || {};
+  const issuer = String(totp.issuer || 'Authenticator');
+  const account = String(totp.account || item.username || 'Tanpa akun');
+  const group = String(item.group || 'Umum');
+  const digits = Number(totp.digits) || 6;
+  const period = Number(totp.period) || 30;
+  const algorithm = String(totp.algorithm || 'sha1').toUpperCase().replace(/^SHA(\d+)$/, 'SHA-$1');
+
+  authenticatorDetailTitle.textContent = item.title || 'Authenticator';
+  authenticatorDetailSubtitle.textContent = `${issuer} · ${account}`;
+  authenticatorDetailIssuer.textContent = issuer;
+  authenticatorDetailAccount.textContent = account;
+  authenticatorDetailGroup.textContent = group;
+  authenticatorDetailConfig.textContent = `${digits} digit · ${algorithm} · ${period} detik`;
+  authenticatorDetailUsage.textContent = `Dipakai ${item.usageCount ?? 0} kali`;
+  authenticatorDetailNotes.textContent = item.notes || '';
+  authenticatorDetailNotes.classList.toggle('hidden', !item.notes);
+  authenticatorDetailCode.textContent = '••• •••';
+  authenticatorDetailCode.setAttribute('aria-label', `Kode 2FA ${item.title || 'Authenticator'} sedang dimuat`);
+  authenticatorDetailTimer.textContent = '—';
+}
+
+async function refreshAuthenticatorDetail() {
+  const id = authenticatorDetailCurrentId;
+  if (!id || authenticatorDetailModal.classList.contains('hidden') || authenticatorDetailRefreshInFlight) return;
+  if (typeof window.passsa.listTotpCodes !== 'function') return;
+  authenticatorDetailRefreshInFlight = true;
+  try {
+    const data = (await window.passsa.listTotpCodes([id]))?.[id];
+    if (id !== authenticatorDetailCurrentId) return;
+    if (!data?.code) {
+      authenticatorDetailCode.textContent = '••• •••';
+      authenticatorDetailCode.setAttribute('aria-label', 'Kode 2FA tidak tersedia');
+      authenticatorDetailTimer.textContent = '—';
+      return;
+    }
+    const code = String(data.code);
+    authenticatorDetailCode.textContent = formatAuthenticatorCode(code);
+    authenticatorDetailCode.setAttribute('aria-label', `Kode 2FA ${code}`);
+    authenticatorDetailTimer.textContent = `${Math.max(0, Number(data.remaining) || 0)}s`;
+  } catch {
+    // A locked session clears the vault view. Keep this modal quiet if the
+    // session changes between two refresh ticks.
+  } finally {
+    if (id === authenticatorDetailCurrentId) authenticatorDetailRefreshInFlight = false;
+  }
+}
+
+function resetAuthenticatorDetailCopyButton() {
+  if (!authenticatorDetailCopyButton) return;
+  authenticatorDetailCopyButton.disabled = false;
+  authenticatorDetailCopyButton.removeAttribute('aria-busy');
+  authenticatorDetailCopyButton.classList.remove('copy-success');
+  authenticatorDetailCopyButton.innerHTML = '<i class="fa-solid fa-copy" aria-hidden="true"></i> Salin kode';
+}
+
+async function copyAuthenticatorDetailCode() {
+  const id = authenticatorDetailCurrentId;
+  if (!id || !authenticatorDetailCopyButton) return;
+  const requestId = ++authenticatorDetailCopyRequestId;
+  authenticatorDetailCopyButton.disabled = true;
+  authenticatorDetailCopyButton.setAttribute('aria-busy', 'true');
+  authenticatorDetailCopyButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Menyalin…';
+  try {
+    const usage = await window.passsa.copyTotpCode(id);
+    const item = items.find((candidate) => candidate.id === id);
+    if (item) {
+      item.usageCount = usage.usageCount;
+      item.lastUsedAt = usage.lastUsedAt;
+    }
+    const row = [...itemsList.querySelectorAll('.authenticator-item')]
+      .find((candidate) => candidate.dataset.id === id);
+    const rowCopyButton = row?.querySelector('[data-action="copy-totp"]');
+    if (row && rowCopyButton) updateCopiedRow(row, rowCopyButton, usage, 'Kode 2FA');
+    if (id === authenticatorDetailCurrentId && Number.isFinite(Number(usage?.usageCount))) {
+      authenticatorDetailUsage.textContent = `Dipakai ${usage.usageCount} kali`;
+    }
+    if (id !== authenticatorDetailCurrentId || requestId !== authenticatorDetailCopyRequestId) return;
+    authenticatorDetailCopyButton.classList.add('copy-success');
+    authenticatorDetailCopyButton.innerHTML = '<i class="fa-solid fa-check" aria-hidden="true"></i> Tersalin';
+    showVaultNotice('Kode 2FA disalin. Clipboard dibersihkan dalam 30 detik.');
+    window.clearTimeout(authenticatorDetailCopyFeedbackTimer);
+    authenticatorDetailCopyFeedbackTimer = window.setTimeout(resetAuthenticatorDetailCopyButton, 1200);
+  } catch (error) {
+    if (id === authenticatorDetailCurrentId && requestId === authenticatorDetailCopyRequestId) {
+      resetAuthenticatorDetailCopyButton();
+      showVaultNotice(error.message || 'Kode 2FA tidak dapat disalin.', true);
+    }
+  } finally {
+    if (requestId !== authenticatorDetailCopyRequestId) return;
+    if (!authenticatorDetailCopyButton.classList.contains('copy-success')) {
+      authenticatorDetailCopyButton.disabled = false;
+      authenticatorDetailCopyButton.removeAttribute('aria-busy');
+    }
+  }
+}
+
+function openAuthenticatorDetail(item) {
+  if (!item || item.type !== 'authenticator' || item.deletedAt) return;
+  rememberModalFocus(authenticatorDetailModal);
+  authenticatorDetailCurrentId = item.id;
+  renderAuthenticatorDetail(item);
+  authenticatorDetailModal.classList.remove('hidden');
+  window.clearInterval(authenticatorDetailRefreshTimer);
+  refreshAuthenticatorDetail();
+  authenticatorDetailRefreshTimer = window.setInterval(refreshAuthenticatorDetail, 1000);
+  requestAnimationFrame(() => authenticatorDetailCopyButton.focus());
+}
+
+function closeAuthenticatorDetail() {
+  authenticatorDetailCurrentId = null;
+  authenticatorDetailCopyRequestId += 1;
+  window.clearInterval(authenticatorDetailRefreshTimer);
+  authenticatorDetailRefreshTimer = null;
+  window.clearTimeout(authenticatorDetailCopyFeedbackTimer);
+  resetAuthenticatorDetailCopyButton();
+  authenticatorDetailModal.classList.add('hidden');
+  restoreModalFocus(authenticatorDetailModal);
+}
+
+function resetCredentialDetailCopyButtons() {
+  const buttons = [
+    [credentialDetailCopyUrlButton, 'Salin alamat situs'],
+    [credentialDetailCopyUsernameButton, 'Salin username'],
+    [credentialDetailCopyPasswordButton, 'Salin password'],
+  ];
+  for (const [button, label] of buttons) {
+    if (!button) continue;
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+    button.classList.remove('copy-success');
+    button.innerHTML = '<i class="fa-solid fa-copy" aria-hidden="true"></i>';
+    button.setAttribute('aria-label', label);
+    button.title = label;
+  }
+}
+
+function renderCredentialDetail(item) {
+  if (!item) return;
+  const url = String(item.url ?? '').trim();
+  const username = String(item.username ?? '').trim();
+  const password = String(item.password ?? '');
+  const group = String(item.group || 'Umum');
+
+  credentialDetailTitle.textContent = item.title || 'Credential';
+  credentialDetailSubtitle.textContent = `${group} · ${url || 'Login lokal'}`;
+  credentialDetailUrl.textContent = url || 'Tidak ada alamat situs';
+  credentialDetailUsername.textContent = username || 'Tidak ada username';
+  credentialDetailPassword.value = password;
+  credentialDetailPassword.type = 'password';
+  updateSecretToggle(toggleCredentialDetailPasswordButton, false);
+  toggleCredentialDetailPasswordButton.disabled = !password;
+  credentialDetailGroup.textContent = group;
+  credentialDetailUsage.textContent = `Dipakai ${item.usageCount ?? 0} kali`;
+  credentialDetailNotes.textContent = item.notes || '';
+  credentialDetailNotes.classList.toggle('hidden', !item.notes);
+  credentialDetailCopyUrlButton.disabled = !url;
+  credentialDetailCopyUsernameButton.disabled = !username;
+  credentialDetailCopyPasswordButton.disabled = !password;
+  resetCredentialDetailCopyButtons();
+  credentialDetailCopyUrlButton.disabled = !url;
+  credentialDetailCopyUsernameButton.disabled = !username;
+  credentialDetailCopyPasswordButton.disabled = !password;
+}
+
+async function openCredentialDetail(id) {
+  const requestId = ++credentialDetailOpenRequestId;
+  try {
+    const item = await window.passsa.getItem(id);
+    if (requestId !== credentialDetailOpenRequestId) return;
+    if (!item || item.type !== 'login' || item.deletedAt) return;
+    rememberModalFocus(credentialDetailModal);
+    credentialDetailCurrentItem = item;
+    renderCredentialDetail(item);
+    credentialDetailModal.classList.remove('hidden');
+    requestAnimationFrame(() => closeCredentialDetailButton.focus());
+  } catch (error) {
+    if (requestId === credentialDetailOpenRequestId) {
+      showVaultNotice(error.message || 'Detail credential tidak dapat dibuka.', true);
+    }
+  }
+}
+
+function closeCredentialDetail() {
+  credentialDetailOpenRequestId += 1;
+  credentialDetailCopyRequestId += 1;
+  credentialDetailCurrentItem = null;
+  window.clearTimeout(credentialDetailCopyFeedbackTimer);
+  credentialDetailCopyFeedbackTimer = null;
+  resetCredentialDetailCopyButtons();
+  credentialDetailPassword.value = '';
+  credentialDetailPassword.type = 'password';
+  updateSecretToggle(toggleCredentialDetailPasswordButton, false);
+  toggleCredentialDetailPasswordButton.disabled = false;
+  credentialDetailModal.classList.add('hidden');
+  restoreModalFocus(credentialDetailModal);
+}
+
+function toggleCredentialDetailPassword() {
+  if (!credentialDetailCurrentItem || !credentialDetailPassword.value) return;
+  const visible = credentialDetailPassword.type === 'text';
+  credentialDetailPassword.type = visible ? 'password' : 'text';
+  updateSecretToggle(toggleCredentialDetailPasswordButton, !visible);
+}
+
+async function copyCredentialDetailField(field) {
+  const item = credentialDetailCurrentItem;
+  const button = field === 'url'
+    ? credentialDetailCopyUrlButton
+    : field === 'username' ? credentialDetailCopyUsernameButton : credentialDetailCopyPasswordButton;
+  const value = String(item?.[field] ?? '');
+  if (!item || !button || !value.trim()) return;
+
+  const requestId = ++credentialDetailCopyRequestId;
+  const label = field === 'url' ? 'Link' : field === 'username' ? 'Username' : 'Password';
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  button.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i>';
+  try {
+    const usage = await window.passsa.copyEntrySecret(item.id, field);
+    const listItem = items.find((candidate) => candidate.id === item.id);
+    if (listItem) {
+      listItem.usageCount = usage.usageCount;
+      listItem.lastUsedAt = usage.lastUsedAt;
+    }
+    const row = [...itemsList.querySelectorAll('.credential-card')]
+      .find((candidate) => candidate.dataset.id === item.id);
+    const rowCopyButton = row?.querySelector(`[data-action="copy-${field}"]`);
+    if (row && rowCopyButton) updateCopiedRow(row, rowCopyButton, usage, label);
+    if (item.id !== credentialDetailCurrentItem?.id || requestId !== credentialDetailCopyRequestId) return;
+
+    item.usageCount = usage.usageCount;
+    item.lastUsedAt = usage.lastUsedAt;
+    credentialDetailUsage.textContent = `Dipakai ${usage.usageCount} kali`;
+    button.classList.add('copy-success');
+    button.innerHTML = '<i class="fa-solid fa-check" aria-hidden="true"></i>';
+    button.setAttribute('aria-label', `${label} berhasil disalin`);
+    button.title = `${label} berhasil disalin`;
+    showVaultNotice(`${label} disalin. Clipboard dibersihkan dalam 30 detik.`);
+    window.clearTimeout(credentialDetailCopyFeedbackTimer);
+    credentialDetailCopyFeedbackTimer = window.setTimeout(resetCredentialDetailCopyButtons, 1200);
+  } catch (error) {
+    if (item.id === credentialDetailCurrentItem?.id && requestId === credentialDetailCopyRequestId) {
+      resetCredentialDetailCopyButtons();
+      showVaultNotice(error.message || `${label} tidak dapat disalin.`, true);
+    }
+  } finally {
+    if (requestId !== credentialDetailCopyRequestId) return;
+    if (!button.classList.contains('copy-success')) {
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
+    }
+  }
 }
 
 function updateHistoryHeader(note = false) {
@@ -874,6 +1934,7 @@ function renderPasswordHistory(history, showSection = true) {
   const entries = Array.isArray(history)
     ? history.filter((entry) => typeof entry?.password === 'string').slice().reverse()
     : [];
+  formNoteHistoryEntries = [];
   updateHistoryHeader(false);
   passwordHistory.classList.toggle('hidden', !showSection);
   passwordHistoryCount.textContent = entries.length ? `(${entries.length} versi)` : '';
@@ -893,12 +1954,13 @@ function renderNoteHistory(history, showSection = true) {
   const entries = Array.isArray(history)
     ? history.filter((entry) => entry && typeof entry === 'object').slice().reverse()
     : [];
+  formNoteHistoryEntries = entries;
   updateHistoryHeader(true);
   passwordHistory.classList.toggle('hidden', !showSection);
   passwordHistoryCount.textContent = entries.length ? `(${entries.length} versi)` : '';
   passwordHistoryList.classList.toggle('is-scrollable', entries.length > 3);
   passwordHistoryList.innerHTML = entries.length ? entries.map((entry, index) => `
-    ${renderNoteHistoryEntry(entry, entries.length - index, { includeTitle: true })}
+    ${renderNoteHistoryEntry(entry, entries.length - index, { includeTitle: true, source: 'form', historyIndex: index })}
   `).join('') : '<p class="note-history-empty">Belum ada perubahan catatan.</p>';
 }
 
@@ -1072,12 +2134,12 @@ function renderNoteMarkdown(value) {
       html.push('<hr />');
       return;
     }
-    const check = trimmed.match(/^[-*]\s+\[([ xX])\]\s+(.+)$/);
-    if (check) {
-      flushParagraph();
-      if (listType !== 'ul') { closeList(); html.push('<ul class="note-preview-list">'); listType = 'ul'; }
-      const checked = check[1].toLowerCase() === 'x';
-      html.push(`<li class="note-preview-check"><button type="button" class="note-preview-check-toggle" data-note-line="${entry.lineIndex}" aria-label="${checked ? 'Tandai belum selesai' : 'Tandai selesai'}">${checked ? '✓' : ''}</button><span class="${checked ? 'is-checked' : ''}">${markdownInline(check[2])}</span></li>`);
+    // Checklist syntax is intentionally displayed as plain text. Secure
+    // Notes no longer expose an interactive checklist editor.
+    const plainChecklist = trimmed.match(/^[-*+]\s+\[[ xX]\]\s+(.+)$/);
+    if (plainChecklist) {
+      closeList();
+      paragraph.push(line);
       return;
     }
     const unordered = trimmed.match(/^[-*+]\s+(.+)$/);
@@ -1116,6 +2178,27 @@ function updateNoteEditorStatus(value = itemNotesInput?.value ?? '') {
   const length = String(value).length;
   const limit = Number(itemNotesInput?.maxLength) || 20000;
   noteEditorStatus.textContent = `${length.toLocaleString('id-ID')} / ${limit.toLocaleString('id-ID')} karakter`;
+}
+
+function updateNoteEditorSaveState(state = 'ready') {
+  if (!noteEditorSaveState) return;
+  const labels = {
+    ready: 'Siap disimpan',
+    dirty: 'Perubahan belum disimpan',
+    saving: 'Menyimpan…',
+  };
+  noteEditorSaveState.textContent = labels[state] || labels.ready;
+  noteEditorSaveState.dataset.state = state;
+}
+
+function resizeNoteInput() {
+  if (!itemNotesInput || itemNotesInput.classList.contains('hidden')) return;
+  const minHeight = itemTypeInput?.value === 'secure-note' ? 220 : 70;
+  const maxHeight = itemTypeInput?.value === 'secure-note' ? 360 : 220;
+  itemNotesInput.style.height = 'auto';
+  const nextHeight = Math.min(Math.max(itemNotesInput.scrollHeight, minHeight), maxHeight);
+  itemNotesInput.style.height = `${nextHeight}px`;
+  itemNotesInput.style.overflowY = itemNotesInput.scrollHeight > maxHeight ? 'auto' : 'hidden';
 }
 
 function serializeNoteInlineNode(node) {
@@ -1207,14 +2290,15 @@ function syncNoteInputFromPreview() {
   updateNoteEditorStatus();
 }
 
-function notePreviewNeedsCanonicalRender() {
-  if (!notePreview) return false;
-  return Array.from(notePreview.querySelectorAll('.note-preview-check')).some((item) => {
-    const children = Array.from(item.children);
-    const toggles = children.filter((child) => child.classList?.contains('note-preview-check-toggle'));
-    const content = children.find((child) => !child.classList?.contains('note-preview-check-toggle'));
-    return toggles.length !== 1 || !content || item.querySelector('.note-preview-check-toggle br');
-  });
+function insertNotePreviewListBreak() {
+  if (!notePreview) return;
+  notePreviewSuppressInput = true;
+  try {
+    document.execCommand('insertParagraph');
+  } finally {
+    notePreviewSuppressInput = false;
+  }
+  notePreview.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertParagraph' }));
 }
 
 function updateNotePreview() {
@@ -1236,8 +2320,7 @@ function clearNotePreviewPlaceholder() {
 }
 
 function setNoteEditorMode(nextMode = 'preview', options = {}) {
-  const secureNote = itemTypeInput?.value === 'secure-note';
-  noteEditorModeValue = secureNote || nextMode === 'preview' ? 'preview' : 'write';
+  noteEditorModeValue = nextMode === 'preview' ? 'preview' : 'write';
   const preview = noteEditorModeValue === 'preview';
   if (!preview && options.sync !== false && notePreview?.isContentEditable) syncNoteInputFromPreview();
   itemNotesInput?.classList.toggle('hidden', preview);
@@ -1263,6 +2346,7 @@ function setNoteEditorMode(nextMode = 'preview', options = {}) {
     button.setAttribute('aria-selected', String(active));
   });
   if (preview) updateNotePreview();
+  resizeNoteInput();
 }
 
 function replaceNoteSelection(replacement, selectionStart, selectionEnd) {
@@ -1273,6 +2357,7 @@ function replaceNoteSelection(replacement, selectionStart, selectionEnd) {
 }
 
 let notePreviewSelectionRange = null;
+let notePreviewSuppressInput = false;
 
 function rememberNotePreviewSelection() {
   if (!notePreview || !window.getSelection) return;
@@ -1343,7 +2428,7 @@ function getReviewSelectedText(range) {
 function applyReviewNoteFormat(format) {
   const range = reviewSelectionWithBlockFallback();
   if (!range) return false;
-  const selected = format === 'check' ? getReviewSelectedText(range) : range.toString();
+  const selected = range.toString();
   notePreview.focus();
   const selection = window.getSelection();
   selection.removeAllRanges();
@@ -1373,17 +2458,6 @@ function applyReviewNoteFormat(format) {
     document.execCommand(command, false, value);
     syncNoteInputFromPreview();
     return true;
-  }
-  const lines = selected.split('\n');
-  const checklistPattern = /^\s*[-*+]\s+\[([ xX])\]\s+(.*)$/;
-  if (format === 'check') {
-    const parsed = lines.map((line) => line.match(checklistPattern));
-    const nonEmpty = lines.filter((line) => line.trim());
-    const allChecklist = nonEmpty.length > 0 && parsed.every((match, index) => !lines[index].trim() || match);
-    const replacement = allChecklist
-      ? lines.map((line, index) => line.trim() ? parsed[index][2] : '').join('\n')
-      : lines.map((line) => line.trim() ? `- [ ] ${line.replace(/^\s*(?:[-*+]\s+)?/, '').trim()}` : '').join('\n');
-    return replaceReviewSelection(replacement, range);
   }
   if (format === 'code') return replaceReviewSelection(`\`${selected || 'kode'}\``, range);
   if (format === 'link') return replaceReviewSelection(`[${selected || 'teks tautan'}](https://contoh.com)`, range);
@@ -1462,7 +2536,6 @@ function applyNoteFormat(format) {
     paragraph: '',
     bullet: '- ',
     number: '1. ',
-    check: '- [ ] ',
     quote: '> ',
   };
   const prefix = prefixes[format];
@@ -1476,18 +2549,34 @@ function applyNoteFormat(format) {
 
 function updateItemTypeUi() {
   const secureNote = itemTypeInput?.value === 'secure-note';
-  itemLoginFields.forEach((field) => field.classList.toggle('hidden', secureNote));
+  const authenticator = itemTypeInput?.value === 'authenticator';
+  itemLoginFields.forEach((field) => field.classList.toggle('hidden', secureNote || authenticator));
   const password = document.querySelector('#item-password');
-  password.required = !secureNote;
-  document.querySelector('#generate-password').classList.toggle('hidden', secureNote);
-  itemNotesLabel.textContent = secureNote ? 'Isi Catatan' : 'Deskripsi';
-  itemNotesInput.placeholder = secureNote ? 'Tulis catatan rahasia Anda…' : 'Keterangan singkat item (opsional)';
+  password.required = !secureNote && !authenticator;
+  document.querySelector('#generate-password').classList.toggle('hidden', secureNote || authenticator);
+  authenticatorFields?.classList.toggle('hidden', !authenticator);
+  itemTotpAccount.required = authenticator;
+  itemTotpSecret.required = authenticator;
+  itemNotesLabel.textContent = secureNote ? 'Isi Catatan' : authenticator ? 'Catatan (opsional)' : 'Deskripsi';
+  itemNotesInput.placeholder = secureNote
+    ? 'Tulis catatan rahasia Anda…'
+    : authenticator ? 'Catatan tambahan (opsional)' : 'Keterangan singkat item (opsional)';
+  itemNotesInput.setAttribute('aria-describedby', authenticator ? 'note-editor-status' : 'note-editor-help note-editor-status');
   noteEditor?.classList.toggle('secure-note-editor', secureNote);
-  noteEditorToolbar.classList.toggle('hidden', !secureNote);
-  noteEditorMode.classList.toggle('hidden', !secureNote);
+  noteEditor?.classList.toggle('keep-note-editor', secureNote);
+  // Secure Notes use a focused, plain-text Keep-style surface. The legacy
+  // Markdown renderer remains available for reading existing notes, but the
+  // form editor no longer intercepts typing with a contenteditable preview.
+  noteEditorToolbar.classList.add('hidden');
+  noteEditorMode.classList.add('hidden');
   document.querySelector('#note-editor-help').classList.toggle('hidden', !secureNote);
   noteEditorStatus?.classList.toggle('hidden', !secureNote);
-  setNoteEditorMode(secureNote ? 'preview' : 'write');
+  noteEditorSaveState?.classList.toggle('hidden', !secureNote);
+  document.querySelector('#custom-fields-section')?.classList.toggle('hidden', authenticator);
+  passwordHistory.classList.toggle('hidden', authenticator);
+  setNoteEditorMode('write');
+  updateNoteEditorSaveState('ready');
+  resizeNoteInput();
   updateNotePreview();
 }
 
@@ -1610,9 +2699,12 @@ function askConfirm(text, { title = 'Konfirmasi tindakan', eyebrow = 'KONFIRMASI
     const titleText = String(item.title || 'Item tanpa nama');
     const detail = item.type === 'secure-note'
       ? 'Secure Note · Catatan terenkripsi'
+      : item.type === 'authenticator'
+        ? `${item.totp?.issuer || 'Authenticator'} · ${item.totp?.account || 'Tanpa akun'}`
       : `${item.username || 'Tanpa username'}${item.url ? ` · ${item.url}` : ''}`;
+    const icon = item.type === 'secure-note' ? 'fa-note-sticky' : item.type === 'authenticator' ? 'fa-shield-halved' : 'fa-key';
     return `<div class="confirm-modal-item" style="--confirm-index:${Math.min(index, 8)}" role="listitem">
-      <span class="confirm-modal-item-icon" aria-hidden="true"><i class="fa-solid ${item.type === 'secure-note' ? 'fa-note-sticky' : 'fa-key'}"></i></span>
+      <span class="confirm-modal-item-icon" aria-hidden="true"><i class="fa-solid ${icon}"></i></span>
       <span class="confirm-modal-item-copy"><strong>${escapeHtml(titleText)}</strong><small>${escapeHtml(detail)}</small><span class="confirm-modal-item-status"><i class="fa-solid fa-spinner" aria-hidden="true"></i> Menghapus…</span></span>
     </div>`;
   }).join('');
@@ -1649,6 +2741,39 @@ function setSettingsMessage(text, success = false) {
   setInlineMessage(settingsGoogleMessage, text, success);
 }
 
+function formatDataSize(bytes) {
+  const value = Number(bytes);
+  if (!Number.isFinite(value) || value < 0) return 'Tidak tersedia';
+  if (value < 1024) return `${value} B`;
+  const units = ['KB', 'MB', 'GB'];
+  let size = value;
+  let unit = -1;
+  while (size >= 1024 && unit < units.length - 1) {
+    size /= 1024;
+    unit += 1;
+  }
+  return `${size.toLocaleString('id-ID', { maximumFractionDigits: 2 })} ${units[unit]}`;
+}
+
+async function loadGoogleDriveInfo() {
+  const connected = Boolean(currentUser?.googleEmail);
+  settingsGoogleDetails?.classList.toggle('hidden', !connected);
+  if (!connected) {
+    if (settingsGoogleEmail) settingsGoogleEmail.textContent = '—';
+    if (settingsGoogleSize) settingsGoogleSize.textContent = '—';
+    return;
+  }
+  if (settingsGoogleEmail) settingsGoogleEmail.textContent = currentUser.googleEmail;
+  if (settingsGoogleSize) settingsGoogleSize.textContent = 'Menghitung…';
+  try {
+    const result = await window.passsa.syncInfo?.();
+    if (!result?.ok) throw new Error(result?.message || 'Ukuran data tidak tersedia.');
+    if (settingsGoogleSize) settingsGoogleSize.textContent = formatDataSize(result.sizeBytes);
+  } catch {
+    if (settingsGoogleSize) settingsGoogleSize.textContent = 'Tidak tersedia';
+  }
+}
+
 vaultNoticeDismiss.addEventListener('click', () => {
   clearTimeout(noticeTimer);
   vaultNotice.classList.add('hidden');
@@ -1657,16 +2782,56 @@ vaultNoticeDismiss.addEventListener('click', () => {
 function refreshSettingsGoogleState() {
   const connected = Boolean(currentUser?.googleEmail);
   const pending = Boolean(settingsGoogleChallengeId);
-  settingsGoogleStatus.textContent = pending
-    ? 'Identitas Google terverifikasi. Masukkan password vault lokal untuk menyelesaikan koneksi.'
-    : connected
-      ? `Terhubung sebagai ${currentUser.googleEmail}. Vault tetap dibuka dengan password lokal.`
-      : 'Setiap pengguna dapat menghubungkan akun Google miliknya. Login Google dilakukan langsung di halaman resmi Google.';
+  settingsGoogleStatus.textContent = pending ? 'Menunggu password' : connected ? 'Terhubung' : 'Belum terhubung';
   settingsGooglePasswordLabel.classList.toggle('hidden', connected && !pending);
   settingsGooglePassword.classList.toggle('hidden', connected && !pending);
   settingsGoogleConnect.classList.toggle('hidden', connected && !pending);
   settingsGoogleDisconnect.classList.toggle('hidden', !connected || pending);
   settingsGoogleConnect.textContent = pending ? 'Selesaikan koneksi' : 'Hubungkan Google';
+  loadGoogleDriveInfo();
+}
+
+async function refreshSettingsS3State() {
+  if (!settingsS3Status) return;
+  settingsS3Status.textContent = 'Memuat…';
+  try {
+    const result = await window.passsa.s3SyncInfo?.();
+    if (!result?.ok) throw new Error(result?.message || 'Status S3 tidak tersedia.');
+    const connected = Boolean(result.connected);
+    const config = result.config || {};
+    settingsS3Status.textContent = connected ? 'Terhubung' : 'Belum terhubung';
+    settingsS3Details.classList.toggle('hidden', !connected);
+    settingsS3Form.classList.toggle('hidden', connected);
+    settingsS3Connect.classList.toggle('hidden', connected);
+    settingsS3Sync.classList.toggle('hidden', !connected);
+    settingsS3Disconnect.classList.toggle('hidden', !connected);
+    settingsS3PasswordPanel.classList.add('hidden');
+    settingsS3UnlockPassword.value = '';
+    if (connected) {
+      settingsS3Endpoint.value = config.endpoint || '';
+      settingsS3Region.value = config.region || '';
+      settingsS3Bucket.value = config.bucket || '';
+      settingsS3Prefix.value = config.prefix || 'PassSa';
+      settingsS3AccessKey.value = '';
+      settingsS3SecretKey.value = '';
+      settingsS3SessionToken.value = '';
+      settingsS3Location.textContent = `${config.bucket || '—'} / ${config.prefix || 'PassSa'}`;
+      settingsS3Account.textContent = `${config.region || '—'}${config.accessKeyHint ? ` / ••••${config.accessKeyHint}` : ''}`;
+    } else {
+      settingsS3Region.value ||= 'us-east-1';
+      settingsS3Prefix.value ||= 'PassSa';
+      settingsS3Location.textContent = '—';
+      settingsS3Account.textContent = '—';
+    }
+  } catch (error) {
+    settingsS3Status.textContent = 'Tidak tersedia';
+    settingsS3Details.classList.add('hidden');
+    settingsS3Form.classList.remove('hidden');
+    settingsS3Connect.classList.remove('hidden');
+    settingsS3Sync.classList.add('hidden');
+    settingsS3Disconnect.classList.add('hidden');
+    setInlineMessage(settingsS3Message, error.message || 'Status S3 tidak tersedia.');
+  }
 }
 
 async function loadAppSettings() {
@@ -1676,7 +2841,9 @@ async function loadAppSettings() {
     settingsStartup.checked = Boolean(settings.startWithWindows);
     settingsMinimizeTray.checked = Boolean(settings.minimizeToTray);
     settingsQuickAccess.checked = settings.quickAccessEnabled !== false;
-    setInlineMessage(settingsAppMessage, '');
+    setInlineMessage(settingsAppMessage, settings.quickAccessEnabled !== false && settings.quickAccessRegistered === false
+      ? 'Quick Access aktif, tetapi shortcut global belum tersedia. Coba gunakan Alt + Shift + P setelah PassSa dibuka ulang.'
+      : '');
   } catch (error) {
     setInlineMessage(settingsAppMessage, error.message || 'Pengaturan aplikasi gagal dibaca.');
   }
@@ -1694,7 +2861,9 @@ async function saveAppSettings() {
       quickAccessEnabled: settingsQuickAccess.checked,
     });
     if (!result.ok) throw new Error(result.message || 'Pengaturan aplikasi gagal disimpan.');
-    setInlineMessage(settingsAppMessage, 'Pengaturan aplikasi disimpan.', true);
+    setInlineMessage(settingsAppMessage, result.quickAccessEnabled && result.quickAccessRegistered === false
+      ? 'Pengaturan disimpan, tetapi shortcut global belum tersedia. Shortcut mungkin sedang dipakai aplikasi lain.'
+      : 'Pengaturan aplikasi disimpan.', result.quickAccessEnabled !== true || result.quickAccessRegistered !== false);
   } catch (error) {
     setInlineMessage(settingsAppMessage, error.message || 'Pengaturan aplikasi gagal disimpan.');
   } finally {
@@ -1718,25 +2887,37 @@ function openSettings() {
   settingsImportCsvConfirm.checked = false;
   setInlineMessage(settingsTransferMessage, '');
   setInlineMessage(settingsAppMessage, '');
+  settingsDirectLoginPassword.value = '';
+  settingsDirectLoginPanel?.classList.add('hidden');
+  setInlineMessage(settingsDirectLoginMessage, '');
   updateTransferFormatFields();
   setSettingsMessage('');
   applyTheme(getThemePreference());
+  applyPalette(getPalettePreference());
   refreshSettingsGoogleState();
+  refreshSettingsS3State();
+  rememberModalFocus(settingsModal);
   settingsModal.classList.remove('hidden');
   loadAppSettings();
   refreshHelloSettingsState();
+  loadTwoFactorStatus();
+  loadDirectLoginStatus();
+  requestAnimationFrame(() => closeSettingsButton.focus());
 }
 
 function closeSettings() {
   settingsGoogleChallengeId = null;
   settingsGooglePassword.value = '';
   settingsHelloPassword.value = '';
+  settingsDirectLoginPassword.value = '';
+  settingsDirectLoginPanel?.classList.add('hidden');
   changePasswordForm.reset();
   setInlineMessage(settingsPasswordMessage, '');
   setInlineMessage(settingsTransferMessage, '');
   setInlineMessage(settingsAppMessage, '');
   setSettingsMessage('');
   settingsModal.classList.add('hidden');
+  restoreModalFocus(settingsModal);
 }
 
 function updateTransferFormatFields() {
@@ -1789,6 +2970,22 @@ function showNotes() {
   searchInput.placeholder = 'Cari catatan...';
 }
 
+function showAuthenticators() {
+  currentFilter = 'authenticator';
+  currentGroup = null;
+  currentGroupPrefix = null;
+  currentTag = null;
+  selectedIds.clear();
+  const authenticatorButton = document.querySelector('.tree-node[data-filter="authenticator"]');
+  document.querySelectorAll('.tree-node').forEach((node) => node.classList.toggle('active', node === authenticatorButton));
+  document.querySelector('.vault-content h2').textContent = 'Authenticator';
+  clearFilterButton.textContent = '← Semua item';
+  clearFilterButton.setAttribute('aria-label', 'Kembali ke semua item');
+  clearFilterButton.classList.remove('hidden');
+  searchInput.value = '';
+  searchInput.placeholder = 'Cari layanan atau akun...';
+}
+
 function showTagItems(tag) {
   currentFilter = 'tag';
   currentGroup = null;
@@ -1810,14 +3007,12 @@ async function loadItems() {
       window.passsa.listCategories(),
       categoryIcons.length ? Promise.resolve(categoryIcons) : window.passsa.listCategoryIcons(),
     ]);
-    items = loadedItems.map((item) => ({
-      ...item,
-      tags: Array.isArray(item.tags)
-        ? item.tags
-        : String(item.tags ?? '').split(',').map((tag) => tag.trim()).filter(Boolean),
-    }));
+    items = loadedItems.map(normalizeRendererItem);
     categories = loadedCategories;
     categoryIcons = loadedIcons;
+    sidebarCountsDirty = true;
+    sidebarTreeDirty = true;
+    tagTreeDirty = true;
     if (initializeSidebarCollapsed) {
       collapseAllSidebarBranches();
       initializeSidebarCollapsed = false;
@@ -1832,15 +3027,28 @@ async function loadItems() {
 function openItemModal(item = null) {
   itemForm.reset();
   setInlineMessage(itemMessage, '');
+  const typeLabel = document.querySelector('#item-type-label');
   document.querySelector('#modal-title').textContent = item ? 'Edit Item' : 'Tambah Item';
   document.querySelector('#item-id').value = item?.id ?? '';
   itemTypeInput.value = item?.type ?? 'login';
+  typeLabel?.classList.toggle('hidden', !item);
+  itemTypeInput.classList.toggle('hidden', !item);
   document.querySelector('#item-title').value = item?.title ?? '';
   document.querySelector('#item-username').value = item?.username ?? '';
   document.querySelector('#item-password').value = item?.password ?? '';
   document.querySelector('#item-password').type = 'password';
   updateSecretToggle(document.querySelector('#toggle-item-password'), false);
   document.querySelector('#item-url').value = item?.url ?? '';
+  itemTotpIssuer.value = item?.totp?.issuer ?? '';
+  itemTotpAccount.value = item?.totp?.account ?? '';
+  itemTotpSecret.value = item?.totp?.secret ?? '';
+  itemTotpSecret.type = 'password';
+  itemTotpUri.value = '';
+  itemTotpAlgorithm.value = item?.totp?.algorithm ?? 'sha1';
+  itemTotpDigits.value = String(item?.totp?.digits ?? 6);
+  updateTotpPeriodOption(item?.totp?.period ?? 30);
+  updateSecretToggle(toggleItemTotpSecret, false, 'kunci setup');
+  setInlineMessage(itemTotpMessage, '');
   document.querySelector('#item-group').value = item?.group ?? currentGroup ?? currentGroupPrefix ?? 'Internet/Coding';
   document.querySelector('#item-favorite').checked = item ? Boolean(item.favorite) : currentFilter === 'favorites';
   document.querySelector('#item-notes').value = item?.notes ?? '';
@@ -1848,14 +3056,20 @@ function openItemModal(item = null) {
   setNoteEditorMode('write', { sync: false });
   renderCustomFields(item?.fields ?? []);
   updateItemTypeUi();
+  updateNoteEditorSaveState('ready');
+  resizeNoteInput();
   if (item?.type === 'secure-note') renderNoteHistory(item.noteHistory ?? [], Boolean(item));
+  else if (item?.type === 'authenticator') renderPasswordHistory([], false);
   else renderPasswordHistory(item?.passwordHistory ?? [], Boolean(item));
+  rememberModalFocus(itemModal);
   itemModal.classList.remove('hidden');
+  resizeNoteInput();
   document.querySelector('#item-title').focus();
 }
 
 function closeItemModal() {
   document.querySelector('#item-password').value = '';
+  resetTotpFormFields();
   tagSuggestions.classList.add('hidden');
   itemModal.classList.add('hidden');
   itemForm.reset();
@@ -1863,18 +3077,25 @@ function closeItemModal() {
   setNoteEditorMode('write', { sync: false });
   updateItemTypeUi();
   renderPasswordHistory([], false);
+  formNoteHistoryEntries = [];
+  restoreModalFocus(itemModal);
 }
 
 loginTab.addEventListener('click', () => setMode('login'));
 registerTab.addEventListener('click', () => setMode('register'));
-emailInput.addEventListener('input', () => { refreshHelloLoginState(); });
+usernameInput.addEventListener('input', () => { refreshHelloLoginState(); });
 helloLoginButton?.addEventListener('click', async () => {
   helloLoginButton.disabled = true;
   setMessage('Memverifikasi Windows Hello…');
   try {
-    const result = await window.passsa.helloUnlock(emailInput.value);
+    const result = await window.passsa.helloUnlock(usernameInput.value);
     if (!result.ok) {
       setMessage(result.message || 'Windows Hello gagal membuka vault.');
+      return;
+    }
+    if (result.requires2fa || result.requires2faSetup) {
+      passwordInput.value = '';
+      openTwoFactorModal(result);
       return;
     }
     passwordInput.value = '';
@@ -1885,6 +3106,54 @@ helloLoginButton?.addEventListener('click', async () => {
     helloLoginButton.disabled = false;
   }
 });
+
+directLoginButton?.addEventListener('click', async () => {
+  directLoginButton.disabled = true;
+  setMessage('Membuka vault di perangkat ini…');
+  try {
+    const result = await window.passsa.directLoginUnlock();
+    if (!result?.ok || !result.user) {
+      setMessage(result?.message || 'Login langsung tidak dapat membuka vault.');
+      await loadDirectLoginStatus();
+      return;
+    }
+    setMessage('');
+    await showVault(result.user);
+    showVaultNotice('Vault dibuka menggunakan login langsung perangkat ini.');
+  } catch (error) {
+    setMessage(error.message || 'Login langsung tidak dapat membuka vault.');
+  } finally {
+    directLoginButton.disabled = false;
+  }
+});
+
+devBypassButton?.addEventListener('click', async () => {
+  devBypassButton.disabled = true;
+  devBypassButton.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Membuka profil development…';
+  setMessage('');
+  try {
+    const result = await window.passsa.devBypassLogin();
+    if (!result?.ok || !result.user) {
+      setMessage(result?.message || 'Sesi pengembangan tidak dapat dibuka.');
+      return;
+    }
+    await showVault(result.user);
+    showVaultNotice('Sesi pengembangan aktif. Data memakai profil sementara yang terpisah.');
+  } catch (error) {
+    setMessage(error.message || 'Sesi pengembangan tidak dapat dibuka.');
+  } finally {
+    devBypassButton.disabled = false;
+    devBypassButton.innerHTML = '<i class="fa-solid fa-flask" aria-hidden="true"></i> Lewati login (mode pengembangan)';
+  }
+});
+
+if (window.passsa.devBypassStatus) {
+  window.passsa.devBypassStatus().then((status) => {
+    const available = status?.enabled === true;
+    devBypassButton?.classList.toggle('hidden', !available);
+    devBypassHelp?.classList.toggle('hidden', !available);
+  }).catch(() => undefined);
+}
 
 togglePassword.addEventListener('click', () => {
   const visible = passwordInput.type === 'text';
@@ -1900,11 +3169,19 @@ form.addEventListener('submit', async (event) => {
   submitButton.disabled = true;
   submitButton.textContent = mode === 'register' ? 'Membuat akun…' : 'Memeriksa…';
   try {
-    const result = await (mode === 'register' ? window.passsa.register : window.passsa.login)(emailInput.value, passwordInput.value);
+    const result = mode === 'register'
+      ? await window.passsa.register(usernameInput.value, passwordInput.value)
+      : await window.passsa.login(usernameInput.value, passwordInput.value);
     passwordInput.value = '';
     if (result.ok) {
-      await showVault(result.user);
-      if (result.sync?.message) showVaultNotice(result.sync.message, !result.sync.ok);
+      if (result.requires2fa || result.requires2faSetup) {
+        openTwoFactorModal(result);
+      } else {
+        await showVault(result.user);
+        if (result.directLogin?.enabled) showVaultNotice('Login langsung aktif: vault ini hanya terbuka otomatis di perangkat ini.');
+        else if (result.directLogin?.message) showVaultNotice(result.directLogin.message, true);
+        if (result.sync?.message) showVaultNotice(result.sync.message, !result.sync.ok);
+      }
     } else {
       setMessage(result.message);
     }
@@ -1914,6 +3191,108 @@ form.addEventListener('submit', async (event) => {
     submitButton.disabled = false;
     submitButton.textContent = mode === 'register' ? 'Buat Akun' : 'Masuk';
   }
+});
+
+twoFactorRecoveryToggle.addEventListener('click', () => {
+  twoFactorRecoveryMode = !twoFactorRecoveryMode;
+  twoFactorRecoveryField.classList.toggle('hidden', !twoFactorRecoveryMode);
+  twoFactorCode.classList.toggle('hidden', twoFactorRecoveryMode);
+  twoFactorCodeLabel.classList.toggle('hidden', twoFactorRecoveryMode);
+  twoFactorCode.required = !twoFactorRecoveryMode;
+  twoFactorRecoveryCode.required = twoFactorRecoveryMode;
+  twoFactorRecoveryToggle.textContent = twoFactorRecoveryMode
+    ? 'Gunakan kode Google Authenticator'
+    : 'Gunakan recovery code';
+  (twoFactorRecoveryMode ? twoFactorRecoveryCode : twoFactorCode).focus();
+});
+
+copyTwoFactorManualKeyButton?.addEventListener('click', async () => {
+  if (!twoFactorManualKey.textContent.trim() || !twoFactorChallengeId) return;
+
+  copyTwoFactorManualKeyButton.disabled = true;
+  try {
+    const result = await window.passsa.copyTwoFactorSetupKey(twoFactorChallengeId);
+    if (!result?.ok) throw new Error(result?.message || 'Kunci setup tidak dapat disalin.');
+    const icon = copyTwoFactorManualKeyButton.querySelector('i');
+    icon?.classList.replace('fa-copy', 'fa-check');
+    copyTwoFactorManualKeyButton.setAttribute('aria-label', 'Kunci setup tersalin');
+    setInlineMessage(twoFactorMessage, 'Kunci setup disalin. Clipboard dibersihkan dalam 30 detik.', true);
+    setTimeout(() => {
+      icon?.classList.replace('fa-check', 'fa-copy');
+      copyTwoFactorManualKeyButton.setAttribute('aria-label', 'Salin kunci setup');
+    }, 1800);
+  } catch (error) {
+    setInlineMessage(twoFactorMessage, error.message || 'Kunci setup tidak dapat disalin.');
+  } finally {
+    copyTwoFactorManualKeyButton.disabled = false;
+  }
+});
+
+twoFactorKeySourceInputs.forEach((input) => input.addEventListener('change', updateTwoFactorKeySource));
+
+toggleTwoFactorExistingKeyButton?.addEventListener('click', () => {
+  const visible = twoFactorExistingKey.type === 'text';
+  twoFactorExistingKey.type = visible ? 'password' : 'text';
+  updateSecretToggle(toggleTwoFactorExistingKeyButton, !visible);
+});
+
+twoFactorForm.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  if (!twoFactorChallengeId || !twoFactorSubmit || !twoFactorForm.reportValidity()) return;
+  twoFactorSubmit.disabled = true;
+  setInlineMessage(twoFactorMessage, 'Memverifikasi kode…');
+  try {
+    const code = twoFactorRecoveryMode ? twoFactorRecoveryCode.value : twoFactorCode.value;
+    const setupSecret = twoFactorSetupMode && isUsingExistingTwoFactorKey() ? twoFactorExistingKey.value : '';
+    const result = await window.passsa.twoFactorComplete(twoFactorChallengeId, code, twoFactorRecoveryMode, setupSecret);
+    if (!result.ok) {
+      setInlineMessage(twoFactorMessage, result.message || 'Kode 2FA tidak valid.');
+      (twoFactorRecoveryMode ? twoFactorRecoveryCode : twoFactorCode).select();
+      return;
+    }
+    if (result.recoveryCodes?.length) {
+      twoFactorCompletedResult = result;
+      renderRecoveryCodes(result.recoveryCodes);
+      twoFactorRecoveryPanel.classList.remove('hidden');
+      twoFactorCode.required = false;
+      twoFactorSubmit.classList.add('hidden');
+      twoFactorFinish.classList.remove('hidden');
+      twoFactorRecoveryToggle.classList.add('hidden');
+      twoFactorTitle.textContent = 'Simpan recovery code';
+      twoFactorInstructions.textContent = '2FA berhasil diaktifkan. Simpan recovery code berikut di tempat aman sebelum membuka vault.';
+      closeTwoFactorButton.disabled = true;
+      cancelTwoFactorButton.disabled = true;
+      setInlineMessage(twoFactorMessage, '2FA aktif. Vault akan dibuka setelah Anda mengonfirmasi recovery code.', true);
+      twoFactorRecoveryConfirm.focus();
+      return;
+    }
+    await finishTwoFactorResult(result);
+  } catch (error) {
+    setInlineMessage(twoFactorMessage, error.message || 'Verifikasi 2FA gagal.');
+  } finally {
+    twoFactorSubmit.disabled = false;
+  }
+});
+
+twoFactorFinish.addEventListener('click', async () => {
+  if (!twoFactorCompletedResult || !twoFactorRecoveryConfirm.checked) {
+    setInlineMessage(twoFactorMessage, 'Konfirmasi bahwa recovery code sudah disimpan di luar PassSa.');
+    twoFactorRecoveryConfirm.focus();
+    return;
+  }
+  twoFactorFinish.disabled = true;
+  try {
+    await finishTwoFactorResult(twoFactorCompletedResult);
+  } catch (error) {
+    setInlineMessage(twoFactorMessage, error.message || 'Vault gagal dibuka.');
+    twoFactorFinish.disabled = false;
+  }
+});
+
+closeTwoFactorButton.addEventListener('click', closeTwoFactorModal);
+cancelTwoFactorButton.addEventListener('click', closeTwoFactorModal);
+twoFactorModal.addEventListener('click', (event) => {
+  if (event.target === twoFactorModal) closeTwoFactorModal();
 });
 
 syncButton.addEventListener('click', async () => {
@@ -1935,6 +3314,7 @@ syncButton.addEventListener('click', async () => {
 
 settingsButton.addEventListener('click', openSettings);
 settingsTheme?.addEventListener('change', () => applyTheme(settingsTheme.value));
+settingsPaletteInputs.forEach((input) => input.addEventListener('change', () => applyPalette(input.value)));
 closeSettingsButton.addEventListener('click', closeSettings);
 closeSettingsSecondaryButton.addEventListener('click', closeSettings);
 settingsModal.addEventListener('click', (event) => {
@@ -1957,6 +3337,11 @@ settingsGoogleConnect.addEventListener('click', async () => {
         return;
       }
       settingsGoogleChallengeId = null;
+      if (result.requires2fa || result.requires2faSetup) {
+        closeSettings();
+        openTwoFactorModal(result);
+        return;
+      }
       await showVault(result.user);
       closeSettings();
       if (result.sync?.message) showVaultNotice(result.sync.message, !result.sync.ok);
@@ -1966,6 +3351,11 @@ settingsGoogleConnect.addEventListener('click', async () => {
     const result = await window.passsa.googleLogin();
     if (!result.ok) {
       setSettingsMessage(result.message || 'Login Google gagal.');
+      return;
+    }
+    if (result.requires2fa || result.requires2faSetup) {
+      closeSettings();
+      openTwoFactorModal(result);
       return;
     }
     if (result.autoCompleted) {
@@ -2006,6 +3396,82 @@ settingsGoogleDisconnect.addEventListener('click', async () => {
   }
 });
 
+settingsS3Connect.addEventListener('click', async () => {
+  settingsS3Connect.disabled = true;
+  setInlineMessage(settingsS3Message, '');
+  try {
+    const result = await window.passsa.connectS3({
+      endpoint: settingsS3Endpoint.value,
+      region: settingsS3Region.value,
+      bucket: settingsS3Bucket.value,
+      prefix: settingsS3Prefix.value,
+      accessKeyId: settingsS3AccessKey.value,
+      secretAccessKey: settingsS3SecretKey.value,
+      sessionToken: settingsS3SessionToken.value,
+    });
+    if (!result?.ok) throw new Error(result?.message || 'Koneksi S3 gagal.');
+    settingsS3SecretKey.value = '';
+    settingsS3SessionToken.value = '';
+    await refreshSettingsS3State();
+    setInlineMessage(settingsS3Message, result.message || 'Koneksi S3 berhasil diuji.', true);
+  } catch (error) {
+    setInlineMessage(settingsS3Message, error.message || 'Koneksi S3 gagal.');
+  } finally {
+    settingsS3Connect.disabled = false;
+  }
+});
+
+async function syncS3(password = '') {
+  settingsS3Sync.disabled = true;
+  settingsS3Unlock.disabled = true;
+  const originalText = settingsS3Sync.innerHTML;
+  settingsS3Sync.innerHTML = '<i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i> Menyinkronkan…';
+  setInlineMessage(settingsS3Message, '');
+  try {
+    const result = await window.passsa.s3SyncNow(password);
+    if (result?.status === 'requires-password') {
+      settingsS3Sync.classList.add('hidden');
+      settingsS3PasswordPanel.classList.remove('hidden');
+      setInlineMessage(settingsS3Message, result.message || 'Masukkan password vault untuk melanjutkan.');
+      settingsS3UnlockPassword.focus();
+      return;
+    }
+    if (!result?.ok && result?.status !== 'conflict') throw new Error(result?.message || 'Sinkronisasi S3 gagal.');
+    settingsS3PasswordPanel.classList.add('hidden');
+    settingsS3Sync.classList.remove('hidden');
+    settingsS3UnlockPassword.value = '';
+    if (result.status === 'downloaded') await loadItems();
+    setInlineMessage(settingsS3Message, result.message || 'Sinkronisasi S3 selesai.', result.ok);
+  } catch (error) {
+    setInlineMessage(settingsS3Message, error.message || 'Sinkronisasi S3 gagal.');
+  } finally {
+    settingsS3Sync.disabled = false;
+    settingsS3Unlock.disabled = false;
+    settingsS3Sync.innerHTML = originalText;
+  }
+}
+
+settingsS3Sync.addEventListener('click', () => syncS3());
+settingsS3Unlock.addEventListener('click', () => syncS3(settingsS3UnlockPassword.value));
+settingsS3UnlockPassword.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') syncS3(settingsS3UnlockPassword.value);
+});
+
+settingsS3Disconnect.addEventListener('click', async () => {
+  settingsS3Disconnect.disabled = true;
+  setInlineMessage(settingsS3Message, '');
+  try {
+    const result = await window.passsa.disconnectS3();
+    if (!result?.ok) throw new Error(result?.message || 'Koneksi S3 gagal diputus.');
+    await refreshSettingsS3State();
+    setInlineMessage(settingsS3Message, result.message || 'Koneksi S3 diputus.', true);
+  } catch (error) {
+    setInlineMessage(settingsS3Message, error.message || 'Koneksi S3 gagal diputus.');
+  } finally {
+    settingsS3Disconnect.disabled = false;
+  }
+});
+
 changePasswordForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   setInlineMessage(settingsPasswordMessage, '');
@@ -2041,6 +3507,110 @@ settingsExportFormat.addEventListener('change', updateTransferFormatFields);
 settingsStartup?.addEventListener('change', saveAppSettings);
 settingsMinimizeTray?.addEventListener('change', saveAppSettings);
 settingsQuickAccess?.addEventListener('change', saveAppSettings);
+
+settingsTwoFactorEnable?.addEventListener('click', async () => {
+  settingsTwoFactorEnable.disabled = true;
+  setInlineMessage(settingsTwoFactorMessage, '');
+  try {
+    const result = await window.passsa.twoFactorSetupStart();
+    if (!result?.ok || !result.requires2faSetup) throw new Error(result?.message || 'Setup Authenticator tidak dapat dimulai.');
+    openTwoFactorModal(result);
+  } catch (error) {
+    setInlineMessage(settingsTwoFactorMessage, error.message || 'Setup Authenticator tidak dapat dimulai.');
+  } finally {
+    settingsTwoFactorEnable.disabled = false;
+  }
+});
+
+settingsTwoFactorDisableOpen?.addEventListener('click', () => {
+  settingsTwoFactorDisablePanel.classList.remove('hidden');
+  setInlineMessage(settingsTwoFactorMessage, '');
+  settingsTwoFactorPassword.focus();
+});
+
+settingsTwoFactorDisableCancel?.addEventListener('click', () => {
+  settingsTwoFactorDisablePanel.classList.add('hidden');
+  settingsTwoFactorPassword.value = '';
+  settingsTwoFactorCode.value = '';
+  setInlineMessage(settingsTwoFactorMessage, '');
+});
+
+settingsTwoFactorDisableSubmit?.addEventListener('click', async () => {
+  const password = settingsTwoFactorPassword.value;
+  const code = settingsTwoFactorCode.value.replace(/\s/g, '');
+  setInlineMessage(settingsTwoFactorMessage, '');
+  if (!password || !/^\d{6}$/.test(code)) {
+    setInlineMessage(settingsTwoFactorMessage, 'Masukkan password vault dan kode Authenticator 6 digit yang terbaru.');
+    return;
+  }
+  settingsTwoFactorDisableSubmit.disabled = true;
+  try {
+    const result = await window.passsa.twoFactorDisable(password, code);
+    if (!result?.ok) throw new Error(result?.message || '2FA tidak dapat dinonaktifkan.');
+    settingsTwoFactorPassword.value = '';
+    settingsTwoFactorCode.value = '';
+    settingsTwoFactorDisablePanel.classList.add('hidden');
+    await loadTwoFactorStatus();
+    await loadDirectLoginStatus();
+    setInlineMessage(settingsTwoFactorMessage, result.message || '2FA dinonaktifkan.', true);
+  } catch (error) {
+    setInlineMessage(settingsTwoFactorMessage, error.message || '2FA tidak dapat dinonaktifkan.');
+    settingsTwoFactorCode.focus();
+  } finally {
+    settingsTwoFactorDisableSubmit.disabled = false;
+  }
+});
+
+settingsDirectLoginEnable?.addEventListener('click', () => {
+  settingsDirectLoginPassword.value = '';
+  setInlineMessage(settingsDirectLoginMessage, '');
+  settingsDirectLoginPanel.classList.remove('hidden');
+  settingsDirectLoginPassword.focus();
+});
+
+settingsDirectLoginCancel?.addEventListener('click', () => {
+  settingsDirectLoginPassword.value = '';
+  settingsDirectLoginPanel.classList.add('hidden');
+  setInlineMessage(settingsDirectLoginMessage, '');
+});
+
+settingsDirectLoginConfirm?.addEventListener('click', async () => {
+  const password = settingsDirectLoginPassword.value;
+  setInlineMessage(settingsDirectLoginMessage, '');
+  if (!password) {
+    setInlineMessage(settingsDirectLoginMessage, 'Masukkan password vault saat ini untuk mengaktifkan login langsung.');
+    settingsDirectLoginPassword.focus();
+    return;
+  }
+  settingsDirectLoginConfirm.disabled = true;
+  try {
+    const result = await window.passsa.directLoginEnable(password);
+    if (!result?.ok) throw new Error(result?.message || 'Login langsung tidak dapat diaktifkan.');
+    settingsDirectLoginPassword.value = '';
+    settingsDirectLoginPanel.classList.add('hidden');
+    await loadDirectLoginStatus();
+    setInlineMessage(settingsDirectLoginMessage, result.message || 'Login langsung aktif di perangkat ini.', true);
+  } catch (error) {
+    setInlineMessage(settingsDirectLoginMessage, error.message || 'Login langsung tidak dapat diaktifkan.');
+  } finally {
+    settingsDirectLoginConfirm.disabled = false;
+  }
+});
+
+settingsDirectLoginDisable?.addEventListener('click', async () => {
+  settingsDirectLoginDisable.disabled = true;
+  setInlineMessage(settingsDirectLoginMessage, '');
+  try {
+    const result = await window.passsa.directLoginDisable();
+    if (!result?.ok) throw new Error(result?.message || 'Login langsung tidak dapat dimatikan.');
+    await loadDirectLoginStatus();
+    setInlineMessage(settingsDirectLoginMessage, result.message || 'Login langsung dimatikan.', true);
+  } catch (error) {
+    setInlineMessage(settingsDirectLoginMessage, error.message || 'Login langsung tidak dapat dimatikan.');
+  } finally {
+    settingsDirectLoginDisable.disabled = false;
+  }
+});
 
 settingsHelloEnable?.addEventListener('click', async () => {
   settingsHelloEnable.disabled = true;
@@ -2148,8 +3718,9 @@ settingsImportButton.addEventListener('click', async () => {
 });
 
 logoutButton.addEventListener('click', async () => {
-  await window.passsa.logout();
+  const result = await window.passsa.logout();
   if (!vaultView.classList.contains('hidden')) showAuth('Anda telah keluar.');
+  if (!result?.ok) setMessage(result?.message || 'Sesi ditutup, tetapi login langsung mungkin masih aktif di perangkat ini.');
 });
 
 document.querySelector('#close-modal').addEventListener('click', closeItemModal);
@@ -2161,6 +3732,12 @@ sidebarAddNoteButton?.addEventListener('click', () => {
   updateItemTypeUi();
   document.querySelector('#item-title')?.focus();
 });
+sidebarAddAuthenticatorButton?.addEventListener('click', () => {
+  openItemModal();
+  itemTypeInput.value = 'authenticator';
+  updateItemTypeUi();
+  document.querySelector('#item-title')?.focus();
+});
 sidebarAddTagButton.addEventListener('click', () => {
   openItemModal();
   requestAnimationFrame(() => {
@@ -2168,7 +3745,10 @@ sidebarAddTagButton.addEventListener('click', () => {
     tagInput.focus();
   });
 });
-searchInput.addEventListener('input', renderItems);
+searchInput.addEventListener('input', scheduleRenderItems);
+document.querySelector('.items-scroll')?.addEventListener('scroll', () => {
+  if (itemsList.classList.contains('is-virtualized')) scheduleVirtualItemsRender();
+}, { passive: true });
 tagSearchInput?.addEventListener('input', renderTagTree);
 sortSelect.addEventListener('change', renderItems);
 clearFilterButton.addEventListener('click', () => {
@@ -2205,6 +3785,11 @@ document.querySelector('.vault-tree').addEventListener('click', (event) => {
   if (!button) return;
   if (button.dataset.filter === 'notes') {
     showNotes();
+    renderItems();
+    return;
+  }
+  if (button.dataset.filter === 'authenticator') {
+    showAuthenticators();
     renderItems();
     return;
   }
@@ -2251,6 +3836,7 @@ function openCategoryModal(category = null) {
   selectedCategoryIcon = category?.icon ?? 'folder';
   document.querySelector('#icon-search').value = '';
   renderIconPicker();
+  rememberModalFocus(categoryModal);
   categoryModal.classList.remove('hidden');
   document.querySelector('#category-name').focus();
 }
@@ -2278,6 +3864,7 @@ document.querySelector('#icon-picker').addEventListener('change', (event) => {
 function closeCategoryModal() {
   categoryModal.classList.add('hidden');
   categoryForm.reset();
+  restoreModalFocus(categoryModal);
 }
 
 document.querySelector('#add-category-button').addEventListener('click', () => openCategoryModal());
@@ -2348,6 +3935,7 @@ document.querySelector('#clear-selection').addEventListener('click', clearSelect
 function openBulkModal() {
   bulkForm.reset();
   setInlineMessage(document.querySelector('#bulk-message'), '');
+  rememberModalFocus(bulkModal);
   bulkModal.classList.remove('hidden');
   document.querySelector('#bulk-group').focus();
 }
@@ -2355,6 +3943,7 @@ function openBulkModal() {
 function closeBulkModal() {
   bulkModal.classList.add('hidden');
   bulkForm.reset();
+  restoreModalFocus(bulkModal);
 }
 
 document.querySelector('#bulk-edit-button').addEventListener('click', openBulkModal);
@@ -2443,6 +4032,23 @@ document.querySelector('#generate-password').addEventListener('click', () => {
   updateSecretToggle(document.querySelector('#toggle-item-password'), true);
 });
 
+toggleItemTotpSecret?.addEventListener('click', (event) => {
+  const visible = itemTotpSecret.type === 'text';
+  itemTotpSecret.type = visible ? 'password' : 'text';
+  updateSecretToggle(event.currentTarget, !visible, 'kunci setup');
+});
+
+document.querySelector('#generate-totp-secret')?.addEventListener('click', () => {
+  itemTotpSecret.value = generateRendererTotpSecret();
+  itemTotpSecret.type = 'password';
+  updateSecretToggle(toggleItemTotpSecret, false, 'kunci setup');
+  setInlineMessage(itemTotpMessage, 'Kunci setup baru dibuat. Simpan item untuk mengaktifkannya.', true);
+  itemTotpSecret.focus();
+});
+
+document.querySelector('#copy-totp-secret')?.addEventListener('click', copyTotpSecretFromForm);
+document.querySelector('#apply-totp-uri')?.addEventListener('click', applyTotpUriToForm);
+
 itemTypeInput.addEventListener('change', () => {
   updateItemTypeUi();
   if (itemTypeInput.value === 'secure-note') renderNoteHistory([], false);
@@ -2463,18 +4069,16 @@ noteHeadingLevel?.addEventListener('change', (event) => {
   applyNoteFormat(event.currentTarget.value);
   event.currentTarget.value = 'paragraph';
 });
-itemNotesInput.addEventListener('input', updateNotePreview);
+itemNotesInput.addEventListener('input', () => {
+  updateNotePreview();
+  resizeNoteInput();
+  if (itemTypeInput?.value === 'secure-note') updateNoteEditorSaveState('dirty');
+});
 itemNotesInput.addEventListener('focus', () => { notePreviewSelectionRange = null; });
 itemNotesInput.addEventListener('keydown', (event) => {
-  const key = event.key.toLowerCase();
-  if (event.ctrlKey && ['b', 'i', 'u'].includes(key)) {
+  if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
     event.preventDefault();
-    applyNoteFormat({ b: 'bold', i: 'italic', u: 'underline' }[key]);
-    return;
-  }
-  if (event.ctrlKey && key === 'y') {
-    event.preventDefault();
-    applyNoteFormat('redo');
+    itemForm.requestSubmit();
     return;
   }
   if (event.key === 'Tab') {
@@ -2484,27 +4088,9 @@ itemNotesInput.addEventListener('keydown', (event) => {
     replaceNoteSelection('  ', start, end);
     return;
   }
-  if (event.key !== 'Enter' || event.shiftKey) return;
-  const start = itemNotesInput.selectionStart ?? 0;
-  const lineStart = itemNotesInput.value.lastIndexOf('\n', Math.max(0, start - 1)) + 1;
-  const currentLine = itemNotesInput.value.slice(lineStart, start);
-  const continuation = currentLine.match(/^(\s*(?:[-*+]\s+\[[ xX]\]\s+|[-*+]\s+|\d+[.)]\s+|>\s?))(.*)$/);
-  if (!continuation || !continuation[2].trim()) return;
-  event.preventDefault();
-  replaceNoteSelection(`\n${continuation[1]}`, start, start);
 });
 notePreview?.addEventListener('click', (event) => {
   if (noteEditorModeValue === 'preview' && event.target.closest('a')) event.preventDefault();
-  const toggle = event.target.closest('[data-note-line]');
-  if (!toggle || !itemNotesInput) return;
-  const lineIndex = Number(toggle.dataset.noteLine);
-  const lines = itemNotesInput.value.replace(/\r\n?/g, '\n').split('\n');
-  const line = lines[lineIndex] || '';
-  const match = line.match(/^(\s*[-*+]\s+\[)([ xX])(\]\s+.*)$/);
-  if (!match) return;
-  lines[lineIndex] = `${match[1]}${match[2].toLowerCase() === 'x' ? ' ' : 'x'}${match[3]}`;
-  itemNotesInput.value = lines.join('\n');
-  itemNotesInput.dispatchEvent(new Event('input', { bubbles: true }));
 });
 notePreview?.addEventListener('focus', clearNotePreviewPlaceholder);
 notePreview?.addEventListener('beforeinput', clearNotePreviewPlaceholder);
@@ -2514,7 +4100,12 @@ notePreview?.addEventListener('keydown', (event) => {
   if (!selection?.rangeCount || !notePreview.contains(selection.anchorNode) || !notePreview.contains(selection.focusNode)) return;
   const block = (selection.anchorNode.nodeType === 1 ? selection.anchorNode : selection.anchorNode.parentElement)
     ?.closest('li, blockquote, pre, td, th');
-  if (block) return;
+  if (block?.tagName.toLowerCase() === 'li') {
+    event.preventDefault();
+    // Let Chromium split a regular list item, then sync the resulting text.
+    insertNotePreviewListBreak();
+    return;
+  }
   event.preventDefault();
   const range = selection.getRangeAt(0);
   range.deleteContents();
@@ -2528,10 +4119,9 @@ notePreview?.addEventListener('keydown', (event) => {
 });
 notePreview?.addEventListener('input', () => {
   if (noteEditorModeValue !== 'preview') return;
+  if (notePreviewSuppressInput) return;
   clearNotePreviewPlaceholder();
-  const needsCanonicalRender = notePreviewNeedsCanonicalRender();
   syncNoteInputFromPreview();
-  if (needsCanonicalRender) updateNotePreview();
 });
 document.addEventListener('selectionchange', rememberNotePreviewSelection);
 addCustomFieldButton.addEventListener('click', () => {
@@ -2603,6 +4193,20 @@ passwordHistoryList.addEventListener('click', (event) => {
 function toggleNoteHistoryEntry(entry) {
   if (!entry) return;
   const expanded = !entry.classList.contains('is-expanded');
+  if (expanded && entry.dataset.noteHistoryRendered !== 'true') {
+    const index = Number(entry.dataset.noteHistoryIndex);
+    const sourceEntries = entry.dataset.noteHistorySource === 'detail'
+      ? noteDetailHistoryEntries
+      : formNoteHistoryEntries;
+    const historyEntry = Number.isInteger(index) ? sourceEntries[index] : null;
+    const markdown = entry.querySelector('.note-history-markdown');
+    if (historyEntry && markdown) {
+      // History previews stay cheap during the initial modal render. Parse
+      // Markdown only when the user explicitly expands a version.
+      markdown.innerHTML = renderNoteMarkdown(historyEntry.notes || 'Tidak ada isi catatan.');
+      entry.dataset.noteHistoryRendered = 'true';
+    }
+  }
   entry.classList.toggle('is-expanded', expanded);
   entry.setAttribute('aria-expanded', String(expanded));
 }
@@ -2636,6 +4240,22 @@ noteDetailCloseSecondaryButton?.addEventListener('click', closeNoteDetail);
 noteDetailModal?.addEventListener('click', (event) => {
   if (event.target === noteDetailModal) closeNoteDetail();
 });
+closeAuthenticatorDetailButton?.addEventListener('click', closeAuthenticatorDetail);
+authenticatorDetailModal?.addEventListener('click', (event) => {
+  if (event.target === authenticatorDetailModal) closeAuthenticatorDetail();
+});
+authenticatorDetailCopyButton?.addEventListener('click', copyAuthenticatorDetailCode);
+authenticatorDetailEditButton?.addEventListener('click', async () => {
+  const id = authenticatorDetailCurrentId;
+  if (!id) return;
+  try {
+    const item = await window.passsa.getItem(id);
+    closeAuthenticatorDetail();
+    if (item) openItemModal(item);
+  } catch (error) {
+    showVaultNotice(error.message || 'Authenticator tidak dapat diedit.', true);
+  }
+});
 noteDetailEditButton?.addEventListener('click', async () => {
   const id = noteDetailCurrentId;
   if (!id) return;
@@ -2645,6 +4265,26 @@ noteDetailEditButton?.addEventListener('click', async () => {
     if (item) openItemModal(item);
   } catch (error) {
     showVaultNotice(error.message || 'Catatan tidak dapat diedit.', true);
+  }
+});
+closeCredentialDetailButton?.addEventListener('click', closeCredentialDetail);
+credentialDetailCloseSecondaryButton?.addEventListener('click', closeCredentialDetail);
+credentialDetailModal?.addEventListener('click', (event) => {
+  if (event.target === credentialDetailModal) closeCredentialDetail();
+});
+toggleCredentialDetailPasswordButton?.addEventListener('click', toggleCredentialDetailPassword);
+credentialDetailCopyUrlButton?.addEventListener('click', () => copyCredentialDetailField('url'));
+credentialDetailCopyUsernameButton?.addEventListener('click', () => copyCredentialDetailField('username'));
+credentialDetailCopyPasswordButton?.addEventListener('click', () => copyCredentialDetailField('password'));
+credentialDetailEditButton?.addEventListener('click', async () => {
+  const id = credentialDetailCurrentItem?.id;
+  if (!id) return;
+  try {
+    const item = await window.passsa.getItem(id);
+    closeCredentialDetail();
+    if (item) openItemModal(item);
+  } catch (error) {
+    showVaultNotice(error.message || 'Credential tidak dapat diedit.', true);
   }
 });
 
@@ -2666,9 +4306,20 @@ itemForm.addEventListener('submit', async (event) => {
     tags: document.querySelector('#item-tags').value,
     fields: collectCustomFields(),
   };
+  if (payload.type === 'authenticator') {
+    payload.totp = {
+      issuer: itemTotpIssuer.value,
+      account: itemTotpAccount.value,
+      secret: itemTotpSecret.value,
+      algorithm: itemTotpAlgorithm.value,
+      digits: Number(itemTotpDigits.value),
+      period: Number(itemTotpPeriod.value),
+    };
+  }
   const creating = !payload.id;
   saveButton.disabled = true;
   saveButton.textContent = 'Menyimpan…';
+  updateNoteEditorSaveState('saving');
   try {
     const result = payload.id
       ? await window.passsa.updateItem(payload)
@@ -2677,11 +4328,13 @@ itemForm.addEventListener('submit', async (event) => {
     const updatedIndex = items.findIndex((item) => item.id === result.item.id);
     if (creating) {
       showAllItems();
-      items.push(result.item);
+      items.push(normalizeRendererItem(result.item));
+      markItemDataDirty();
     } else if (updatedIndex >= 0) {
       // Reflect the successful IPC response immediately. A subsequent reload
       // still refreshes the encrypted vault and categories from disk.
-      items[updatedIndex] = { ...items[updatedIndex], ...result.item };
+      items[updatedIndex] = normalizeRendererItem({ ...items[updatedIndex], ...result.item });
+      markItemDataDirty();
     }
     renderItems();
     await loadItems();
@@ -2695,6 +4348,7 @@ itemForm.addEventListener('submit', async (event) => {
   } finally {
     saveButton.disabled = false;
     saveButton.textContent = 'Simpan Item';
+    if (!itemModal.classList.contains('hidden')) updateNoteEditorSaveState('dirty');
   }
 });
 
@@ -2737,6 +4391,14 @@ itemsList.addEventListener('click', async (event) => {
       openNoteDetail(row.dataset.id);
       return;
     }
+    if (rowItem?.type === 'authenticator' && !rowItem.deletedAt) {
+      openAuthenticatorDetail(rowItem);
+      return;
+    }
+    if (rowItem?.type === 'login' && !rowItem.deletedAt) {
+      openCredentialDetail(rowItem.id);
+      return;
+    }
   }
   const button = event.target.closest('[data-action]');
   if (!button || !row) return;
@@ -2747,7 +4409,7 @@ itemsList.addEventListener('click', async (event) => {
     if (action === 'edit') openItemModal(await window.passsa.getItem(item.id));
     if (action === 'favorite') {
       const result = await window.passsa.toggleFavorite(item.id);
-      items[items.findIndex((candidate) => candidate.id === item.id)] = result.item;
+      replaceRendererItem(result.item);
       renderItems();
     }
     if (action === 'copy-user' || action === 'copy-password') {
@@ -2770,6 +4432,13 @@ itemsList.addEventListener('click', async (event) => {
       updateCopiedRow(row, button, usage, 'Alamat situs');
       showVaultNotice('Alamat situs disalin. Clipboard dibersihkan dalam 30 detik.');
     }
+    if (action === 'copy-totp') {
+      const usage = await window.passsa.copyTotpCode(item.id);
+      item.usageCount = usage.usageCount;
+      item.lastUsedAt = usage.lastUsedAt;
+      updateCopiedRow(row, button, usage, 'Kode 2FA');
+      showVaultNotice('Kode 2FA disalin. Clipboard dibersihkan dalam 30 detik.');
+    }
     if (action === 'delete') {
       const confirmed = await askConfirm(`Hapus “${item.title}” dan pindahkan ke Recycle Bin?`, {
         title: 'Pindahkan item?',
@@ -2779,13 +4448,13 @@ itemsList.addEventListener('click', async (event) => {
       });
       if (confirmed) {
         const result = await window.passsa.deleteItem(item.id);
-        items[items.findIndex((candidate) => candidate.id === item.id)] = result.item;
+        replaceRendererItem(result.item);
         renderItems();
       }
     }
     if (action === 'restore') {
       const result = await window.passsa.restoreItem(item.id);
-      items[items.findIndex((candidate) => candidate.id === item.id)] = result.item;
+      replaceRendererItem(result.item);
       renderItems();
     }
     if (action === 'purge') {
@@ -2798,6 +4467,7 @@ itemsList.addEventListener('click', async (event) => {
       if (confirmed) {
         await window.passsa.purgeItem(item.id);
         items = items.filter((candidate) => candidate.id !== item.id);
+        markItemDataDirty();
         renderItems();
       }
     }
@@ -2808,10 +4478,16 @@ itemsList.addEventListener('click', async (event) => {
 
 itemsList.addEventListener('keydown', (event) => {
   if (!['Enter', ' '].includes(event.key)) return;
-  const row = event.target.closest('.note-card');
+  const row = event.target.closest('.note-card, .authenticator-item, .credential-card');
   if (!row || event.target.closest('button, input, a')) return;
   event.preventDefault();
-  openNoteDetail(row.dataset.id);
+  const item = items.find((candidate) => candidate.id === row.dataset.id);
+  if (item?.type === 'secure-note') openNoteDetail(row.dataset.id);
+  else if (item?.type === 'authenticator') {
+    openAuthenticatorDetail(item);
+  } else if (item?.type === 'login') {
+    openCredentialDetail(item.id);
+  }
 });
 
 document.addEventListener('click', (event) => {
@@ -2828,6 +4504,8 @@ for (const eventName of ['pointerdown', 'keydown']) {
 }
 
 document.addEventListener('keydown', (event) => {
+  constrainModalFocus(event);
+  if (event.defaultPrevented) return;
   if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'n' && !vaultView.classList.contains('hidden')) {
     event.preventDefault();
     openItemModal();
@@ -2841,7 +4519,10 @@ document.addEventListener('keydown', (event) => {
     return;
   }
   if (event.key !== 'Escape') return;
-  if (!noteDetailModal.classList.contains('hidden')) closeNoteDetail();
+  if (!twoFactorModal.classList.contains('hidden')) closeTwoFactorModal();
+  else if (!noteDetailModal.classList.contains('hidden')) closeNoteDetail();
+  else if (!authenticatorDetailModal.classList.contains('hidden')) closeAuthenticatorDetail();
+  else if (!credentialDetailModal.classList.contains('hidden')) closeCredentialDetail();
   else if (!settingsModal.classList.contains('hidden')) closeSettings();
   else if (!categoryModal.classList.contains('hidden')) closeCategoryModal();
   else if (!bulkModal.classList.contains('hidden')) closeBulkModal();
@@ -2857,6 +4538,7 @@ window.passsa.onQuickAccessOpen(async (id) => {
       return;
     }
     if (item.type === 'secure-note') await openNoteDetail(item.id);
+    else if (item.type === 'authenticator') openAuthenticatorDetail(item);
     else openItemModal(item);
   } catch (error) {
     showVaultNotice(error.message || 'Credential tidak dapat dibuka.', true);
@@ -2866,3 +4548,4 @@ window.passsa.onQuickAccessOpen(async (id) => {
 window.passsa.session().then((user) => {
   if (user) showVault(user);
 });
+loadDirectLoginStatus();

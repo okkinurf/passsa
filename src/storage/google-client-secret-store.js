@@ -23,7 +23,10 @@ class GoogleClientSecretStore {
       return value.clientId === clientId ? String(value.clientSecret || '') : '';
     } catch (error) {
       if (error.code === 'ENOENT') return '';
-      throw new Error('Credential Google lokal tidak dapat dibuka. Impor ulang credential Google.');
+      // The client secret is optional for local vault use. A credential
+      // encrypted under another Windows profile should not prevent PassSa
+      // from opening; the Google integration can be configured again later.
+      return '';
     }
   }
 }

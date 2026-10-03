@@ -1,4 +1,5 @@
 const crypto = require('node:crypto');
+const { normalizeOptions, normalizeSecret } = require('../totp');
 
 const MAX_HISTORY = 10;
 const MAX_NOTE_HISTORY = 20;
@@ -8,6 +9,7 @@ const MAX_FIELD_LABEL = 80;
 const MAX_FIELD_VALUE = 5000;
 const MAX_NOTES = 20000;
 const FIELD_TYPES = new Set(['text', 'secret', 'url', 'email', 'number', 'boolean']);
+const ENTRY_TYPES = new Set(['login', 'secure-note', 'authenticator']);
 
 function clean(value, maxLength, trim = true) {
   const result = String(value ?? '').slice(0, maxLength);
@@ -95,16 +97,36 @@ function normalizeNoteHistory(value) {
     }));
 }
 
+function normalizeTotpConfig(value, { required = false } = {}) {
+  const source = value && typeof value === 'object' ? value : {};
+  let secret = '';
+  try {
+    secret = normalizeSecret(source.secret);
+  } catch {
+    if (required) throw new Error('Kunci setup authenticator wajib diisi dan harus berupa Base32 yang valid.');
+  }
+  const options = normalizeOptions({
+    algorithm: source.algorithm,
+    digits: source.digits,
+    period: source.period,
+  });
+  const issuer = clean(source.issuer || 'PassSa', 120) || 'PassSa';
+  const account = clean(source.account, 320);
+  if (required && !account) throw new Error('Username atau email authenticator wajib diisi.');
+  return { secret, issuer, account, ...options };
+}
+
 function normalizeEntry(entry) {
+  const type = ENTRY_TYPES.has(entry.type) ? entry.type : 'login';
   const recentUseHistory = Array.isArray(entry.recentUseHistory)
     ? entry.recentUseHistory
-      .filter((record) => record && typeof record === 'object' && typeof record.usedAt === 'string' && ['username', 'password', 'url', 'note'].includes(record.field))
+      .filter((record) => record && typeof record === 'object' && typeof record.usedAt === 'string' && ['username', 'password', 'url', 'note', 'totp'].includes(record.field))
       .slice(-MAX_QUICK_ACCESS_HISTORY)
       .map((record) => ({ field: record.field, usedAt: record.usedAt }))
     : [];
   return {
     ...entry,
-    type: entry.type === 'secure-note' ? 'secure-note' : 'login',
+    type,
     group: entry.group ?? 'Umum',
     favorite: Boolean(entry.favorite),
     quickPinned: Boolean(entry.quickPinned),
@@ -116,12 +138,13 @@ function normalizeEntry(entry) {
     usageCount: Number.isSafeInteger(entry.usageCount) && entry.usageCount >= 0 ? entry.usageCount : 0,
     lastUsedAt: entry.lastUsedAt ?? null,
     recentUseHistory,
+    totp: type === 'authenticator' ? normalizeTotpConfig(entry.totp) : null,
   };
 }
 
 function buildEntry(input = {}, existing = null) {
   const requestedType = input.type === undefined ? existing?.type : input.type;
-  const type = requestedType === 'secure-note' ? 'secure-note' : 'login';
+  const type = ENTRY_TYPES.has(requestedType) ? requestedType : 'login';
   const title = clean(input.title, 120);
   const username = clean(input.username, 320);
   const password = clean(input.password, 1024, false);
@@ -130,6 +153,9 @@ function buildEntry(input = {}, existing = null) {
   const group = clean(input.group ?? existing?.group ?? 'Umum', 80) || 'Umum';
   if (!title) throw new Error('Nama item wajib diisi.');
   if (type === 'login' && !password) throw new Error('Password wajib diisi.');
+  const totp = type === 'authenticator'
+    ? normalizeTotpConfig(input.totp === undefined ? existing?.totp : input.totp, { required: true })
+    : null;
 
   const normalizedExisting = existing ? normalizeEntry(existing) : null;
   const passwordChanged = Boolean(normalizedExisting && password !== normalizedExisting.password);
@@ -173,6 +199,7 @@ function buildEntry(input = {}, existing = null) {
     usageCount: normalizedExisting?.usageCount ?? 0,
     lastUsedAt: normalizedExisting?.lastUsedAt ?? null,
     recentUseHistory: normalizedExisting?.recentUseHistory ?? [],
+    totp,
     deletedAt: normalizedExisting?.deletedAt ?? null,
     history: previousHistory.slice(-MAX_HISTORY),
     noteHistory: previousNoteHistory.slice(-MAX_NOTE_HISTORY),
@@ -182,4 +209,4 @@ function buildEntry(input = {}, existing = null) {
   };
 }
 
-module.exports = { buildEntry, normalizeEntry, normalizeTags, normalizeCustomFields, MAX_HISTORY, MAX_NOTE_HISTORY, MAX_QUICK_ACCESS_HISTORY, MAX_FIELDS, MAX_FIELD_VALUE, MAX_NOTES };
+module.exports = { buildEntry, normalizeEntry, normalizeTags, normalizeCustomFields, normalizeTotpConfig, ENTRY_TYPES, MAX_HISTORY, MAX_NOTE_HISTORY, MAX_QUICK_ACCESS_HISTORY, MAX_FIELDS, MAX_FIELD_VALUE, MAX_NOTES };

@@ -6,11 +6,13 @@
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "dev:skip-login": "electron . --passsa-dev-skip-login",
     "test": "node --test",
     "test:e2e": "electron --no-sandbox scripts/e2e-smoke.js",
+    "perf:smoke": "electron --no-sandbox scripts/perf-smoke.js",
     "qa:google-network": "electron scripts/google-network-qa.js",
     "configure:google": "electron scripts/configure-google.js",
-    "qa": "npm test && npm run test:e2e",
+    "qa": "npm test && npm run test:e2e && npm run perf:smoke",
     "qa:full": "npm run qa && npm run qa:tauri && node scripts/syntax-check.js",
     "tauri:config": "node scripts/tauri-config-test.js",
     "tauri:doctor": "node scripts/tauri-doctor.js",
@@ -58,6 +60,7 @@
     }
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1146.0",
     "@fortawesome/fontawesome-free": "^7.3.1"
   }
 }

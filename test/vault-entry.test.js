@@ -37,6 +37,31 @@ test('secure note tidak memerlukan password login dan tetap menyimpan fields', (
   assert.equal(note.fields[0].value, 'ABC');
 });
 
+test('authenticator menyimpan secret Base32 dan opsi TOTP tanpa password login', () => {
+  const authenticator = buildEntry({
+    type: 'authenticator',
+    title: 'GitHub 2FA',
+    totp: {
+      issuer: 'GitHub',
+      account: 'okki@example.test',
+      secret: 'jbsw y3dp-ehpk3pxp',
+      algorithm: 'SHA256',
+      digits: 8,
+      period: 60,
+    },
+  });
+  assert.equal(authenticator.type, 'authenticator');
+  assert.equal(authenticator.password, '');
+  assert.deepEqual(authenticator.totp, {
+    issuer: 'GitHub',
+    account: 'okki@example.test',
+    secret: 'JBSWY3DPEHPK3PXP',
+    algorithm: 'sha256',
+    digits: 8,
+    period: 60,
+  });
+});
+
 test('perubahan secure note menyimpan versi sebelumnya tanpa secret password', () => {
   const first = buildEntry({
     type: 'secure-note',
