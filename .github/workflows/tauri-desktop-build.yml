@@ -108,13 +108,22 @@ jobs:
         if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          if (![string]::IsNullOrWhiteSpace($env:TAURI_CERTIFICATE_THUMBPRINT)) {
-            $signingConfig = @{ bundle = @{ windows = @{ certificateThumbprint = $env:TAURI_CERTIFICATE_THUMBPRINT; digestAlgorithm = 'sha256'; timestampUrl = 'http://timestamp.digicert.com'; tsp = $true } } } | ConvertTo-Json -Compress -Depth 5
-            npm run tauri:build -- --bundles nsis --config $signingConfig
-          } else {
-            npm run tauri:build -- --bundles nsis
+          $signingConfigPath = $null
+          try {
+            if (![string]::IsNullOrWhiteSpace($env:TAURI_CERTIFICATE_THUMBPRINT)) {
+              $signingConfigPath = Join-Path $env:RUNNER_TEMP 'passsa-tauri-signing.json'
+              $signingConfig = @{ bundle = @{ windows = @{ certificateThumbprint = $env:TAURI_CERTIFICATE_THUMBPRINT; digestAlgorithm = 'sha256'; timestampUrl = 'http://timestamp.digicert.com'; tsp = $true } } } | ConvertTo-Json -Compress -Depth 5
+              Set-Content -LiteralPath $signingConfigPath -Value $signingConfig -Encoding utf8
+              npm run tauri:build -- --bundles nsis --config $signingConfigPath
+            } else {
+              npm run tauri:build -- --bundles nsis
+            }
+            if ($LASTEXITCODE -ne 0) { throw 'Build installer Windows Tauri gagal.' }
+          } finally {
+            if ($signingConfigPath -and (Test-Path -LiteralPath $signingConfigPath)) {
+              Remove-Item -LiteralPath $signingConfigPath -Force
+            }
           }
-          if ($LASTEXITCODE -ne 0) { throw 'Build installer Windows Tauri gagal.' }
 
       - name: Build macOS disk image
         if: runner.os == 'macOS'
