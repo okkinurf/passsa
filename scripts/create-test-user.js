@@ -38,13 +38,13 @@ async function main() {
     }
     return auth;
   });
-  console.log(`Akun testing '${username}' siap digunakan.`);
+  console.log('Akun testing siap digunakan.');
 }
 
 app.whenReady()
   .then(main)
   .then(() => app.quit())
-  .catch((error) => {
-    console.error(error.message);
+  .catch(() => {
+    console.error('Akun testing gagal disiapkan; rincian disembunyikan.');
     app.exit(1);
   });

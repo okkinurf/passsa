@@ -2,7 +2,7 @@ name: Tauri v2 desktop builds
 
 on:
   push:
-    branches: [main, "codex/**"]
+    branches: [main]
     paths:
       - "src/**"
       - "src-tauri/**"
