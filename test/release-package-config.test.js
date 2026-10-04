@@ -32,12 +32,12 @@ test('bundled Google OAuth config contains no private credential fields', () => 
   assert.deepEqual(Object.keys(config), ['clientId']);
 });
 
-test('self-signed release trusts the certificate only on the ephemeral runner and warns users', () => {
+test('self-signed release pins the untrusted signer without installing a root certificate', () => {
   const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'publish-windows-release.yml'), 'utf8');
-  assert.match(workflow, /Cert:\\CurrentUser\\Root/);
-  assert.match(workflow, /Cert:\\CurrentUser\\TrustedPublisher/);
-  assert.match(workflow, /PASSA_SIGNING_CERT_THUMBPRINT/);
+  const installerQa = fs.readFileSync(path.join(root, 'scripts', 'installer-qa.js'), 'utf8');
+  assert.match(workflow, /PASSA_ALLOW_UNTRUSTED_SIGNER: 'true'/);
+  assert.match(installerQa, /allowUntrustedSigner && signature\.Status === 'NotTrusted'/);
+  assert.doesNotMatch(workflow, /Cert:\\CurrentUser\\Root/);
   assert.match(workflow, /WINDOWS_CERTIFICATE_THUMBPRINT/);
-  assert.match(workflow, /1\.3\.6\.1\.5\.5\.7\.3\.3/);
   assert.match(workflow, /self-signed and is not trusted by Windows by default/i);
 });

@@ -27,6 +27,7 @@ if (!fs.existsSync(unpackedExe) || !fs.existsSync(asar) || fs.statSync(asar).siz
 const allowUnsigned = process.env.PASSA_ALLOW_UNSIGNED_QA === 'true';
 const expectedSubject = process.env.PASSA_EXPECTED_SIGNER_SUBJECT?.trim();
 const expectedThumbprint = process.env.PASSA_EXPECTED_SIGNER_THUMBPRINT?.replaceAll(' ', '').toUpperCase();
+const allowUntrustedSigner = process.env.PASSA_ALLOW_UNTRUSTED_SIGNER === 'true' && Boolean(expectedSubject && expectedThumbprint);
 const signingTargets = [installer, unpackedExe, helloHelper];
 const signatures = [];
 for (const target of signingTargets) {
@@ -38,7 +39,9 @@ for (const target of signingTargets) {
   }
   const signature = JSON.parse(result.stdout.trim());
   signatures.push({ target: path.basename(target), ...signature });
-  if (signature.Status !== 'Valid' && !allowUnsigned) {
+  const trustedOrPinnedSelfSigned = signature.Status === 'Valid'
+    || (allowUntrustedSigner && signature.Status === 'NotTrusted');
+  if (!trustedOrPinnedSelfSigned && !allowUnsigned) {
     console.error(`${path.basename(target)} belum ditandatangani secara valid (status: ${signature.Status}).`);
     process.exit(1);
   }
