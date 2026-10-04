@@ -11,7 +11,8 @@ test('Drive client me-refresh access token tanpa mengekspos refresh token ke URL
   };
   const fetchFn = async (url, options = {}) => {
     calls.push({ url: String(url), options });
-    if (String(url).includes('oauth2.googleapis.com')) {
+    const requestUrl = new URL(String(url));
+    if (requestUrl.protocol === 'https:' && requestUrl.hostname === 'oauth2.googleapis.com' && requestUrl.pathname === '/token') {
       return { ok: true, json: async () => ({ access_token: 'new-access', expires_in: 3600, token_type: 'Bearer' }) };
     }
     return { ok: true, json: async () => ({ files: [] }) };

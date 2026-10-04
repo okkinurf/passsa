@@ -256,7 +256,7 @@ async function main() {
     return latest;
   });
   key.fill(0);
-  console.log(`Berhasil membuat ${dummyItems.length} item dummy untuk '${username}'.`);
+  console.log(`Berhasil membuat ${dummyItems.length} item dummy.`);
   console.log(`Fitur dummy: ${dummyItems.filter((item) => item.type === 'secure-note').length} secure note, ${dummyItems.filter((item) => item.fields?.length).length} custom fields, ${dummyItems.filter((item) => item.history?.length).length} password history, ${dummyItems.filter((item) => item.quickPinned).length} Quick Access pin, ${dummyItems.filter((item) => item.favorite).length} favorit, ${dummyItems.filter((item) => item.usageCount > 0).length} item ber-riwayat penggunaan.`);
   if (resetVault) console.log(`Vault lama dikosongkan (${removedCount} item dihapus).`);
 }
@@ -264,7 +264,7 @@ async function main() {
 app.whenReady()
   .then(main)
   .then(() => app.quit())
-  .catch((error) => {
-    console.error(error.message);
+  .catch(() => {
+    console.error('Data dummy gagal disiapkan; rincian disembunyikan.');
     app.exit(1);
   });

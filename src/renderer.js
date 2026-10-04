@@ -2177,7 +2177,7 @@ function markdownInline(value) {
 
 function renderNoteMarkdown(value) {
   const sourceLines = String(value ?? '').replace(/\r\n?/g, '\n').split('\n');
-  const splitTableCells = (row) => row.trim().replace(/^\||\|$/g, '').split('|').map((cell) => cell.trim());
+  const { splitCells: splitTableCells } = window.PassSaMarkdownTable;
   const isTableSeparator = (row) => {
     const cells = splitTableCells(row || '');
     return cells.length >= 2 && cells.every((cell) => /^:?-{3,}:?$/.test(cell));
@@ -2353,7 +2353,7 @@ function serializeNoteInlineNode(node) {
 function serializeNoteTable(table) {
   if (!table) return '';
   const rows = Array.from(table.querySelectorAll('tr')).map((row) => Array.from(row.querySelectorAll('th, td'))
-    .map((cell) => serializeNoteInlineNode(cell).replace(/\|/g, '\\|').trim()));
+    .map((cell) => window.PassSaMarkdownTable.escapeCell(serializeNoteInlineNode(cell))));
   const headers = rows[0] || [];
   if (headers.length < 2) return '';
   const separator = headers.map(() => '---');

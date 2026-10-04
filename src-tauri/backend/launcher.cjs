@@ -8,11 +8,13 @@ lines.on('line', (line) => {
   try {
     globalThis.__PASSSA_TAURI_BOOTSTRAP = JSON.parse(line);
     globalThis.__PASSSA_TAURI_RPC_LINES = lines;
-    console.log = (...values) => console.error(...values);
-    console.info = (...values) => console.error(...values);
+    // stdout is reserved for the RPC protocol; suppress backend logs instead
+    // of redirecting arbitrary vault/runtime values to stderr.
+    console.log = () => {};
+    console.info = () => {};
     require('./backend.cjs');
-  } catch (error) {
-    console.error('PassSa backend gagal diinisialisasi:', error?.message || 'kesalahan tidak diketahui');
+  } catch {
+    console.error('PassSa backend gagal diinisialisasi.');
     process.exitCode = 1;
   }
 });
