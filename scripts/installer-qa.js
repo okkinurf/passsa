@@ -26,10 +26,11 @@ if (!fs.existsSync(unpackedExe) || !fs.existsSync(asar) || fs.statSync(asar).siz
 }
 const allowUnsigned = process.env.PASSA_ALLOW_UNSIGNED_QA === 'true';
 const expectedSubject = process.env.PASSA_EXPECTED_SIGNER_SUBJECT?.trim();
+const expectedThumbprint = process.env.PASSA_EXPECTED_SIGNER_THUMBPRINT?.replaceAll(' ', '').toUpperCase();
 const signingTargets = [installer, unpackedExe, helloHelper];
 const signatures = [];
 for (const target of signingTargets) {
-  const command = `$ErrorActionPreference='Stop'; $signature = Get-AuthenticodeSignature -LiteralPath '${target.replaceAll("'", "''")}'; [PSCustomObject]@{ Status=$signature.Status.ToString(); Subject=$signature.SignerCertificate.Subject } | ConvertTo-Json -Compress`;
+  const command = `$ErrorActionPreference='Stop'; $signature = Get-AuthenticodeSignature -LiteralPath '${target.replaceAll("'", "''")}'; [PSCustomObject]@{ Status=$signature.Status.ToString(); Subject=$signature.SignerCertificate.Subject; Thumbprint=$signature.SignerCertificate.Thumbprint } | ConvertTo-Json -Compress`;
   const result = spawnSync('pwsh.exe', ['-NoProfile', '-Command', command], { encoding: 'utf8' });
   if (result.status !== 0 || !result.stdout.trim()) {
     console.error(result.stderr || `Authenticode tidak dapat diverifikasi: ${path.basename(target)}.`);
@@ -45,7 +46,11 @@ for (const target of signingTargets) {
     console.error(`Publisher ${path.basename(target)} tidak cocok dengan publisher yang diharapkan.`);
     process.exit(1);
   }
+  if (expectedThumbprint && signature.Thumbprint?.replaceAll(' ', '').toUpperCase() !== expectedThumbprint) {
+    console.error(`Thumbprint publisher ${path.basename(target)} tidak cocok dengan sertifikat yang diizinkan.`);
+    process.exit(1);
+  }
 }
 const sha256 = crypto.createHash('sha256').update(fs.readFileSync(installer)).digest('hex');
-const signatureSummary = signatures.map(({ target, Status, Subject }) => `${target}=${Status}${Subject ? ` (${Subject})` : ''}`).join('; ');
+const signatureSummary = signatures.map(({ target, Status, Subject, Thumbprint }) => `${target}=${Status}${Subject ? ` (${Subject}${Thumbprint ? `, ${Thumbprint}` : ''})` : ''}`).join('; ');
 console.log(`Installer QA lulus: ${path.basename(installer)}, ${(stat.size / 1024 / 1024).toFixed(1)} MB, ${signatureSummary}, sha256=${sha256}.`);

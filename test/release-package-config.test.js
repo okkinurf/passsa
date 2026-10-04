@@ -31,3 +31,13 @@ test('bundled Google OAuth config contains no private credential fields', () => 
   const config = require('../src/config/google-oauth.json');
   assert.deepEqual(Object.keys(config), ['clientId']);
 });
+
+test('self-signed release trusts the certificate only on the ephemeral runner and warns users', () => {
+  const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'publish-windows-release.yml'), 'utf8');
+  assert.match(workflow, /Cert:\\CurrentUser\\Root/);
+  assert.match(workflow, /Cert:\\CurrentUser\\TrustedPublisher/);
+  assert.match(workflow, /PASSA_SIGNING_CERT_THUMBPRINT/);
+  assert.match(workflow, /WINDOWS_CERTIFICATE_THUMBPRINT/);
+  assert.match(workflow, /1\.3\.6\.1\.5\.5\.7\.3\.3/);
+  assert.match(workflow, /self-signed and is not trusted by Windows by default/i);
+});
