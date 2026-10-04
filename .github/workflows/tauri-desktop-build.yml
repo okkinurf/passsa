@@ -146,8 +146,11 @@ jobs:
           $files = @('src-tauri/target/release/passsa.exe', $installer)
           foreach ($file in $files) {
             $signature = Get-AuthenticodeSignature -LiteralPath $file
-            if (!$signature.SignerCertificate -or $signature.SignerCertificate.Thumbprint -ne $thumbprint) {
-              throw "Signature sertifikat PassSa tidak valid pada $file."
+            $signer = $signature.SignerCertificate
+            $actualThumbprint = if ($signer) { ($signer.Thumbprint -replace '\s', '').ToUpperInvariant() } else { '<tidak ditemukan>' }
+            if (!$signer -or $actualThumbprint -ne $thumbprint) {
+              $subject = if ($signer) { $signer.Subject } else { '<tidak ditemukan>' }
+              throw "Signature sertifikat PassSa tidak cocok pada $file (status=$($signature.Status); pesan=$($signature.StatusMessage); subject=$subject; thumbprint=$actualThumbprint)."
             }
           }
           Write-Output 'Signature Authenticode binary dan installer cocok dengan thumbprint PassSa.'
