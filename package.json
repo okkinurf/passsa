@@ -31,7 +31,7 @@
     "qa:installer": "node scripts/release-package-audit.js && node scripts/installer-qa.js"
   },
   "devDependencies": {
-    "@electron/asar": "^3.4.1",
+    "@electron/asar": "^4.3.1",
     "@tauri-apps/cli": "^2.12.1",
     "electron": "^44.5.1",
     "electron-builder": "^26.0.12",
