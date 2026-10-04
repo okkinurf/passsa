@@ -8,14 +8,14 @@
 
 Simpan credential di perangkat Anda. Enkripsi vault dengan **AES-256-GCM**. Sinkronkan secara opsional lewat **Google Drive** atau **Amazon S3**.
 
-[![Version](https://img.shields.io/badge/version-0.1.6-blue.svg)](#roadmap)
+[![Version](https://img.shields.io/badge/version-0.1.7-blue.svg)](#roadmap)
 [![Platform](https://img.shields.io/badge/platform-Windows-0078D6.svg?logo=windows&logoColor=white)](#menjalankan-passsa)
 [![Electron](https://img.shields.io/badge/Electron-39-47848F.svg?logo=electron&logoColor=white)](#tech-stack)
 [![Encryption](https://img.shields.io/badge/encryption-AES--256--GCM-success.svg)](#model-keamanan)
 [![2FA](https://img.shields.io/badge/2FA-TOTP-7050B2.svg)](#metode-login)
 [![Sync](https://img.shields.io/badge/sync-Google%20Drive%20%7C%20S3-4285F4.svg)](#sinkronisasi-cloud)
 
-**Dalam pengembangan · v0.1.6** — runtime desktop saat ini Electron. Tauri v2 masih tahap persiapan migrasi.
+**Dalam pengembangan · v0.1.7** — runtime desktop saat ini Electron. Tauri v2 masih tahap persiapan migrasi.
 
 [Fitur](#fitur-utama) · [Keamanan](#model-keamanan) · [Jalankan](#menjalankan-passsa) · [Roadmap](#roadmap) · [Dokumentasi](#dokumentasi)
 

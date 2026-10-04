@@ -32,6 +32,10 @@ test('bundled Google OAuth config contains no private credential fields', () => 
   assert.deepEqual(Object.keys(config), ['clientId']);
 });
 
+test('signed installer build never publishes implicitly through electron-builder', () => {
+  assert.match(packageJson.scripts['dist:signed'], /--publish never/);
+});
+
 test('self-signed release pins the untrusted signer without installing a root certificate', () => {
   const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'publish-windows-release.yml'), 'utf8');
   const installerQa = fs.readFileSync(path.join(root, 'scripts', 'installer-qa.js'), 'utf8');

@@ -1,6 +1,6 @@
 {
   "name": "passsa",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "PassSa password manager for Windows",
   "author": "PassSa",
   "main": "main.js",
@@ -24,7 +24,7 @@
     "pack": "electron-builder --dir",
     "dist": "npm run dist:signed",
     "dist:unsigned": "electron-builder --win nsis -c.win.signExecutable=false",
-    "dist:signed": "node scripts/verify-signing-config.js && electron-builder --win nsis -c.forceCodeSigning=true",
+    "dist:signed": "node scripts/verify-signing-config.js && electron-builder --win nsis -c.forceCodeSigning=true --publish never",
     "release:audit": "node scripts/release-package-audit.js",
     "qa:installer": "node scripts/release-package-audit.js && node scripts/installer-qa.js"
   },

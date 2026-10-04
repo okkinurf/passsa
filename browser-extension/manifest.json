@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "PassSa Autofill",
-  "version": "0.1.6",
+  "version": "0.1.7",
   "description": "Isi credential PassSa secara aman pada halaman web yang cocok.",
   "permissions": ["activeTab", "scripting", "nativeMessaging", "commands"],
   "background": { "service_worker": "background.js" },

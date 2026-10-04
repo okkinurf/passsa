@@ -15,7 +15,7 @@ Jangan commit certificate atau password ke repository. Simpan sebagai secret CI 
 
 ## Prerelease Authenticode self-signed
 
-Prerelease `v0.1.6` memakai sertifikat self-signed khusus PassSa. Ini menandatangani file untuk memverifikasi integritasnya, tetapi **bukan** sertifikat dari CA publik: Windows pada perangkat lain tidak otomatis mempercayainya, SmartScreen dapat tetap memperingatkan, dan identitas publisher tidak diverifikasi pihak ketiga. Batasi penggunaannya untuk pengujian; jangan memasang sertifikat prerelease ini sebagai Root CA dan jangan gunakan installer untuk credential penting.
+Prerelease `v0.1.7` memakai sertifikat self-signed khusus PassSa. Ini menandatangani file untuk memverifikasi integritasnya, tetapi **bukan** sertifikat dari CA publik: Windows pada perangkat lain tidak otomatis mempercayainya, SmartScreen dapat tetap memperingatkan, dan identitas publisher tidak diverifikasi pihak ketiga. Batasi penggunaannya untuk pengujian; jangan memasang sertifikat prerelease ini sebagai Root CA dan jangan gunakan installer untuk credential penting.
 
 Runner tidak memasang sertifikat ke trust store. QA menerima status `NotTrusted` hanya jika subject dan thumbprint tanda tangan cocok dengan variable yang dipin; status hash mismatch/invalid tetap gagal. Kunci privat PFX/password berada di GitHub Secrets. Untuk rilis publik/stabil, ganti dengan sertifikat Authenticode dari CA tepercaya.
 
@@ -41,9 +41,9 @@ gh secret set WINDOWS_CERTIFICATE_PASSWORD --repo okkinurf/passsa
 gh variable set WINDOWS_CERTIFICATE_SUBJECT --repo okkinurf/passsa --body 'CN=Nama Publisher'
 ```
 
-Setelah tag yang versinya cocok dengan `package.json` tersedia di GitHub, jalankan **Actions → Publish self-signed Windows prerelease** dan isi tag tersebut (versi sekarang `v0.1.6`). Workflow menolak publish jika secrets/subject tidak tersedia, tes gagal, paket membawa fixture development atau file credential, helper/runtime tidak lengkap, atau publisher tidak cocok.
+Setelah tag yang versinya cocok dengan `package.json` tersedia di GitHub, jalankan **Actions → Publish self-signed Windows prerelease** dan isi tag tersebut (versi sekarang `v0.1.7`). Workflow menolak publish jika secrets/subject tidak tersedia, tes gagal, paket membawa fixture development atau file credential, helper/runtime tidak lengkap, atau publisher tidak cocok. Electron Builder dijalankan dengan `--publish never`; workflow mengunggah aset release secara eksplisit pada langkah terpisah.
 
-Tag `v0.1.0` hingga `v0.1.5` mendahului QA yang mem-pin self-signed signer tanpa mengubah trust store; gunakan tag `v0.1.6`. Installer unsigned tidak pernah diunggah. Repository saat ini private, sehingga prerelease hanya tersedia untuk pengguna yang memiliki akses repository.
+Tag `v0.1.0` hingga `v0.1.5` mendahului QA yang mem-pin self-signed signer tanpa mengubah trust store. Tag `v0.1.6` berhasil membangun installer, tetapi electron-builder mencoba publish sendiri dan run gagal sebelum release dibuat; gunakan `v0.1.7`. Installer unsigned tidak pernah diunggah. Repository saat ini private, sehingga prerelease hanya tersedia untuk pengguna yang memiliki akses repository.
 
 ## Azure Trusted Signing
 
