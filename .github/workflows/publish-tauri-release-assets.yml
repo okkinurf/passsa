@@ -1,0 +1,127 @@
+name: Publish Tauri release assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: Successful Tauri desktop build run ID from main
+        required: true
+        type: string
+      tag:
+        description: Existing prerelease tag to attach the assets to
+        required: true
+        type: string
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    name: Attach verified platform installers
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Validate source build and existing prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BUILD_RUN_ID: ${{ inputs.build_run_id }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          if ($env:GITHUB_REF -ne 'refs/heads/main') { throw 'Workflow ini hanya boleh dijalankan dari main.' }
+          $run = gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/$env:BUILD_RUN_ID" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Build run tidak dapat dibaca.' }
+          if ($run.conclusion -ne 'success' -or $run.head_branch -ne 'main') {
+            throw 'Sumber aset harus build Tauri sukses dari branch main.'
+          }
+          $workflow = gh api "repos/$env:GITHUB_REPOSITORY/actions/workflows/$($run.workflow_id)" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $workflow.path -ne '.github/workflows/tauri-desktop-build.yml') {
+            throw 'Run sumber bukan workflow build desktop Tauri yang diharapkan.'
+          }
+          $tagCommit = gh api "repos/$env:GITHUB_REPOSITORY/commits/$env:RELEASE_TAG" --jq .sha
+          if ($LASTEXITCODE -ne 0 -or $tagCommit -ne $run.head_sha) {
+            throw 'Tag release tidak menunjuk ke commit build sumber.'
+          }
+          $isPrerelease = gh release view $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --json isPrerelease --jq .isPrerelease
+          if ($LASTEXITCODE -ne 0 -or $isPrerelease -ne 'true') {
+            throw 'Release tujuan harus sudah ada dan berstatus prerelease.'
+          }
+
+      - name: Download artifacts from the validated build
+        uses: actions/download-artifact@v6
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.build_run_id }}
+          repository: ${{ github.repository }}
+          pattern: PassSa-*
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Verify assets and attach them to the prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag }}
+          WINDOWS_CERTIFICATE_SUBJECT: ${{ vars.WINDOWS_CERTIFICATE_SUBJECT }}
+          WINDOWS_CERTIFICATE_THUMBPRINT: ${{ vars.WINDOWS_CERTIFICATE_THUMBPRINT }}
+        run: |
+          $version = $env:RELEASE_TAG.TrimStart('v')
+          $files = @(Get-ChildItem -LiteralPath 'release-artifacts' -Recurse -File)
+          $installer = @($files | Where-Object { $_.Name -eq "PassSa_${version}_x64-setup.exe" }) | Select-Object -First 1
+          $dmg = @($files | Where-Object { $_.Extension -ieq '.dmg' }) | Select-Object -First 1
+          $appImage = @($files | Where-Object { $_.Extension -ieq '.appimage' }) | Select-Object -First 1
+          $deb = @($files | Where-Object { $_.Extension -ieq '.deb' }) | Select-Object -First 1
+          if (!$installer -or !$dmg -or !$appImage -or !$deb) {
+            throw 'Artifact harus berisi installer Windows, DMG macOS, AppImage, dan paket deb Linux.'
+          }
+
+          $expectedThumbprint = ($env:WINDOWS_CERTIFICATE_THUMBPRINT -replace '\s', '').ToUpperInvariant()
+          $expectedSubject = $env:WINDOWS_CERTIFICATE_SUBJECT.Trim()
+          if ([string]::IsNullOrWhiteSpace($expectedThumbprint) -or [string]::IsNullOrWhiteSpace($expectedSubject)) {
+            throw 'Metadata sertifikat signing Windows tidak tersedia.'
+          }
+          $signature = Get-AuthenticodeSignature -LiteralPath $installer.FullName
+          $signer = $signature.SignerCertificate
+          $actualThumbprint = if ($signer) { ($signer.Thumbprint -replace '\s', '').ToUpperInvariant() } else { '' }
+          $knownUntrustedRoot = $signature.Status -in @('NotTrusted', 'UnknownError') -and $signature.StatusMessage -match '(?i)(certificate chain.*(?:not trusted|untrusted|could not be built)|root certificate.*not trusted)'
+          $signatureIntegrityValid = $signature.Status -eq 'Valid' -or $knownUntrustedRoot
+          if (!$signer -or $actualThumbprint -ne $expectedThumbprint -or $signer.Subject -ne $expectedSubject -or !$signatureIntegrityValid) {
+            throw "Signature installer Windows tidak lolos verifikasi (status=$($signature.Status); subject=$($signer.Subject))."
+          }
+
+          $assetFiles = @($installer, $dmg, $appImage, $deb)
+          $checksumFile = Join-Path $env:RUNNER_TEMP 'SHA256SUMS.txt'
+          $checksumLines = foreach ($asset in $assetFiles) {
+            $hash = (Get-FileHash -LiteralPath $asset.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($asset.Name)"
+          }
+          $checksumLines | Set-Content -LiteralPath $checksumFile -Encoding ascii
+          $uploadPaths = @($assetFiles | ForEach-Object { $_.FullName }) + $checksumFile
+          & gh release upload $env:RELEASE_TAG @uploadPaths --repo $env:GITHUB_REPOSITORY --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Gagal mengunggah aset platform dan checksum.' }
+
+          $notes = @"
+          ## PassSa $env:RELEASE_TAG — Tauri v2
+
+          Pratinjau desktop PassSa dengan vault lokal terenkripsi dan sinkronisasi cloud opsional.
+
+          ### Unduhan
+          - Windows x64: installer NSIS
+          - macOS: disk image DMG (belum ditandatangani/notarized)
+          - Linux x64: AppImage dan paket deb
+          - SHA-256 seluruh installer tersedia di SHA256SUMS.txt
+
+          ### Fitur utama
+          - Credential, secure notes, dan authenticator TOTP terenkripsi.
+          - Quick Access, pencarian, favorit, kategori, dan tag.
+          - Beberapa metode login dan pilihan tema.
+          - Sinkronisasi snapshot terenkripsi melalui Google Drive atau Amazon S3/S3-compatible.
+
+          ### Catatan keamanan
+          Installer Windows ditandatangani dengan sertifikat self-signed. Windows tidak mempercayainya secara default, sehingga SmartScreen mungkin menampilkan peringatan. Tanda tangan memverifikasi integritas, bukan identitas publisher publik.
+
+          Ini prerelease pengembangan dan belum menjalani audit keamanan independen. Uji dengan data non-kritis dan simpan backup terenkripsi. Profil Tauri berbeda dari Electron lama; tidak ada migrasi otomatis.
+          "@
+          gh release edit $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --title "PassSa $env:RELEASE_TAG — Tauri v2 Development Preview" --notes $notes --prerelease
+          if ($LASTEXITCODE -ne 0) { throw 'Aset berhasil diunggah, tetapi catatan release gagal diperbarui.' }
