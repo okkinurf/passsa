@@ -34,7 +34,9 @@ PassSa menyimpan **credential, secure note, dan kode authenticator TOTP** dalam 
 
 ## Unduhan
 
-Versi terbaru saat ini adalah [v0.2.0 — Tauri v2 Development Preview](https://github.com/okkinurf/passsa/releases/tag/v0.2.0). Periksa halaman [Releases](https://github.com/okkinurf/passsa/releases) untuk installer dan checksum terbaru.
+Versi terbaru saat ini adalah [v0.2.1 — Tauri v2 Development Preview](https://github.com/okkinurf/passsa/releases/tag/v0.2.1). Periksa halaman [Releases](https://github.com/okkinurf/passsa/releases) untuk installer dan checksum terbaru.
+
+Rilis ini memperkuat pipeline publikasi dan signing, menangani temuan CodeQL terkait logging, validasi URL/CSP, serta escaping Markdown, dan menambahkan validasi aset/checksum sebelum installer diterbitkan. Lihat [changelog](CHANGELOG.md) untuk rincian.
 
 | Platform | Paket saat ini | Catatan |
 | --- | --- | --- |
