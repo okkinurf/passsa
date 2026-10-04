@@ -34,7 +34,7 @@ Tauri 2 menjadi shell desktop baru. Rust mengelola window, clipboard native, dia
 
 Data Tauri disimpan terpisah di `PassSa Tauri`. Ini perlindungan kompatibilitas: ciphertext/key Electron lama tidak dimodifikasi atau ditafsirkan ulang. Belum ada migrasi profil otomatis; gunakan export/import backup `.passsa` bila ingin memindahkan data.
 
-Workflow `.github/workflows/tauri-desktop-build.yml` menguji pada Windows, Ubuntu, dan macOS serta menghasilkan NSIS, AppImage/deb, dan DMG sebagai CI artifacts. Artifact belum sama dengan GitHub Release. Windows Hello dan minimize-to-tray belum dipetakan pada shell Tauri.
+Workflow `.github/workflows/tauri-desktop-build.yml` menguji dan membangun paket pada runner Windows, Ubuntu, dan macOS. Artifact CI bersifat sementara; `.github/workflows/publish-tauri-release-assets.yml` secara manual memvalidasi run sukses dan kecocokan commit tag sebelum memasang paket ke prerelease. Workflow rilis Electron lama telah dipensiunkan agar tidak dapat menimpa aset Tauri. Windows Hello dan minimize-to-tray belum dipetakan pada shell Tauri.
 
 ## Kontrak keamanan yang tidak boleh dilanggar
 

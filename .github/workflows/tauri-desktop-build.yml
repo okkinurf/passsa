@@ -164,7 +164,7 @@ jobs:
           Write-Output 'Signature Authenticode installer cocok dengan sertifikat PassSa dan integritas file terverifikasi.'
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: PassSa-${{ matrix.artifact }}-${{ github.sha }}
           path: src-tauri/target/release/bundle/**
@@ -226,7 +226,7 @@ jobs:
         run: npm run tauri:build -- --bundles appimage,deb
 
       - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: PassSa-linux-x64-${{ github.sha }}
           path: src-tauri/target/release/bundle/**
