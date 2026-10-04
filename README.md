@@ -6,7 +6,7 @@
 
 **Password manager desktop local-first.** Rahasia tetap di vault lokal terenkripsi; sinkronisasi cloud bersifat opsional.
 
-[Unduh versi terbaru](https://github.com/okkinurf/passsa/releases) · [Fitur](#fitur) · [Keamanan](#keamanan) · [Build dari source](#build-dari-source)
+[Unduhan](#unduhan) · [Fitur](#fitur) · [Keamanan](#keamanan) · [Build dari source](#build-dari-source)
 
 ![Tauri v2](https://img.shields.io/badge/Tauri-v2-24C8DB?logo=tauri&logoColor=white)
 ![Windows, macOS, Linux](https://img.shields.io/badge/desktop-Windows%20%7C%20macOS%20%7C%20Linux-3569a8)
@@ -34,17 +34,32 @@ PassSa menyimpan **credential, secure note, dan kode authenticator TOTP** dalam 
 
 ## Unduhan
 
-Versi terbaru saat ini adalah [v0.2.1 — Tauri v2 Development Preview](https://github.com/okkinurf/passsa/releases/tag/v0.2.1). Periksa halaman [Releases](https://github.com/okkinurf/passsa/releases) untuk installer dan checksum terbaru.
+Versi terbaru saat ini adalah [v0.2.1 — Tauri v2 Development Preview](https://github.com/okkinurf/passsa/releases/tag/v0.2.1). Tautan berikut menuju aset release tersebut:
 
 Rilis ini memperkuat pipeline publikasi dan signing, menangani temuan CodeQL terkait logging, validasi URL/CSP, serta escaping Markdown, dan menambahkan validasi aset/checksum sebelum installer diterbitkan. Lihat [changelog](CHANGELOG.md) untuk rincian.
 
 | Platform | Paket saat ini | Catatan |
 | --- | --- | --- |
-| Windows x64 | NSIS `.exe` | Ditandatangani sertifikat self-signed; Windows dapat menampilkan peringatan SmartScreen. |
-| macOS Apple Silicon (ARM64) | `.dmg` | Belum ditandatangani/notarized; paket Intel belum tersedia. |
-| Linux x64 | `.AppImage`, `.deb` | Memerlukan Secret Service aktif untuk penyimpanan kunci OS. |
+| Windows x64 | [Installer NSIS (`.exe`)](https://github.com/okkinurf/passsa/releases/download/v0.2.1/PassSa_0.2.1_x64-setup.exe) | Ditandatangani sertifikat self-signed; Windows dapat menampilkan peringatan SmartScreen. |
+| macOS Apple Silicon (ARM64) | [Disk image (`.dmg`)](https://github.com/okkinurf/passsa/releases/download/v0.2.1/PassSa_0.2.1_aarch64.dmg) | Belum ditandatangani/notarized; paket Intel belum tersedia. |
+| Linux x64 | [AppImage](https://github.com/okkinurf/passsa/releases/download/v0.2.1/PassSa_0.2.1_amd64.AppImage) · [Debian/Ubuntu (`.deb`)](https://github.com/okkinurf/passsa/releases/download/v0.2.1/PassSa_0.2.1_amd64.deb) | Memerlukan Secret Service aktif untuk penyimpanan kunci OS. |
+| Semua paket | [SHA256SUMS.txt](https://github.com/okkinurf/passsa/releases/download/v0.2.1/SHA256SUMS.txt) | Bandingkan hash installer dengan baris berlabel nama file yang sama. |
 
-`SHA256SUMS.txt` disediakan pada release untuk memeriksa integritas file. Tanda tangan self-signed hanya membantu memverifikasi integritas dengan sertifikat yang benar; ini bukan verifikasi publisher oleh CA publik. Jangan mengabaikan peringatan sistem operasi tanpa memeriksa asal dan checksum file.
+Untuk memeriksa checksum, unduh file `SHA256SUMS.txt` bersama installer yang dipilih, jalankan perintah sesuai OS, lalu cocokkan hasil hash dengan baris nama file yang sama:
+
+```powershell
+(Get-FileHash .\PassSa_0.2.1_x64-setup.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+```
+
+```bash
+# macOS
+shasum -a 256 PassSa_0.2.1_aarch64.dmg
+
+# Linux
+sha256sum PassSa_0.2.1_amd64.AppImage
+```
+
+Di Linux, jadikan AppImage dapat dijalankan bila diperlukan dengan `chmod +x PassSa_0.2.1_amd64.AppImage`. Tanda tangan self-signed membantu memeriksa integritas file dengan sertifikat yang benar, tetapi **bukan** verifikasi publisher oleh CA publik. Jangan mengabaikan peringatan sistem operasi tanpa memeriksa sumber dan checksum.
 
 ## Keamanan
 
@@ -54,6 +69,8 @@ Rilis ini memperkuat pipeline publikasi dan signing, menangani temuan CodeQL ter
 - Login langsung menyimpan kemudahan membuka vault pada perangkat tersebut dan **bukan** pengganti autentikasi pada perangkat bersama.
 - Profil Tauri terpisah dari instalasi Electron lama. Data lama tidak dimigrasikan atau dihapus otomatis; pindahkan vault melalui backup `.passsa`.
 - Dataset dummy dan tombol lewati-login developer hanya tersedia pada jalur debug Tauri; paket release diaudit agar fixture tidak ikut.
+
+**Catatan dependensi Linux:** Tauri/GTK saat ini membawa `glib 0.18.5` secara transitif (RUSTSEC-2024-0429). Kode PassSa tidak memanggil API `VariantStrIter` yang ditandai unsound; alert Dependabot berstatus dismissed `not_used`, **bukan** berarti versi dependensinya sudah ditambal. Rincian dan alasan kompatibilitas ada di [batas yang diketahui](KNOWN-LIMITS.md).
 
 Lihat [Security policy](SECURITY.md), [fitur keamanan dan privasi](docs/SECURITY_FEATURES.md), serta [batas yang diketahui](KNOWN-LIMITS.md). Jangan melaporkan kerentanan lewat issue publik.
 
