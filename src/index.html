@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:"
+      content="default-src 'self'; connect-src ipc: http://ipc.localhost https://api.github.com; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PassSa</title>
@@ -17,7 +17,7 @@
       <div class="app-titlebar-drag-region">
         <img src="assets/passsa-mark.png" alt="" />
         <span>PassSa</span>
-        <span id="titlebar-sync-status" class="titlebar-sync-status disconnected" role="status" aria-live="polite" title="Google Drive belum terhubung"><i class="fa-solid fa-cloud" aria-hidden="true"></i><span>Google Drive belum terhubung</span></span>
+        <span id="titlebar-sync-status" class="titlebar-sync-status disconnected" role="status" aria-live="polite" aria-atomic="true" aria-label="Masuk untuk melihat sinkronisasi" title="Masuk ke vault untuk melihat status Google Drive dan S3."><i class="fa-solid fa-cloud" aria-hidden="true"></i><span>Masuk untuk melihat sinkronisasi</span></span>
       </div>
       <div class="window-controls" role="group" aria-label="Kontrol jendela">
         <button id="window-minimize" class="window-control" type="button" aria-label="Minimalkan" title="Minimalkan"><i class="fa-solid fa-minus" aria-hidden="true"></i></button>
@@ -41,15 +41,15 @@
 
       <section class="form-panel">
         <div class="auth-card">
-          <div class="auth-mark" aria-hidden="true"><img src="assets/passsa-mark.png" alt="PassSa" /></div>
+          <div class="auth-mark"><img src="assets/passsa-mark.png" alt="" aria-hidden="true" /><span>PassSa</span></div>
           <div class="tabs" data-mode="login" role="tablist" aria-label="Autentikasi">
             <button id="login-tab" class="tab active" type="button" role="tab" aria-selected="true">Masuk</button>
             <button id="register-tab" class="tab" type="button" role="tab" aria-selected="false">Daftar</button>
           </div>
 
           <div class="form-heading">
-            <h2 id="form-title">Selamat datang kembali</h2>
-            <p id="form-subtitle">Masuk ke vault lokal Anda.</p>
+            <h2 id="form-title">Masuk ke PassSa</h2>
+            <p id="form-subtitle">Buka vault lokal Anda.</p>
           </div>
 
           <form id="auth-form" novalidate>
@@ -73,8 +73,8 @@
             <button id="hello-login-button" class="secondary-button hello-login-button hidden" type="button"><i class="fa-solid fa-fingerprint" aria-hidden="true"></i> Masuk dengan Windows Hello</button>
             <button id="direct-login-button" class="secondary-button direct-login-button hidden" type="button"><i class="fa-solid fa-unlock-keyhole" aria-hidden="true"></i> Masuk langsung di perangkat ini</button>
             <small id="direct-login-help" class="direct-login-help hidden">Kunci vault dilindungi oleh akun Windows perangkat ini.</small>
-            <button id="dev-bypass-button" class="secondary-button dev-bypass-button hidden" type="button"><i class="fa-solid fa-flask" aria-hidden="true"></i> Lewati login (mode pengembangan)</button>
-            <small id="dev-bypass-help" class="dev-bypass-help hidden">Membuka profil pengembangan sementara, terpisah dari akun utama.</small>
+            <button id="dev-bypass-button" class="secondary-button dev-bypass-button hidden" type="button"><i class="fa-solid fa-flask" aria-hidden="true"></i> Lewati login developer</button>
+            <small id="dev-bypass-help" class="dev-bypass-help hidden">Profil sementara, terpisah dari akun utama.</small>
           </form>
 
         </div>
@@ -225,7 +225,7 @@
           <div class="sidebar-user">
             <div id="user-avatar" class="avatar" data-sidebar-tooltip="Akun pengguna" aria-label="Akun pengguna">U</div>
             <div data-label><strong id="user-username">username</strong><small>Akun testing lokal</small></div>
-            <button id="sync-button" class="sync-button" title="Sinkronkan Google Drive" aria-label="Sinkronkan vault dengan Google Drive"><i class="fa-solid fa-cloud-arrow-up"></i></button>
+            <button id="sync-button" class="sync-button hidden" title="Sinkronkan vault" aria-label="Sinkronkan vault"><i class="fa-solid fa-arrows-rotate" aria-hidden="true"></i></button>
             <button id="settings-button" class="sync-button" title="Pengaturan" aria-label="Buka pengaturan"><i class="fa-solid fa-gear"></i></button>
             <button id="logout-button" class="logout-button" title="Keluar" aria-label="Keluar dan kunci vault">↪</button>
           </div>
@@ -656,6 +656,14 @@
             <option value="dark">Gelap</option>
           </select>
           <small id="settings-theme-help" class="field-help">Mode saat ini mengikuti pengaturan Windows.</small>
+          <div class="theme-opacity-control">
+            <div class="theme-opacity-heading">
+              <label for="settings-opacity">Opasitas jendela utama</label>
+              <output id="settings-opacity-value" for="settings-opacity">100%</output>
+            </div>
+            <input id="settings-opacity" type="range" min="70" max="100" step="1" value="100" aria-describedby="settings-opacity-help" />
+            <small id="settings-opacity-help" class="field-help">Atur transparansi latar; teks tetap jelas. Quick Access tetap solid.</small>
+          </div>
           <div class="theme-palette-picker" role="radiogroup" aria-labelledby="settings-palette-label" aria-describedby="settings-palette-help">
             <div class="theme-palette-heading">
               <span id="settings-palette-label">Palet warna</span>
@@ -988,7 +996,28 @@
           <p id="settings-transfer-message" class="message" role="status" aria-live="polite"></p>
           <small class="field-help">File export tidak dikirim ke Google Drive secara otomatis. Hapus file plaintext setelah selesai digunakan.</small>
         </section>
+        <section class="settings-section settings-section--compact settings-about-section" aria-labelledby="settings-about-heading">
+          <div class="settings-section-heading">
+            <h3 id="settings-about-heading"><i class="fa-solid fa-circle-info" aria-hidden="true"></i> Tentang PassSa</h3>
           </div>
+          <p class="settings-about-copy">Password manager lokal dengan sinkronisasi terenkripsi opsional.</p>
+          <div class="settings-about-details">
+            <div><span>Versi aplikasi</span><strong id="settings-about-version">Memuat…</strong></div>
+            <div><span>Runtime</span><strong id="settings-about-runtime">Tauri v2</strong></div>
+            <div><span>Rilis GitHub</span><strong id="settings-about-latest-version">Belum diperiksa</strong></div>
+            <div><span>Pemeriksaan terakhir</span><strong id="settings-about-checked-at">Belum pernah</strong></div>
+          </div>
+          <p id="settings-about-update-status" class="settings-about-update-status" role="status" aria-live="polite">Pembaruan diperiksa otomatis saat aplikasi dibuka (maksimal sekali sehari).</p>
+          <p id="settings-about-release-summary" class="settings-about-release-summary hidden"></p>
+          <div class="settings-about-actions">
+            <button id="settings-about-check-updates" class="secondary-button compact" type="button"><i class="fa-solid fa-rotate" aria-hidden="true"></i> Periksa pembaruan</button>
+            <button id="settings-about-download-update" class="primary-button compact hidden" type="button"><i class="fa-solid fa-download" aria-hidden="true"></i> Buka halaman rilis</button>
+            <button id="settings-about-github" class="secondary-button compact" type="button"><i class="fa-brands fa-github" aria-hidden="true"></i> GitHub</button>
+            <button id="settings-about-releases" class="secondary-button compact" type="button"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i> Semua rilis</button>
+          </div>
+          <small class="settings-about-note">Versi baru diunduh dari GitHub Releases; pemasangan dilakukan oleh Anda.</small>
+        </section>
+        </div>
           <div class="modal-actions"><button id="close-settings-secondary" class="secondary-button" type="button">Tutup</button></div>
       </section>
     </div>
@@ -1010,6 +1039,7 @@
     </div>
 
     <script src="tauri-bridge.js"></script>
+    <script src="app-updates.js"></script>
     <script src="renderer.js"></script>
   </body>
 </html>

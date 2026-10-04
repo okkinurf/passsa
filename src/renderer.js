@@ -174,6 +174,7 @@ const closeTwoFactorButton = document.querySelector('#close-two-factor');
 const cancelTwoFactorButton = document.querySelector('#cancel-two-factor');
 
 const modalFocusOrigins = new WeakMap();
+let titlebarSyncStatusRequestId = 0;
 const focusableModalSelector = [
   'a[href]', 'button:not([disabled])', 'input:not([disabled])', 'select:not([disabled])',
   'textarea:not([disabled])', '[tabindex]:not([tabindex="-1"])',
@@ -283,10 +284,26 @@ const settingsQuickAccess = document.querySelector('#settings-quick-access');
 const settingsAppMessage = document.querySelector('#settings-app-message');
 const settingsTheme = document.querySelector('#settings-theme');
 const settingsThemeHelp = document.querySelector('#settings-theme-help');
+const settingsOpacity = document.querySelector('#settings-opacity');
+const settingsOpacityValue = document.querySelector('#settings-opacity-value');
+const settingsAboutVersion = document.querySelector('#settings-about-version');
+const settingsAboutRuntime = document.querySelector('#settings-about-runtime');
+const settingsAboutLatestVersion = document.querySelector('#settings-about-latest-version');
+const settingsAboutCheckedAt = document.querySelector('#settings-about-checked-at');
+const settingsAboutUpdateStatus = document.querySelector('#settings-about-update-status');
+const settingsAboutReleaseSummary = document.querySelector('#settings-about-release-summary');
+const settingsAboutCheckUpdates = document.querySelector('#settings-about-check-updates');
+const settingsAboutDownloadUpdate = document.querySelector('#settings-about-download-update');
+const settingsAboutGithub = document.querySelector('#settings-about-github');
+const settingsAboutReleases = document.querySelector('#settings-about-releases');
 const settingsPaletteInputs = [...document.querySelectorAll('input[name="settings-palette"]')];
 const settingsPaletteHelp = document.querySelector('#settings-palette-help');
 const THEME_STORAGE_KEY = 'passsa-theme';
 const PALETTE_STORAGE_KEY = 'passsa-palette';
+const OPACITY_STORAGE_KEY = 'passsa-opacity';
+const UPDATE_CHECK_STORAGE_KEY = 'passsa-update-check-v1';
+const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000;
+const GITHUB_RELEASES_API = 'https://api.github.com/repos/okkinurf/passsa/releases?per_page=100';
 const PALETTE_LABELS = {
   rose: 'Rosewood',
   ocean: 'Ocean',
@@ -302,6 +319,10 @@ const PALETTE_LABELS = {
 const systemThemeQuery = typeof window.matchMedia === 'function'
   ? window.matchMedia('(prefers-color-scheme: dark)')
   : null;
+let currentAppVersion = '';
+let appInfoPromise = null;
+let updateCheckPromise = null;
+let latestReleaseUrl = 'releases';
 const SIDEBAR_WIDTH_KEY = 'passsa-sidebar-width';
 const SIDEBAR_EXPANDED_WIDTH_KEY = 'passsa-sidebar-expanded-width';
 const DEFAULT_SIDEBAR_WIDTH = 260;
@@ -454,6 +475,31 @@ function getThemePreference() {
   }
 }
 
+function normalizeOpacityPreference(value) {
+  const numericValue = Number(value);
+  if (!Number.isFinite(numericValue)) return 100;
+  return Math.min(100, Math.max(70, Math.round(numericValue)));
+}
+
+function getOpacityPreference() {
+  try {
+    const value = localStorage.getItem(OPACITY_STORAGE_KEY);
+    return value === null ? 100 : normalizeOpacityPreference(value);
+  } catch {
+    return 100;
+  }
+}
+
+function applyOpacity(preference = getOpacityPreference()) {
+  const normalized = normalizeOpacityPreference(preference);
+  document.documentElement.style.setProperty('--passsa-opacity', `${normalized}%`);
+  if (settingsOpacity) settingsOpacity.value = String(normalized);
+  if (settingsOpacityValue) settingsOpacityValue.value = `${normalized}%`;
+  try {
+    localStorage.setItem(OPACITY_STORAGE_KEY, String(normalized));
+  } catch { /* Opasitas tetap diterapkan jika penyimpanan preferensi tidak tersedia. */ }
+}
+
 function resolveTheme(preference) {
   return preference === 'system'
     ? (systemThemeQuery?.matches ? 'dark' : 'light')
@@ -512,6 +558,7 @@ function applyTheme(preference = getThemePreference()) {
 }
 
 applyTheme();
+applyOpacity();
 const handleSystemThemeChange = () => {
   if (getThemePreference() === 'system') applyTheme('system');
 };
@@ -716,10 +763,10 @@ function setMode(nextMode) {
   registerTab.classList.toggle('active', registering);
   loginTab.setAttribute('aria-selected', String(!registering));
   registerTab.setAttribute('aria-selected', String(registering));
-  title.textContent = registering ? 'Buat akun testing' : 'Selamat datang kembali';
+  title.textContent = registering ? 'Buat akun PassSa' : 'Masuk ke PassSa';
   subtitle.textContent = registering
-    ? 'Akun ini hanya tersimpan di komputer Anda.'
-    : 'Masuk ke vault lokal Anda.';
+    ? 'Disimpan di perangkat ini.'
+    : 'Buka vault lokal Anda.';
   submitButton.textContent = registering ? 'Buat Akun' : 'Masuk';
   passwordInput.autocomplete = registering ? 'new-password' : 'current-password';
   form.reset();
@@ -1125,12 +1172,92 @@ async function copyTotpSecretFromForm() {
   }
 }
 
-function updateTitlebarSyncStatus(user = currentUser) {
-  const connected = Boolean(user?.googleEmail);
+function renderSidebarSyncAction(user, s3Status) {
+  if (!syncButton) return;
+  const hasProvider = Boolean(user?.googleEmail || (s3Status?.available && s3Status.connected));
+  syncButton.classList.toggle('hidden', !hasProvider);
+  syncButton.closest('.sidebar-user')?.classList.toggle('sync-action-hidden', !hasProvider);
+  if (!hasProvider) {
+    syncButton.removeAttribute('title');
+    syncButton.setAttribute('aria-label', 'Sinkronkan vault');
+    return;
+  }
+
+  let label = 'Sinkronkan vault';
+  const providers = [];
+  if (user.googleEmail) providers.push('Google Drive');
+  if (s3Status?.available && s3Status.connected) providers.push('S3');
+  if (providers.length) label = `Sinkronkan ${providers.join(' dan ')}`;
+  syncButton.title = label;
+  syncButton.setAttribute('aria-label', label);
+}
+
+function renderTitlebarSyncStatus(user, s3Status) {
+  if (!titlebarSyncStatus) return;
+  renderSidebarSyncAction(user, s3Status);
+  const googleEmail = String(user?.googleEmail || '').trim();
+  const driveConnected = Boolean(googleEmail);
+  const icon = titlebarSyncStatus.querySelector('i');
+  const label = titlebarSyncStatus.querySelector('span');
+  let text;
+  let detail;
+  let iconClass;
+
+  if (!user) {
+    text = 'Masuk untuk melihat sinkronisasi';
+    detail = 'Masuk ke vault untuk melihat status Google Drive dan S3.';
+    iconClass = 'fa-solid fa-cloud';
+  } else if (!s3Status.available && !driveConnected) {
+    text = 'Status sinkronisasi tidak tersedia';
+    detail = 'Status Google Drive dan S3 belum dapat diperiksa.';
+    iconClass = 'fa-solid fa-cloud';
+  } else if (!driveConnected && !s3Status.connected) {
+    text = 'Google Drive / S3 belum terhubung';
+    detail = 'Belum ada penyedia sinkronisasi yang terhubung.';
+    iconClass = 'fa-solid fa-cloud-slash';
+  } else if (driveConnected && s3Status.connected) {
+    text = 'Google Drive + S3 terhubung';
+    detail = `Google Drive terhubung sebagai ${googleEmail}; S3 juga terhubung.`;
+    iconClass = 'fa-solid fa-cloud';
+  } else if (driveConnected) {
+    text = 'Google Drive terhubung';
+    detail = `Google Drive terhubung sebagai ${googleEmail}.`;
+    iconClass = 'fa-brands fa-google';
+  } else {
+    text = 'S3 terhubung';
+    detail = 'Sinkronisasi S3 terhubung.';
+    iconClass = 'fa-solid fa-database';
+  }
+
+  const connected = driveConnected || (s3Status.available && s3Status.connected);
   titlebarSyncStatus.classList.toggle('connected', connected);
   titlebarSyncStatus.classList.toggle('disconnected', !connected);
-  titlebarSyncStatus.title = connected ? `Google Drive terhubung sebagai ${user.googleEmail}` : 'Google Drive belum terhubung';
-  titlebarSyncStatus.querySelector('span').textContent = connected ? 'Google Drive terhubung' : 'Google Drive belum terhubung';
+  titlebarSyncStatus.title = detail;
+  titlebarSyncStatus.setAttribute('aria-label', text);
+  if (label) label.textContent = text;
+  if (icon) icon.className = iconClass;
+}
+
+async function updateTitlebarSyncStatus(user = currentUser, s3StatusOverride) {
+  const requestId = ++titlebarSyncStatusRequestId;
+  if (!user) {
+    renderTitlebarSyncStatus(null, { available: false, connected: false });
+    return;
+  }
+  if (s3StatusOverride) {
+    renderTitlebarSyncStatus(user, s3StatusOverride);
+    return;
+  }
+
+  try {
+    const result = await window.passsa.s3SyncInfo?.();
+    if (requestId !== titlebarSyncStatusRequestId) return;
+    if (!result?.ok) throw new Error(result?.message || 'Status S3 tidak tersedia.');
+    renderTitlebarSyncStatus(user, { available: true, connected: Boolean(result.connected) });
+  } catch {
+    if (requestId !== titlebarSyncStatusRequestId) return;
+    renderTitlebarSyncStatus(user, { available: false, connected: false });
+  }
 }
 
 function userAvatarLabel(user) {
@@ -2798,6 +2925,7 @@ async function refreshSettingsS3State() {
     const result = await window.passsa.s3SyncInfo?.();
     if (!result?.ok) throw new Error(result?.message || 'Status S3 tidak tersedia.');
     const connected = Boolean(result.connected);
+    updateTitlebarSyncStatus(currentUser, { available: true, connected });
     const config = result.config || {};
     settingsS3Status.textContent = connected ? 'Terhubung' : 'Belum terhubung';
     settingsS3Details.classList.toggle('hidden', !connected);
@@ -2824,6 +2952,7 @@ async function refreshSettingsS3State() {
       settingsS3Account.textContent = '—';
     }
   } catch (error) {
+    updateTitlebarSyncStatus(currentUser, { available: false, connected: false });
     settingsS3Status.textContent = 'Tidak tersedia';
     settingsS3Details.classList.add('hidden');
     settingsS3Form.classList.remove('hidden');
@@ -2846,6 +2975,150 @@ async function loadAppSettings() {
       : '');
   } catch (error) {
     setInlineMessage(settingsAppMessage, error.message || 'Pengaturan aplikasi gagal dibaca.');
+  }
+}
+
+async function loadAboutAppInfo() {
+  if (appInfoPromise) return appInfoPromise;
+  appInfoPromise = (async () => {
+    try {
+      const info = await window.passsa.appInfo?.();
+      currentAppVersion = info?.version || '';
+      if (settingsAboutVersion) settingsAboutVersion.textContent = currentAppVersion || 'Tidak tersedia';
+      if (settingsAboutRuntime) {
+        settingsAboutRuntime.textContent = info?.runtime === 'tauri-v2'
+          ? 'Tauri v2'
+          : (info?.runtime || 'Desktop');
+      }
+      return info || null;
+    } catch {
+      if (settingsAboutVersion) settingsAboutVersion.textContent = 'Tidak tersedia';
+      if (settingsAboutRuntime) settingsAboutRuntime.textContent = 'Desktop';
+      return null;
+    }
+  })();
+  return appInfoPromise;
+}
+
+function formatUpdateCheckTime(value) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime())
+    ? 'Belum pernah'
+    : new Intl.DateTimeFormat('id-ID', { dateStyle: 'short', timeStyle: 'short' }).format(date);
+}
+
+function readCachedUpdateCheck() {
+  try {
+    const cached = JSON.parse(localStorage.getItem(UPDATE_CHECK_STORAGE_KEY) || 'null');
+    return cached && Number.isFinite(cached.checkedAt) ? cached : null;
+  } catch {
+    return null;
+  }
+}
+
+function setAboutUpdateStatus(message, state = '') {
+  if (!settingsAboutUpdateStatus) return;
+  settingsAboutUpdateStatus.textContent = message;
+  settingsAboutUpdateStatus.classList.remove('is-update-available', 'is-update-up-to-date', 'is-update-error');
+  if (state) settingsAboutUpdateStatus.classList.add(`is-update-${state}`);
+}
+
+function renderUpdateCheck(cached, { checkedNow = false } = {}) {
+  if (!cached) return;
+  if (settingsAboutLatestVersion) settingsAboutLatestVersion.textContent = cached.version || 'Tidak ditemukan';
+  if (settingsAboutCheckedAt) settingsAboutCheckedAt.textContent = formatUpdateCheckTime(cached.checkedAt);
+  if (settingsAboutReleaseSummary) {
+    const summary = String(cached.summary || '').trim();
+    settingsAboutReleaseSummary.textContent = summary;
+    settingsAboutReleaseSummary.classList.toggle('hidden', !summary);
+  }
+  latestReleaseUrl = 'releases';
+  const comparison = window.PassSaUpdates?.compareVersions(currentAppVersion, cached.version);
+  if (comparison !== null && comparison < 0) {
+    setAboutUpdateStatus(`Versi baru tersedia: ${cached.version}${cached.prerelease ? ' (prerelease)' : ''}.`, 'available');
+    settingsAboutDownloadUpdate?.classList.remove('hidden');
+  } else {
+    settingsAboutDownloadUpdate?.classList.add('hidden');
+    if (comparison !== null && comparison > 0) {
+      setAboutUpdateStatus(`Versi lokal ${currentAppVersion} lebih baru daripada rilis publik ${cached.version}.`, 'up-to-date');
+    } else if (comparison === 0) {
+      setAboutUpdateStatus(checkedNow ? 'Anda sudah menggunakan versi terbaru.' : 'Versi yang digunakan sudah terbaru.', 'up-to-date');
+    } else {
+      setAboutUpdateStatus(`Rilis GitHub terbaru: ${cached.version}. Versi aplikasi belum dapat dibandingkan.`);
+    }
+  }
+}
+
+async function checkAppUpdates({ force = false } = {}) {
+  if (updateCheckPromise) return updateCheckPromise;
+  if (!window.passsa?.isTauri) {
+    setAboutUpdateStatus('Pemeriksaan versi tersedia saat PassSa dijalankan sebagai aplikasi desktop.');
+    return null;
+  }
+  const cached = readCachedUpdateCheck();
+  if (!force && cached && Date.now() - cached.checkedAt < UPDATE_CHECK_INTERVAL_MS) {
+    renderUpdateCheck(cached);
+    return cached;
+  }
+  updateCheckPromise = (async () => {
+    if (settingsAboutCheckUpdates) settingsAboutCheckUpdates.disabled = true;
+    setAboutUpdateStatus('Memeriksa versi terbaru di GitHub…');
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => controller.abort(), 12000);
+    try {
+      const response = await fetch(GITHUB_RELEASES_API, {
+        headers: {
+          Accept: 'application/vnd.github+json',
+          'X-GitHub-Api-Version': '2026-03-10',
+        },
+        cache: 'no-store',
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error(`GitHub merespons ${response.status}`);
+      const releases = await response.json();
+      if (!Array.isArray(releases)) throw new Error('Daftar rilis tidak valid.');
+      const candidates = releases
+        .filter((release) => !release.draft && window.PassSaUpdates?.parseVersion(release.tag_name))
+        .sort((left, right) => window.PassSaUpdates.compareVersions(right.tag_name, left.tag_name));
+      const release = candidates[0];
+      if (!release) throw new Error('Belum ada rilis dengan nomor versi yang valid.');
+      const summary = String(release.body || release.name || '')
+        .replace(/\r/g, '')
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        .replace(/[`*_>#]/g, '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 240);
+      const result = {
+        version: release.tag_name.replace(/^v/, ''),
+        prerelease: Boolean(release.prerelease),
+        summary,
+        checkedAt: Date.now(),
+      };
+      try { localStorage.setItem(UPDATE_CHECK_STORAGE_KEY, JSON.stringify(result)); } catch { /* local cache is optional */ }
+      renderUpdateCheck(result, { checkedNow: true });
+      return result;
+    } catch {
+      if (cached) renderUpdateCheck(cached);
+      setAboutUpdateStatus(cached
+        ? 'Pemeriksaan gagal. Menampilkan informasi pemeriksaan terakhir; coba lagi saat online.'
+        : 'Tidak dapat memeriksa versi sekarang. Periksa koneksi lalu coba lagi.', 'error');
+      return null;
+    } finally {
+      window.clearTimeout(timeout);
+      if (settingsAboutCheckUpdates) settingsAboutCheckUpdates.disabled = false;
+      updateCheckPromise = null;
+    }
+  })();
+  return updateCheckPromise;
+}
+
+async function openAboutLink(destination) {
+  try {
+    const result = await window.passsa.openExternal?.(destination);
+    if (result?.ok === false) throw new Error(result.message || 'Tautan tidak dapat dibuka.');
+  } catch (error) {
+    setAboutUpdateStatus(error.message || 'Tautan tidak dapat dibuka.', 'error');
   }
 }
 
@@ -2873,7 +3146,7 @@ async function saveAppSettings() {
   }
 }
 
-function openSettings() {
+function openSettings({ s3UnlockMessage = '', s3NoticeMessage = '' } = {}) {
   settingsGoogleChallengeId = null;
   settingsGooglePassword.value = '';
   changePasswordForm.reset();
@@ -2893,9 +3166,21 @@ function openSettings() {
   updateTransferFormatFields();
   setSettingsMessage('');
   applyTheme(getThemePreference());
+  applyOpacity(getOpacityPreference());
   applyPalette(getPalettePreference());
+  loadAboutAppInfo().then(() => {
+    const cachedUpdateCheck = readCachedUpdateCheck();
+    if (cachedUpdateCheck) renderUpdateCheck(cachedUpdateCheck);
+  });
   refreshSettingsGoogleState();
-  refreshSettingsS3State();
+  const s3Refresh = refreshSettingsS3State();
+  if (s3UnlockMessage || s3NoticeMessage) {
+    s3Refresh.then(() => {
+      if (s3UnlockMessage) settingsS3PasswordPanel.classList.remove('hidden');
+      setInlineMessage(settingsS3Message, s3UnlockMessage || s3NoticeMessage);
+      if (s3UnlockMessage) requestAnimationFrame(() => settingsS3UnlockPassword.focus());
+    });
+  }
   rememberModalFocus(settingsModal);
   settingsModal.classList.remove('hidden');
   loadAppSettings();
@@ -3296,24 +3581,83 @@ twoFactorModal.addEventListener('click', (event) => {
 });
 
 syncButton.addEventListener('click', async () => {
-  if (!currentUser?.googleEmail) {
-    showVaultNotice('Hubungkan Google Drive melalui Pengaturan terlebih dahulu.', true);
-    return;
-  }
   syncButton.disabled = true;
+  syncButton.setAttribute('aria-busy', 'true');
+  const originalIcon = syncButton.innerHTML;
+  let s3Status = { available: false, connected: false };
+  syncButton.innerHTML = '<i class="fa-solid fa-arrows-rotate fa-spin" aria-hidden="true"></i>';
+  syncButton.title = 'Memeriksa penyedia sinkronisasi…';
+  syncButton.setAttribute('aria-label', 'Memeriksa penyedia sinkronisasi');
   try {
-    const result = await window.passsa.syncNow();
-    showVaultNotice(result.message || 'Sinkronisasi selesai.', !result.ok);
-    if (result.status === 'downloaded') await loadItems();
+    const driveConnected = Boolean(currentUser?.googleEmail);
+    let s3StatusError = '';
+    try {
+      const status = await window.passsa.s3SyncInfo?.();
+      if (!status?.ok) throw new Error(status?.message || 'Status S3 tidak tersedia.');
+      s3Status = { available: true, connected: Boolean(status.connected) };
+    } catch (error) {
+      s3StatusError = error.message || 'Status S3 tidak tersedia.';
+    }
+    renderTitlebarSyncStatus(currentUser, s3Status);
+
+    const providers = [];
+    if (driveConnected) providers.push('Google Drive');
+    if (s3Status.connected) providers.push('S3');
+    if (!providers.length) {
+      const message = s3StatusError
+        ? 'Status sinkronisasi tidak tersedia. Periksa koneksi Google Drive atau S3 di Pengaturan.'
+        : 'Google Drive atau S3 belum terhubung. Hubungkan salah satu penyedia di sini.';
+      openSettings({ s3NoticeMessage: message });
+      return;
+    }
+
+    const outcomes = [];
+    for (const provider of providers) {
+      try {
+        const result = provider === 'Google Drive'
+          ? await window.passsa.syncNow()
+          : await window.passsa.s3SyncNow();
+        if (provider === 'S3' && result?.status === 'requires-password') {
+          const message = result.message || 'Masukkan password vault untuk melanjutkan sinkronisasi S3.';
+          const priorResults = outcomes.map((outcome) => `${outcome.provider}: ${outcome.message}`);
+          showVaultNotice([...priorResults, `S3: ${message}`].join(' · '), true);
+          openSettings({ s3UnlockMessage: message });
+          return;
+        }
+        if (!result?.ok && result?.status !== 'conflict') {
+          throw new Error(result?.message || `Sinkronisasi ${provider} gagal.`);
+        }
+        if (result.status === 'downloaded') await loadItems();
+        outcomes.push({
+          provider,
+          ok: Boolean(result.ok),
+          message: result.message || (result.ok ? 'sinkronisasi selesai' : 'perlu penanganan'),
+        });
+      } catch (error) {
+        outcomes.push({ provider, ok: false, message: error.message || 'sinkronisasi gagal' });
+      }
+    }
+    showVaultNotice(
+      outcomes.map((outcome) => `${outcome.provider}: ${outcome.message}`).join(' · '),
+      outcomes.some((outcome) => !outcome.ok),
+    );
   } catch (error) {
-    showVaultNotice(error.message || 'Sinkronisasi Google Drive gagal.', true);
+    showVaultNotice(error.message || 'Sinkronisasi gagal.', true);
   } finally {
+    syncButton.innerHTML = originalIcon;
+    syncButton.removeAttribute('aria-busy');
+    renderSidebarSyncAction(currentUser, s3Status);
     syncButton.disabled = false;
   }
 });
 
 settingsButton.addEventListener('click', openSettings);
+settingsAboutCheckUpdates?.addEventListener('click', () => checkAppUpdates({ force: true }));
+settingsAboutDownloadUpdate?.addEventListener('click', () => openAboutLink(latestReleaseUrl));
+settingsAboutGithub?.addEventListener('click', () => openAboutLink('repository'));
+settingsAboutReleases?.addEventListener('click', () => openAboutLink('releases'));
 settingsTheme?.addEventListener('change', () => applyTheme(settingsTheme.value));
+settingsOpacity?.addEventListener('input', () => applyOpacity(settingsOpacity.value));
 settingsPaletteInputs.forEach((input) => input.addEventListener('change', () => applyPalette(input.value)));
 closeSettingsButton.addEventListener('click', closeSettings);
 closeSettingsSecondaryButton.addEventListener('click', closeSettings);
@@ -4546,6 +4890,7 @@ window.passsa.onQuickAccessOpen(async (id) => {
 });
 
 window.passsa.session().then((user) => {
-  if (user) showVault(user);
-});
+  if (user) return showVault(user);
+  return window.passsa.setWindowMode?.('auth');
+}).catch(() => window.passsa.setWindowMode?.('auth'));
 loadDirectLoginStatus();

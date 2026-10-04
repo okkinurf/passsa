@@ -15,7 +15,7 @@ mengatur tampilan, service mengatur use-case, dan storage/core menjaga data.
 | `src/storage/` | Atomic JSON dan penyimpanan token/kunci | Jangan menyimpan plaintext secret; gunakan `safeStorage`/envelope terenkripsi. |
 | `src/renderer.js` | Orkestrasi event UI dan render state | Jangan menambahkan akses filesystem/Node. Escape data sebelum `innerHTML`. |
 | `src/quick-access.*` | UI Quick Access terisolasi | Hanya gunakan API Quick Access yang diekspos preload khusus. |
-| `src-tauri/` | Shell Tauri v2 dan command non-secret | Jangan mengaktifkan runtime Tauri sebelum backend Rust untuk vault selesai dipindahkan. |
+| `src-tauri/` | Shell Tauri v2, command terbatas, penyimpanan kunci OS, serta backend Node sidecar kompatibilitas | Renderer hanya berbicara melalui capability dan allowlist IPC. Jangan kirim secret clipboard ke renderer atau membuka command arbitrer. |
 | `scripts/` | Tool QA, seed, packaging, dan native helper | Gunakan helper bersama di `scripts/lib/runtime.js`; script harus gagal dengan pesan yang dapat ditindaklanjuti. |
 | `test/` | Unit/integration test service dan storage | Satu file test per modul/use-case utama. |
 
@@ -26,7 +26,15 @@ mengatur tampilan, service mengatur use-case, dan storage/core menjaga data.
 3. Tambahkan IPC handler di `main.js`, lalu expose API minimal di `preload.js`.
 4. Tambahkan render/event di `src/renderer.js` atau Quick Access.
 5. Tambahkan skenario E2E untuk jalur pengguna utama di `scripts/e2e-smoke.js`.
-6. Jalankan `npm run qa:full`, kemudian `npm run pack` atau pipeline release.
+6. Jalankan `npm run qa:full`; untuk desktop Tauri gunakan `npm run tauri:dev` dan `npm run tauri:build`.
+
+## Runtime desktop Tauri
+
+Tauri 2 menjadi shell desktop baru. Rust mengelola window, clipboard native, dialog file, shortcut global, startup, dan keyring sistem. Service vault lama tetap dijalankan sebagai Node sidecar terikat melalui JSONL RPC yang dibatasi channel. Kunci enkripsi diambil dari keyring OS dan hanya dikirim ke sidecar lewat stdin privat—tidak diekspos ke renderer.
+
+Data Tauri disimpan terpisah di `PassSa Tauri`. Ini perlindungan kompatibilitas: ciphertext/key Electron lama tidak dimodifikasi atau ditafsirkan ulang. Belum ada migrasi profil otomatis; gunakan export/import backup `.passsa` bila ingin memindahkan data.
+
+Workflow `.github/workflows/tauri-desktop-build.yml` menguji pada Windows, Ubuntu, dan macOS serta menghasilkan NSIS, AppImage/deb, dan DMG sebagai CI artifacts. Artifact belum sama dengan GitHub Release. Windows Hello dan minimize-to-tray belum dipetakan pada shell Tauri.
 
 ## Kontrak keamanan yang tidak boleh dilanggar
 

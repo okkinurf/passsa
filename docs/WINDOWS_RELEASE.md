@@ -1,6 +1,12 @@
 # Release Windows PassSa
 
-Build produksi sengaja gagal jika credential code signing tidak tersedia.
+## Status build Tauri v2 saat ini
+
+Source saat ini adalah PassSa v0.2.0 berbasis Tauri v2. Installer Windows lokal dibuat dengan `npm run tauri:build` di `src-tauri/target/release/bundle/nsis/PassSa_0.2.0_x64-setup.exe`. Build lokal ini unsigned dan belum dipublikasikan. Workflow `.github/workflows/tauri-desktop-build.yml` membuat artifact Windows, macOS, dan Linux di CI; workflow tersebut tidak membuat GitHub Release.
+
+Petunjuk di bawah bagian ini menjelaskan pipeline Electron Authenticode untuk prerelease lama v0.1.8 dan sebelumnya. Jangan gunakan workflow Electron tersebut untuk memaketkan v0.2.0.
+
+Build produksi Electron lama sengaja gagal jika credential code signing tidak tersedia. Proses build Tauri v2 dijelaskan pada workflow Tauri di atas.
 
 ## Certificate Authenticode (PFX/P12)
 
@@ -23,7 +29,7 @@ Runner tidak memasang sertifikat ke trust store. QA menerima `NotTrusted`, atau 
 
 Workflow `.github/workflows/publish-windows-release.yml` membuat installer NSIS bertanda tangan self-signed, mengaudit isi paket, memverifikasi tanda tangan, membuat checksum SHA-256, lalu membuat atau memperbarui prerelease GitHub dengan kedua asset tersebut.
 
-Siapkan tiga nilai berikut di repository `okkinurf/passsa`:
+Siapkan empat nilai berikut di repository `okkinurf/passsa`:
 
 - Secret `WINDOWS_CERTIFICATE_BASE64`: Base64 dari PFX Authenticode.
 - Secret `WINDOWS_CERTIFICATE_PASSWORD`: password PFX.
@@ -41,9 +47,9 @@ gh secret set WINDOWS_CERTIFICATE_PASSWORD --repo okkinurf/passsa
 gh variable set WINDOWS_CERTIFICATE_SUBJECT --repo okkinurf/passsa --body 'CN=Nama Publisher'
 ```
 
-Setelah tag yang versinya cocok dengan `package.json` tersedia di GitHub, jalankan **Actions → Publish self-signed Windows prerelease** dan isi tag tersebut (versi sekarang `v0.1.8`). Workflow menolak publish jika secrets/subject tidak tersedia, tes gagal, paket membawa fixture development atau file credential, helper/runtime tidak lengkap, atau publisher tidak cocok. Electron Builder dijalankan dengan `--publish never`; workflow mengunggah aset release secara eksplisit pada langkah terpisah.
+Untuk pipeline Electron historis v0.1.8: setelah tag yang versinya cocok dengan `package.json` tersedia di GitHub, jalankan **Actions → Publish self-signed Windows prerelease** dan isi tag tersebut. Workflow menolak publish jika secrets/subject tidak tersedia, tes gagal, paket membawa fixture development atau file credential, helper/runtime tidak lengkap, atau publisher tidak cocok. Electron Builder dijalankan dengan `--publish never`; workflow mengunggah aset release secara eksplisit pada langkah terpisah.
 
-Tag `v0.1.0` hingga `v0.1.5` mendahului QA yang mem-pin self-signed signer tanpa mengubah trust store. Tag `v0.1.6` gagal karena electron-builder mencoba publish sendiri, sementara `v0.1.7` membangun installer tetapi pemeriksaan status sertifikat terlalu ketat; gunakan `v0.1.8`. Installer unsigned tidak pernah diunggah. Repository saat ini private, sehingga prerelease hanya tersedia untuk pengguna yang memiliki akses repository.
+Tag `v0.1.0` hingga `v0.1.5` mendahului QA yang mem-pin self-signed signer tanpa mengubah trust store. Tag `v0.1.6` gagal karena electron-builder mencoba publish sendiri, sementara `v0.1.7` membangun installer tetapi pemeriksaan status sertifikat terlalu ketat; gunakan `v0.1.8`. Installer unsigned tidak pernah diunggah. Repository saat ini public, jadi prerelease dapat dilihat siapa saja; self-signed tetap dapat memunculkan peringatan Windows dan tidak memverifikasi publisher melalui CA publik.
 
 ## Azure Trusted Signing
 

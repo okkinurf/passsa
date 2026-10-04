@@ -1,7 +1,7 @@
 {
   "name": "passsa",
-  "version": "0.1.8",
-  "description": "PassSa password manager for Windows",
+  "version": "0.2.0",
+  "description": "PassSa local-first password manager for Windows, macOS, and Linux",
   "author": "PassSa",
   "main": "main.js",
   "scripts": {
@@ -16,9 +16,11 @@
     "qa:full": "npm run qa && npm run qa:tauri && node scripts/syntax-check.js",
     "tauri:config": "node scripts/tauri-config-test.js",
     "tauri:doctor": "node scripts/tauri-doctor.js",
-    "qa:tauri": "npm run tauri:config && npm run tauri:doctor",
-    "tauri:dev": "node scripts/tauri-run.js dev",
-    "tauri:build": "node scripts/tauri-run.js build",
+    "qa:tauri": "npm run tauri:config && npm run tauri:doctor && npm run tauri:prepare && node scripts/tauri-package-audit.js && node scripts/tauri-backend-smoke.js",
+    "tauri:check": "npm run tauri:prepare && cargo check --manifest-path src-tauri/Cargo.toml",
+    "tauri:prepare": "node scripts/prepare-tauri-runtime.js --define-tauri-backend",
+    "tauri:dev": "npm run tauri:prepare && node scripts/tauri-run.js dev",
+    "tauri:build": "npm run tauri:prepare && node scripts/tauri-run.js build",
     "create-test-user": "electron scripts/create-test-user.js",
     "seed-dummy-vault": "electron scripts/seed-dummy-vault.js",
     "pack": "electron-builder --dir",
@@ -30,8 +32,10 @@
   },
   "devDependencies": {
     "@electron/asar": "^3.4.1",
-    "electron": "^39.8.10",
-    "electron-builder": "^26.0.12"
+    "@tauri-apps/cli": "^2.12.1",
+    "electron": "^44.5.1",
+    "electron-builder": "^26.0.12",
+    "esbuild": "^0.28.2"
   },
   "build": {
     "appId": "id.passsa.app",

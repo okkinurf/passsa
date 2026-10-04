@@ -15,10 +15,16 @@ test('release package explicitly excludes development data and QA scripts', () =
   assert.ok(!files.includes('test/**/*'));
 });
 
-test('development dummy data is loaded only by the unpackaged skip-login profile', () => {
+test('developer bypass is debug-only and dummy data stays out of Tauri', () => {
   const mainSource = fs.readFileSync(path.join(root, 'main.js'), 'utf8');
-  assert.match(mainSource, /const devSkipLoginMode = !app\.isPackaged && process\.argv\.includes\('--passsa-dev-skip-login'\);/);
-  assert.match(mainSource, /devSkipLoginMode\s*\?\s*require\('\.\/src\/dev\/dummy-vault-data'\)/);
+  const adapterSource = fs.readFileSync(path.join(root, 'src-tauri', 'backend', 'electron-adapter.cjs'), 'utf8');
+  const tauriSource = fs.readFileSync(path.join(root, 'src-tauri', 'src', 'lib.rs'), 'utf8');
+  assert.match(mainSource, /const devSkipLoginMode = !app\.isPackaged && \(tauriBackendMode\s*\? app\.devBypassEnabled === true\s*: process\.argv\.includes\('--passsa-dev-skip-login'\)\);/);
+  assert.match(mainSource, /!tauriBackendMode && devSkipLoginMode\s*\?\s*require\('\.\/src\/dev\/dummy-vault-data'\)/);
+  assert.match(mainSource, /if \(tauriBackendMode \|\| app\.isPackaged \|\| !devSkipLoginMode\) return;/);
+  assert.match(adapterSource, /app\.devBypassEnabled = Boolean\(bootstrap\.devBypassEnabled && !bootstrap\.packaged\);/);
+  assert.match(tauriSource, /"devBypassEnabled": cfg!\(debug_assertions\)/);
+  assert.match(tauriSource, /PassSa-Tauri-Dev-/);
 });
 
 test('local Authenticode files and AWS credential directories are ignored', () => {
