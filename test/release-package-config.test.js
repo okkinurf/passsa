@@ -41,6 +41,8 @@ test('self-signed release pins the untrusted signer without installing a root ce
   const installerQa = fs.readFileSync(path.join(root, 'scripts', 'installer-qa.js'), 'utf8');
   assert.match(workflow, /PASSA_ALLOW_UNTRUSTED_SIGNER: 'true'/);
   assert.match(installerQa, /allowUntrustedSigner && signature\.Status === 'NotTrusted'/);
+  assert.match(installerQa, /signature\.Status === 'UnknownError' && knownUntrustedRoot/);
+  assert.match(installerQa, /StatusMessage=\$signature\.StatusMessage/);
   assert.doesNotMatch(workflow, /Cert:\\CurrentUser\\Root/);
   assert.match(workflow, /WINDOWS_CERTIFICATE_THUMBPRINT/);
   assert.match(workflow, /self-signed and is not trusted by Windows by default/i);

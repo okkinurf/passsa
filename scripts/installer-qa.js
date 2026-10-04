@@ -31,7 +31,7 @@ const allowUntrustedSigner = process.env.PASSA_ALLOW_UNTRUSTED_SIGNER === 'true'
 const signingTargets = [installer, unpackedExe, helloHelper];
 const signatures = [];
 for (const target of signingTargets) {
-  const command = `$ErrorActionPreference='Stop'; $signature = Get-AuthenticodeSignature -LiteralPath '${target.replaceAll("'", "''")}'; [PSCustomObject]@{ Status=$signature.Status.ToString(); Subject=$signature.SignerCertificate.Subject; Thumbprint=$signature.SignerCertificate.Thumbprint } | ConvertTo-Json -Compress`;
+  const command = `$ErrorActionPreference='Stop'; $signature = Get-AuthenticodeSignature -LiteralPath '${target.replaceAll("'", "''")}'; [PSCustomObject]@{ Status=$signature.Status.ToString(); StatusMessage=$signature.StatusMessage; Subject=$signature.SignerCertificate.Subject; Thumbprint=$signature.SignerCertificate.Thumbprint } | ConvertTo-Json -Compress`;
   const result = spawnSync('pwsh.exe', ['-NoProfile', '-Command', command], { encoding: 'utf8' });
   if (result.status !== 0 || !result.stdout.trim()) {
     console.error(result.stderr || `Authenticode tidak dapat diverifikasi: ${path.basename(target)}.`);
@@ -39,10 +39,12 @@ for (const target of signingTargets) {
   }
   const signature = JSON.parse(result.stdout.trim());
   signatures.push({ target: path.basename(target), ...signature });
+  const knownUntrustedRoot = /(?:certificate chain.*(?:not trusted|untrusted)|root certificate.*not trusted)/i.test(signature.StatusMessage || '');
   const trustedOrPinnedSelfSigned = signature.Status === 'Valid'
-    || (allowUntrustedSigner && signature.Status === 'NotTrusted');
+    || (allowUntrustedSigner && signature.Status === 'NotTrusted')
+    || (allowUntrustedSigner && signature.Status === 'UnknownError' && knownUntrustedRoot);
   if (!trustedOrPinnedSelfSigned && !allowUnsigned) {
-    console.error(`${path.basename(target)} belum ditandatangani secara valid (status: ${signature.Status}).`);
+    console.error(`${path.basename(target)} belum ditandatangani secara valid (status: ${signature.Status}; pesan: ${signature.StatusMessage || 'tidak tersedia'}).`);
     process.exit(1);
   }
   if (expectedSubject && signature.Subject !== expectedSubject) {
