@@ -118,7 +118,7 @@ Kontribusi dan laporan bug dipersilakan. Baca panduan kontribusi terlebih dahulu
 
 ## Lisensi
 
-Repository ini belum memiliki file lisensi. Hak penggunaan ulang, modifikasi, dan distribusi kode belum diberikan; jangan menganggap PassSa berlisensi Apache hanya karena Tervia menggunakannya.
+Repository ini belum memiliki file lisensi. Hak penggunaan ulang, modifikasi, dan distribusi kode belum dinyatakan melalui lisensi open-source.
 
 <div align="center">
 
