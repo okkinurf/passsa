@@ -133,6 +133,8 @@ jobs:
       - name: Verify Windows signatures
         if: runner.os == 'Windows'
         shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_SUBJECT: ${{ vars.WINDOWS_CERTIFICATE_SUBJECT }}
         run: |
           $thumbprint = $env:TAURI_CERTIFICATE_THUMBPRINT
           if ([string]::IsNullOrWhiteSpace($thumbprint)) {
@@ -143,17 +145,23 @@ jobs:
           $version = node -p "require('./package.json').version"
           if ($LASTEXITCODE -ne 0) { throw 'Versi paket tidak dapat dibaca untuk memeriksa artifact.' }
           $installer = "src-tauri/target/release/bundle/nsis/PassSa_${version}_x64-setup.exe"
-          $files = @('src-tauri/target/release/passsa.exe', $installer)
+          if (!(Test-Path -LiteralPath $installer)) { throw "Installer Windows tidak ditemukan: $installer." }
+          # Tauri signs a bundle-specific patched executable and restores the standalone build output afterward.
+          # Verify the exact NSIS installer that users download rather than that restored intermediate executable.
+          $files = @($installer)
           foreach ($file in $files) {
             $signature = Get-AuthenticodeSignature -LiteralPath $file
             $signer = $signature.SignerCertificate
             $actualThumbprint = if ($signer) { ($signer.Thumbprint -replace '\s', '').ToUpperInvariant() } else { '<tidak ditemukan>' }
-            if (!$signer -or $actualThumbprint -ne $thumbprint) {
+            $expectedSubject = $env:WINDOWS_CERTIFICATE_SUBJECT.Trim()
+            $knownUntrustedRoot = $signature.Status -in @('NotTrusted', 'UnknownError') -and $signature.StatusMessage -match '(?i)(certificate chain.*(?:not trusted|untrusted|could not be built)|root certificate.*not trusted)'
+            $signatureIntegrityValid = $signature.Status -eq 'Valid' -or $knownUntrustedRoot
+            if (!$signer -or $actualThumbprint -ne $thumbprint -or $signer.Subject -ne $expectedSubject -or !$signatureIntegrityValid) {
               $subject = if ($signer) { $signer.Subject } else { '<tidak ditemukan>' }
               throw "Signature sertifikat PassSa tidak cocok pada $file (status=$($signature.Status); pesan=$($signature.StatusMessage); subject=$subject; thumbprint=$actualThumbprint)."
             }
           }
-          Write-Output 'Signature Authenticode binary dan installer cocok dengan thumbprint PassSa.'
+          Write-Output 'Signature Authenticode installer cocok dengan sertifikat PassSa dan integritas file terverifikasi.'
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v6
