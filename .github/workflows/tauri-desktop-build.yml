@@ -42,7 +42,7 @@ jobs:
 
     steps:
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -50,7 +50,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -144,7 +144,7 @@ jobs:
           Write-Output 'Signature Authenticode binary dan installer cocok dengan thumbprint PassSa.'
 
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: PassSa-${{ matrix.artifact }}-${{ github.sha }}
           path: src-tauri/target/release/bundle/**
@@ -180,7 +180,7 @@ jobs:
             tar wget
 
       - name: Check out source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           persist-credentials: false
 
@@ -188,7 +188,7 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
 
       - name: Install Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
           node-version: 22
           cache: npm
@@ -206,7 +206,7 @@ jobs:
         run: npm run tauri:build -- --bundles appimage,deb
 
       - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: PassSa-linux-x64-${{ github.sha }}
           path: src-tauri/target/release/bundle/**

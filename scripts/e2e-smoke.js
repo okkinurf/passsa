@@ -523,6 +523,37 @@ app.whenReady().then(async () => {
   assert(await win.webContents.executeJavaScript("document.querySelector('#item-count').textContent === '1 item'"), 'Filter Authenticator tidak memfilter item TOTP.');
   await win.webContents.executeJavaScript("document.querySelector('#settings-button').click()");
   assert(await win.webContents.executeJavaScript("document.querySelector('#settings-theme') && document.querySelector('#settings-theme').value === 'system'"), 'Pilihan tema Ikuti Windows tidak tampil sebagai default.');
+  await win.webContents.executeJavaScript("(() => { const opacity = document.querySelector('#settings-opacity'); opacity.value = '70'; opacity.dispatchEvent(new Event('input', { bubbles: true })); })()");
+  const settingsLayout = await win.webContents.executeJavaScript(`(() => {
+    const card = document.querySelector('.settings-modal-card');
+    const label = document.querySelector('label[for="settings-theme"]');
+    const select = document.querySelector('#settings-theme');
+    const palette = document.querySelector('.theme-palette-picker');
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    const alpha = (node) => {
+      context.clearRect(0, 0, 1, 1);
+      context.fillStyle = getComputedStyle(node).backgroundColor;
+      context.fillRect(0, 0, 1, 1);
+      return context.getImageData(0, 0, 1, 1).data[3];
+    };
+    const cardRect = card.getBoundingClientRect();
+    const labelRect = label.getBoundingClientRect();
+    const selectRect = select.getBoundingClientRect();
+    const paletteRect = palette.getBoundingClientRect();
+    return {
+      labelAboveSelect: labelRect.bottom <= selectRect.top + 1,
+      controlsInsideCard: selectRect.left >= cardRect.left && selectRect.right <= cardRect.right
+        && paletteRect.left >= cardRect.left && paletteRect.right <= cardRect.right,
+      cardAlpha: alpha(card),
+      sectionAlpha: alpha(document.querySelector('.settings-theme-section')),
+      preference: localStorage.getItem('passsa-opacity'),
+    };
+  })()`);
+  assert(settingsLayout.labelAboveSelect && settingsLayout.controlsInsideCard,
+    `Kontrol tema bertumpuk atau keluar dari panel: ${JSON.stringify(settingsLayout)}`);
+  assert(settingsLayout.cardAlpha === 255 && settingsLayout.sectionAlpha === 255 && settingsLayout.preference === '70',
+    `Panel Pengaturan harus tetap solid walau opacity jendela utama 70%: ${JSON.stringify(settingsLayout)}`);
   assert(await win.webContents.executeJavaScript("document.querySelectorAll('input[name=\"settings-palette\"]').length === 10 && document.querySelector('input[name=\"settings-palette\"][value=\"rose\"]').checked"), 'Menu harus menampilkan sepuluh palet warna dengan Rosewood sebagai default.');
   await win.webContents.executeJavaScript("(() => { const palette = document.querySelector('input[name=\"settings-palette\"][value=\"ocean\"]'); palette.click(); })()");
   assert(await win.webContents.executeJavaScript("document.documentElement.dataset.palette === 'ocean' && localStorage.getItem('passsa-palette') === 'ocean' && document.querySelector('.theme-palette-option[data-palette-option=\"ocean\"]').classList.contains('selected')"), 'Palet Ocean tidak diterapkan atau tidak tersimpan.');

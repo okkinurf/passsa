@@ -2798,27 +2798,15 @@ html[data-theme] .auth-layout .dev-bypass-button:hover:not(:disabled) { color: v
 .settings-section .message { margin-top: 5px; }
 .settings-section .field-help { margin-top: 3px; font-size: 10px; line-height: 1.4; }
 
-.settings-theme-section {
-  display: grid;
-  grid-template-columns: minmax(124px, 148px) minmax(0, 1fr);
-  align-items: center;
-  column-gap: 12px;
-}
-.settings-theme-section > .settings-section-heading,
-.settings-theme-section > #settings-theme-help,
-.settings-theme-section > .theme-opacity-control,
-.settings-theme-section > .theme-palette-picker { grid-column: 1 / -1; }
+.settings-theme-section { display: block; }
+.settings-theme-section > .settings-label { display: none; }
 .settings-theme-section > label[for="settings-theme"] {
-  grid-column: 1;
-  grid-row: 2;
-  margin: 0 0 0 32px;
+  margin: 8px 0 4px 32px;
 }
 .settings-theme-section > #settings-theme {
-  grid-column: 2;
-  grid-row: 2;
-  width: 100%;
+  width: calc(100% - 32px);
   height: 34px;
-  margin: 0;
+  margin: 0 0 0 32px;
 }
 .settings-theme-section > #settings-theme-help { margin: 3px 0 0 32px; }
 .theme-opacity-control { margin: 7px 0 0 32px; }
@@ -2933,6 +2921,17 @@ html[data-theme] .settings-app-option small,
 html[data-theme] .settings-google-detail span { color: var(--ui-muted); }
 html[data-theme] .settings-google-detail strong { color: var(--ui-subtle); }
 
+/* The opacity preference belongs to the main workspace, not settings controls.
+   Keep this modal and its fields opaque so text never bleeds through the panel. */
+html[data-theme] .settings-modal-card,
+html[data-theme] .settings-modal-card .settings-section,
+html[data-theme] .settings-modal-card input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([type="color"]):not([type="file"]),
+html[data-theme] .settings-modal-card select,
+html[data-theme] .settings-modal-card textarea {
+  background-color: var(--ui-surface-solid);
+}
+html[data-theme] .settings-modal-card .settings-section { border-color: var(--ui-line); }
+
 @media (max-width: 700px) {
   .settings-modal-card { width: calc(100vw - 48px); padding: 14px; }
   .settings-list { gap: 7px; }
@@ -2945,9 +2944,6 @@ html[data-theme] .settings-google-detail strong { color: var(--ui-subtle); }
   .settings-section[aria-labelledby="settings-app-heading"] > .settings-app-option + .settings-app-option { margin-left: 28px !important; }
 }
 @media (max-width: 420px) {
-  .settings-theme-section { grid-template-columns: minmax(0, 1fr); }
-  .settings-theme-section > label[for="settings-theme"],
-  .settings-theme-section > #settings-theme { grid-column: 1; grid-row: auto; }
   .settings-theme-section > label[for="settings-theme"] { margin-left: 28px; }
   .settings-theme-section > #settings-theme { width: calc(100% - 28px); margin-left: 28px; }
   .settings-theme-section > #settings-theme-help,
