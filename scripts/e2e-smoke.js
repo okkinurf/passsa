@@ -478,9 +478,10 @@ app.whenReady().then(async () => {
   assert(await win.webContents.executeJavaScript(`(() => {
     const list = document.querySelector('.items-scroll');
     const otherScrollSurfaces = ['.vault-tree', '.item-modal'];
+    const expectedSmoothness = matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth';
     return getComputedStyle(list).scrollBehavior === 'auto'
-      && otherScrollSurfaces.every((selector) => getComputedStyle(document.querySelector(selector)).scrollBehavior === 'smooth');
-  })()`), 'Perilaku scroll internal tidak sesuai: daftar harus tetap native agar scrolling item stabil, sementara tree dan modal memakai smooth scroll.');
+      && otherScrollSurfaces.every((selector) => getComputedStyle(document.querySelector(selector)).scrollBehavior === expectedSmoothness);
+  })()`), 'Perilaku scroll internal tidak menghormati native list scrolling dan preferensi reduced motion.');
   await win.webContents.executeJavaScript(`
     document.querySelector('#item-title').value = 'Item Baru E2E';
     document.querySelector('#item-username').value = 'e2e-user';
