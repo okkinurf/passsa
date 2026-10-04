@@ -42,14 +42,27 @@ test('signed installer build never publishes implicitly through electron-builder
   assert.match(packageJson.scripts['dist:signed'], /--publish never/);
 });
 
-test('self-signed release pins the untrusted signer without installing a root certificate', () => {
-  const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'publish-windows-release.yml'), 'utf8');
-  const installerQa = fs.readFileSync(path.join(root, 'scripts', 'installer-qa.js'), 'utf8');
-  assert.match(workflow, /PASSA_ALLOW_UNTRUSTED_SIGNER: 'true'/);
-  assert.match(installerQa, /allowUntrustedSigner && signature\.Status === 'NotTrusted'/);
-  assert.match(installerQa, /signature\.Status === 'UnknownError' && knownUntrustedRoot/);
-  assert.match(installerQa, /StatusMessage=\$signature\.StatusMessage/);
+test('Tauri release publisher validates platform artifacts before attaching a prerelease', () => {
+  const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'publish-tauri-release-assets.yml'), 'utf8');
+  assert.match(workflow, /tauri-desktop-build\.yml/);
+  assert.match(workflow, /actions\/download-artifact@v7/);
+  assert.match(workflow, /\.dmg/);
+  assert.match(workflow, /\.appimage/);
+  assert.match(workflow, /\.deb/);
+  assert.match(workflow, /gh release upload/);
+  assert.match(workflow, /gh release edit/);
   assert.doesNotMatch(workflow, /Cert:\\CurrentUser\\Root/);
+});
+
+test('retired Electron publisher cannot overwrite Tauri releases', () => {
+  assert.equal(fs.existsSync(path.join(root, '.github', 'workflows', 'publish-windows-release.yml')), false);
+});
+
+test('Tauri release pins the untrusted Windows signer without installing a root certificate', () => {
+  const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'publish-tauri-release-assets.yml'), 'utf8');
+  assert.match(workflow, /Get-AuthenticodeSignature/);
   assert.match(workflow, /WINDOWS_CERTIFICATE_THUMBPRINT/);
-  assert.match(workflow, /self-signed and is not trusted by Windows by default/i);
+  assert.match(workflow, /WINDOWS_CERTIFICATE_SUBJECT/);
+  assert.doesNotMatch(workflow, /Cert:\\CurrentUser\\Root/);
+  assert.match(workflow, /self-signed/i);
 });

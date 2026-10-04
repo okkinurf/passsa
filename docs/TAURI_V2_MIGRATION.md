@@ -12,7 +12,7 @@ npm run tauri:build
 
 Gunakan `npm run qa:tauri` untuk validasi config, pemeriksaan toolchain, audit staging terhadap fixture/credential, dan smoke test auth + operasi vault.
 
-Output bundler native: Windows NSIS `.exe`, Linux AppImage dan `.deb`, macOS `.dmg`. Workflow `.github/workflows/tauri-desktop-build.yml` menjalankan tes dan bundling pada runner asli masing-masing OS. Jika konfigurasi sertifikat Windows tersedia, binary dan installer Windows ditandatangani self-signed; macOS tetap unsigned tanpa Developer ID. Workflow mengunggah artifact CI berumur 14 hari—bukan membuat release.
+Output bundler native saat ini: Windows NSIS `.exe`, Linux AppImage dan `.deb`, macOS Apple Silicon DMG. Workflow `.github/workflows/tauri-desktop-build.yml` menjalankan tes dan bundling pada runner masing-masing OS. Jika konfigurasi sertifikat Windows tersedia, installer Windows ditandatangani self-signed; macOS belum signed/notarized. Artifact CI berumur 14 hari bukan release. Workflow terpisah `.github/workflows/publish-tauri-release-assets.yml` dapat mengunggah artifact dari run `main` yang sukses ke prerelease setelah tag diverifikasi.
 
 Prasyarat Linux meliputi GTK3/WebKitGTK 4.1, AppIndicator, dan libsecret. Runtime perlu Secret Service sesi desktop agar kunci dapat disimpan aman. macOS memerlukan Xcode Command Line Tools. Windows membutuhkan WebView2 Runtime.
 
@@ -30,4 +30,4 @@ Prasyarat Linux meliputi GTK3/WebKitGTK 4.1, AppIndicator, dan libsecret. Runtim
 
 Windows Hello dan minimize-to-tray belum dipetakan dan sengaja dilaporkan tidak didukung. Login, vault, 2FA, Quick Access, clipboard, import/export, startup, dan sinkronisasi memakai service yang sama melalui adapter IPC; verifikasi OAuth tetap memerlukan konfigurasi provider di mesin/build terkait.
 
-CI macOS membuat DMG unsigned. Distribusi umum di macOS memerlukan Developer ID signing dan notarization Apple. Artifact CI tidak otomatis dipercaya Gatekeeper dan tidak diterbitkan sebagai release.
+CI macOS membuat DMG unsigned. Distribusi umum di macOS memerlukan Developer ID signing dan notarization Apple. Artifact maupun DMG release tidak otomatis dipercaya Gatekeeper.
