@@ -36,7 +36,7 @@ if (!config.bundle?.resources?.['../.tauri/runtime/']) fail('runtime Node sideca
 if (config.bundle?.windows?.certificateThumbprint || config.bundle?.windows?.signCommand) fail('credential signing tidak boleh ditanam di config; inject hanya pada CI tepercaya.');
 if (!config.app?.security?.csp?.includes("object-src 'none'")) fail('Content Security Policy desktop belum membatasi object.');
 const cspDirectives = String(config.app?.security?.csp || '').split(';').map((directive) => directive.trim().split(/\s+/));
-if (!cspDirectives.some((directive) => directive.includes('https://api.github.com'))) fail('Content Security Policy belum mengizinkan pemeriksaan rilis GitHub.');
+if (!cspDirectives.some((directive) => directive.some((source) => source === 'https://api.github.com'))) fail('Content Security Policy belum mengizinkan pemeriksaan rilis GitHub.');
 if (!capability.windows?.includes('main') || !capability.windows?.includes('quick_access')) fail('capability harus membatasi akses hanya ke window main dan quick_access.');
 if (!capability.permissions?.includes('core:window:allow-start-dragging')) fail('permission drag window belum ada.');
 if (!mobileCapability.platforms?.includes('android')) fail('capability Android belum ada.');
