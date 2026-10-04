@@ -55,11 +55,15 @@ Versi terbaru saat ini adalah [v0.2.0 — Tauri v2 Development Preview](https://
 
 Lihat [Security policy](SECURITY.md), [fitur keamanan dan privasi](docs/SECURITY_FEATURES.md), serta [batas yang diketahui](KNOWN-LIMITS.md). Jangan melaporkan kerentanan lewat issue publik.
 
+## Pengembangan
+
+PassSa dikembangkan dengan bantuan **GPT-6 Luna (OpenAI)**. Model digunakan sebagai asisten selama proses pembuatan aplikasi; perubahan tetap diperiksa melalui test otomatis dan build CI lintas platform.
+
 ## Build dari source
 
 ### Prasyarat
 
-- Node.js 22 dan npm.
+- Node.js 22.12 atau lebih baru dan npm (dibutuhkan oleh tool audit paket release).
 - Rust stable serta prasyarat native [Tauri v2](https://v2.tauri.app/start/prerequisites/).
 - Windows: WebView2 Runtime dan toolchain MSVC.
 - macOS: Xcode Command Line Tools.
@@ -86,6 +90,7 @@ Paket berada di `src-tauri/target/release/bundle/`. Build lokal menghasilkan pak
 ## Dokumentasi dan kontribusi
 
 - [Arsitektur](docs/ARCHITECTURE.md) · [Migrasi Tauri v2](docs/TAURI_V2_MIGRATION.md)
+- [Proses release dan konfigurasi signing](docs/RELEASING.md)
 - [Google Drive OAuth](docs/GOOGLE_OAUTH_SETUP.md) · [Amazon S3](docs/S3_SYNC_SETUP.md)
 - [Autofill runtime lama](docs/AUTOFILL_SETUP.md) · [Security features](docs/SECURITY_FEATURES.md)
 - [Changelog](CHANGELOG.md) · [Contributing](CONTRIBUTING.md) · [Code of conduct](CODE_OF_CONDUCT.md)

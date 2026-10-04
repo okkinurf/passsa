@@ -42,10 +42,14 @@ test('signed installer build never publishes implicitly through electron-builder
   assert.match(packageJson.scripts['dist:signed'], /--publish never/);
 });
 
-test('Tauri release publisher validates platform artifacts before attaching a prerelease', () => {
-  const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'publish-tauri-release-assets.yml'), 'utf8');
+test('Tauri release publisher only runs for published prereleases and validates platform artifacts', () => {
+  const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'publish-tauri-release.yml'), 'utf8');
   assert.match(workflow, /tauri-desktop-build\.yml/);
-  assert.match(workflow, /actions\/download-artifact@v7/);
+  assert.match(workflow, /release:\s*\n\s+types:\s+\[published\]/);
+  assert.doesNotMatch(workflow, /^\s{2}workflow_dispatch:/m);
+  assert.match(workflow, /actions\/download-artifact@[0-9a-f]{40}\s+# v8/);
+  assert.match(workflow, /head_branch -eq 'main'/);
+  assert.match(workflow, /head_sha -eq \$tagCommit/);
   assert.match(workflow, /\.dmg/);
   assert.match(workflow, /\.appimage/);
   assert.match(workflow, /\.deb/);
@@ -54,12 +58,49 @@ test('Tauri release publisher validates platform artifacts before attaching a pr
   assert.doesNotMatch(workflow, /Cert:\\CurrentUser\\Root/);
 });
 
+test('Windows signing is isolated to the protected-main environment', () => {
+  const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'tauri-desktop-build.yml'), 'utf8');
+  const unsignedJob = workflow.split('  windows-signed:')[0];
+  const signedJob = workflow.split('  windows-signed:')[1].split('  macos:')[0];
+  assert.match(unsignedJob, /if: github\.ref != 'refs\/heads\/main'/);
+  assert.doesNotMatch(unsignedJob, /WINDOWS_CERTIFICATE_(?:BASE64|PASSWORD)/);
+  assert.match(signedJob, /if: github\.ref == 'refs\/heads\/main'/);
+  assert.match(signedJob, /name: windows-signing/);
+  assert.match(signedJob, /secrets\.WINDOWS_CERTIFICATE_BASE64/);
+  assert.match(signedJob, /secrets\.WINDOWS_CERTIFICATE_PASSWORD/);
+});
+
+test('release CI commands cannot overwrite an earlier failure status', () => {
+  const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'tauri-desktop-build.yml'), 'utf8');
+  assert.doesNotMatch(workflow, /npm test\s*\r?\n\s*npm run qa:tauri/);
+  assert.equal((workflow.match(/run: npm test/g) || []).length, 4);
+  assert.equal((workflow.match(/run: npm run qa:tauri/g) || []).length, 4);
+});
+
+test('GitHub Actions are pinned to immutable commit SHAs', () => {
+  const workflowsDirectory = path.join(root, '.github', 'workflows');
+  const workflowFiles = fs.readdirSync(workflowsDirectory).filter((file) => file.endsWith('.yml') || file.endsWith('.yaml'));
+  for (const file of workflowFiles) {
+    const source = fs.readFileSync(path.join(workflowsDirectory, file), 'utf8');
+    for (const match of source.matchAll(/^\s*uses:\s*([^#\r\n]+)/gm)) {
+      assert.match(match[1].trim(), /^[A-Za-z0-9_.-]+(?:\/[A-Za-z0-9_.-]+)+@[a-f0-9]{40}$/, `${file} has a mutable or unpinned action ref: ${match[1].trim()}`);
+    }
+  }
+});
+
+test('release audit loads the asar v4 ESM API on the declared Node runtime', async () => {
+  const asar = await import('@electron/asar');
+  assert.equal(typeof asar.extractFile, 'function');
+  assert.equal(typeof asar.listPackage, 'function');
+  assert.match(packageJson.engines.node, />=22\.12\.0/);
+});
+
 test('retired Electron publisher cannot overwrite Tauri releases', () => {
   assert.equal(fs.existsSync(path.join(root, '.github', 'workflows', 'publish-windows-release.yml')), false);
 });
 
 test('Tauri release pins the untrusted Windows signer without installing a root certificate', () => {
-  const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'publish-tauri-release-assets.yml'), 'utf8');
+  const workflow = fs.readFileSync(path.join(root, '.github', 'workflows', 'publish-tauri-release.yml'), 'utf8');
   assert.match(workflow, /Get-AuthenticodeSignature/);
   assert.match(workflow, /WINDOWS_CERTIFICATE_THUMBPRINT/);
   assert.match(workflow, /WINDOWS_CERTIFICATE_SUBJECT/);

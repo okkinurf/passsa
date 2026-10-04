@@ -1,6 +1,5 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { extractFile, listPackage } = require('@electron/asar');
 
 const root = path.resolve(__dirname, '..');
 const appDirectory = path.join(root, 'dist', 'win-unpacked');
@@ -57,6 +56,7 @@ async function extractArchiveText(archive, relativePath) {
 }
 
 async function main() {
+  const { extractFile, listPackage } = await import('@electron/asar');
   if (!fs.existsSync(archivePath)) fail('app.asar tidak ditemukan; jalankan packaging terlebih dahulu.');
   if (!fs.existsSync(helperPath)) fail('Windows Hello helper yang dibutuhkan runtime tidak ditemukan.');
 

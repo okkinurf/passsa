@@ -1,0 +1,165 @@
+name: Publish Tauri release assets
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  actions: read
+  contents: write
+
+concurrency:
+  group: publish-release-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event.release.prerelease == true && github.event.release.draft == false
+    name: Attach verified platform installers
+    runs-on: windows-latest
+    timeout-minutes: 30
+    steps:
+      - name: Validate release and find its successful main build
+        id: validate
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_ID: ${{ github.event.release.id }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          RELEASE_PRERELEASE: ${{ github.event.release.prerelease }}
+          RELEASE_DRAFT: ${{ github.event.release.draft }}
+        run: |
+          if ($env:RELEASE_PRERELEASE -ne 'true' -or $env:RELEASE_DRAFT -ne 'false') {
+            throw 'Workflow hanya memublikasikan prerelease yang sudah diterbitkan.'
+          }
+          if ($env:RELEASE_TAG -notmatch '^v(\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?)$') {
+            throw 'Tag release harus mengikuti format versi vMAJOR.MINOR.PATCH.'
+          }
+          $version = $Matches[1]
+
+          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/$env:RELEASE_ID" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $release.tag_name -ne $env:RELEASE_TAG -or !$release.prerelease -or $release.draft) {
+            throw 'Metadata release GitHub tidak cocok dengan event published.'
+          }
+          $tagReference = [uri]::EscapeDataString($env:RELEASE_TAG)
+          $tagCommit = gh api "repos/$env:GITHUB_REPOSITORY/commits/$tagReference" --jq .sha
+          if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($tagCommit)) {
+            throw 'Commit target tag release tidak dapat diverifikasi.'
+          }
+
+          $workflow = gh api "repos/$env:GITHUB_REPOSITORY/actions/workflows/tauri-desktop-build.yml" | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $workflow.path -ne '.github/workflows/tauri-desktop-build.yml') {
+            throw 'Workflow build desktop Tauri tidak dapat diverifikasi.'
+          }
+          $runQuery = "repos/$env:GITHUB_REPOSITORY/actions/workflows/$($workflow.id)/runs?branch=main&head_sha=$tagCommit&status=success&per_page=100"
+          $runResponse = gh api $runQuery | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Riwayat build Tauri dari main tidak dapat dibaca.' }
+          $sourceRun = $runResponse.workflow_runs |
+            Where-Object { $_.head_branch -eq 'main' -and $_.head_sha -eq $tagCommit -and $_.conclusion -eq 'success' -and $_.event -in @('push', 'workflow_dispatch') } |
+            Sort-Object created_at -Descending |
+            Select-Object -First 1
+          if (!$sourceRun) {
+            throw 'Tidak ditemukan build Tauri sukses dari main untuk commit tag release. Jalankan build dari main, lalu terbitkan ulang release.'
+          }
+          "build_run_id=$($sourceRun.id)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "source_sha=$tagCommit" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          Write-Output "Sumber release tervalidasi: $($sourceRun.html_url)"
+
+      - name: Check out validated main-build source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          ref: ${{ steps.validate.outputs.source_sha }}
+          persist-credentials: false
+
+      - name: Confirm release version matches its source
+        shell: pwsh
+        env:
+          RELEASE_VERSION: ${{ steps.validate.outputs.version }}
+        run: |
+          $packageVersion = (Get-Content -LiteralPath 'package.json' -Raw | ConvertFrom-Json).version
+          if ($env:RELEASE_VERSION -ne $packageVersion) {
+            throw "Versi tag release ($env:RELEASE_VERSION) tidak cocok dengan package.json ($packageVersion)."
+          }
+
+      - name: Download artifacts from the validated main build
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ steps.validate.outputs.build_run_id }}
+          repository: ${{ github.repository }}
+          pattern: PassSa-*
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Verify installers and attach them to the prerelease
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          WINDOWS_CERTIFICATE_SUBJECT: ${{ vars.WINDOWS_CERTIFICATE_SUBJECT }}
+          WINDOWS_CERTIFICATE_THUMBPRINT: ${{ vars.WINDOWS_CERTIFICATE_THUMBPRINT }}
+        run: |
+          $version = $env:RELEASE_TAG.Substring(1)
+          $files = @(Get-ChildItem -LiteralPath 'release-artifacts' -Recurse -File)
+          $installerMatches = @($files | Where-Object { $_.Name -eq "PassSa_${version}_x64-setup.exe" })
+          $dmgMatches = @($files | Where-Object { $_.Extension -ieq '.dmg' })
+          $appImageMatches = @($files | Where-Object { $_.Extension -ieq '.appimage' })
+          $debMatches = @($files | Where-Object { $_.Extension -ieq '.deb' })
+          if ($installerMatches.Count -ne 1 -or $dmgMatches.Count -ne 1 -or $appImageMatches.Count -ne 1 -or $debMatches.Count -ne 1) {
+            throw 'Build harus menghasilkan tepat satu installer Windows, DMG macOS, AppImage, dan paket deb Linux.'
+          }
+          $installer = $installerMatches[0]
+          $dmg = $dmgMatches[0]
+          $appImage = $appImageMatches[0]
+          $deb = $debMatches[0]
+
+          $expectedThumbprint = ($env:WINDOWS_CERTIFICATE_THUMBPRINT -replace '\s', '').ToUpperInvariant()
+          $expectedSubject = $env:WINDOWS_CERTIFICATE_SUBJECT.Trim()
+          if ([string]::IsNullOrWhiteSpace($expectedThumbprint) -or [string]::IsNullOrWhiteSpace($expectedSubject)) {
+            throw 'Metadata sertifikat signing Windows tidak tersedia sebagai repository variables.'
+          }
+          $signature = Get-AuthenticodeSignature -LiteralPath $installer.FullName
+          $signer = $signature.SignerCertificate
+          $actualThumbprint = if ($signer) { ($signer.Thumbprint -replace '\s', '').ToUpperInvariant() } else { '' }
+          $knownUntrustedRoot = $signature.Status -in @('NotTrusted', 'UnknownError') -and $signature.StatusMessage -match '(?i)(certificate chain.*(?:not trusted|untrusted|could not be built)|root certificate.*not trusted)'
+          $signatureIntegrityValid = $signature.Status -eq 'Valid' -or $knownUntrustedRoot
+          if (!$signer -or $actualThumbprint -ne $expectedThumbprint -or $signer.Subject -ne $expectedSubject -or !$signatureIntegrityValid) {
+            throw "Signature installer Windows tidak lolos verifikasi (status=$($signature.Status); subject=$($signer.Subject))."
+          }
+
+          $assetFiles = @($installer, $dmg, $appImage, $deb)
+          $checksumFile = Join-Path $env:RUNNER_TEMP 'SHA256SUMS.txt'
+          $checksumLines = foreach ($asset in $assetFiles) {
+            $hash = (Get-FileHash -LiteralPath $asset.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            "$hash  $($asset.Name)"
+          }
+          $checksumLines | Set-Content -LiteralPath $checksumFile -Encoding ascii
+          $uploadPaths = @($assetFiles | ForEach-Object { $_.FullName }) + $checksumFile
+          & gh release upload $env:RELEASE_TAG @uploadPaths --repo $env:GITHUB_REPOSITORY --clobber
+          if ($LASTEXITCODE -ne 0) { throw 'Gagal mengunggah aset platform dan checksum.' }
+
+          $notes = @"
+          ## PassSa $env:RELEASE_TAG — Tauri v2
+
+          Pratinjau desktop PassSa dengan vault lokal terenkripsi dan sinkronisasi cloud opsional.
+
+          ### Unduhan
+          - Windows x64: installer NSIS yang ditandatangani sertifikat self-signed.
+          - macOS: disk image DMG (belum ditandatangani/notarized).
+          - Linux x64: AppImage dan paket deb.
+          - SHA-256 seluruh installer tersedia di SHA256SUMS.txt.
+
+          ### Fitur utama
+          - Credential, secure notes, dan authenticator TOTP terenkripsi.
+          - Quick Access, pencarian, favorit, kategori, dan tag.
+          - Beberapa metode login dan pilihan tema.
+          - Sinkronisasi snapshot terenkripsi melalui Google Drive atau Amazon S3/S3-compatible.
+
+          ### Catatan keamanan
+          Installer Windows ditandatangani dengan sertifikat self-signed. Windows tidak mempercayainya secara default, sehingga SmartScreen mungkin menampilkan peringatan. Tanda tangan memverifikasi integritas, bukan identitas publisher publik.
+
+          Ini prerelease pengembangan dan belum menjalani audit keamanan independen. Uji dengan data non-kritis dan simpan backup terenkripsi. Profil Tauri berbeda dari Electron lama; tidak ada migrasi otomatis.
+          "@
+          gh release edit $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --title "PassSa $env:RELEASE_TAG — Tauri v2 Development Preview" --notes $notes --prerelease
+          if ($LASTEXITCODE -ne 0) { throw 'Aset berhasil diunggah, tetapi catatan release gagal diperbarui.' }

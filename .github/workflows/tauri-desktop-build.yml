@@ -23,34 +23,22 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: ${{ matrix.label }}
-    runs-on: ${{ matrix.os }}
+  windows-unsigned:
+    if: github.ref != 'refs/heads/main'
+    name: Windows installer (NSIS)
+    runs-on: windows-latest
     timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-latest
-            label: Windows installer (NSIS)
-            bundles: nsis
-            artifact: windows-x64
-          - os: macos-latest
-            label: macOS disk image (DMG)
-            bundles: dmg
-            artifact: macos
-
     steps:
       - name: Check out source
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
       - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d # stable
 
       - name: Install Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 22
           cache: npm
@@ -58,13 +46,58 @@ jobs:
       - name: Install locked JavaScript dependencies
         run: npm ci
 
-      - name: Run tests and Tauri package audit
+      - name: Run unit and regression tests
+        run: npm test
+
+      - name: Audit Tauri runtime and release package configuration
+        run: npm run qa:tauri
+
+      - name: Build unsigned Windows installer for review
+        shell: pwsh
         run: |
-          npm test
-          npm run qa:tauri
+          npm run tauri:build -- --bundles nsis
+          if ($LASTEXITCODE -ne 0) { throw 'Build installer Windows Tauri gagal.' }
+
+      - name: Upload Windows installer artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: PassSa-windows-x64-${{ github.sha }}
+          path: src-tauri/target/release/bundle/**
+          if-no-files-found: error
+          retention-days: 14
+
+  windows-signed:
+    if: github.ref == 'refs/heads/main'
+    name: Windows installer (NSIS)
+    runs-on: windows-latest
+    environment:
+      name: windows-signing
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d # stable
+
+      - name: Install Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked JavaScript dependencies
+        run: npm ci
+
+      - name: Run unit and regression tests
+        run: npm test
+
+      - name: Audit Tauri runtime and release package configuration
+        run: npm run qa:tauri
 
       - name: Import Windows signing certificate
-        if: runner.os == 'Windows' && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
         shell: pwsh
         env:
           WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
@@ -74,8 +107,7 @@ jobs:
         run: |
           $required = @('WINDOWS_CERTIFICATE_BASE64', 'WINDOWS_CERTIFICATE_PASSWORD', 'WINDOWS_CERTIFICATE_SUBJECT', 'WINDOWS_CERTIFICATE_THUMBPRINT')
           if ($required | Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) }) {
-            Write-Warning 'Konfigurasi sertifikat tidak lengkap; artifact Windows akan unsigned.'
-            exit 0
+            throw 'Konfigurasi signing Windows belum lengkap pada environment windows-signing.'
           }
           $certificatePath = Join-Path $env:RUNNER_TEMP 'passsa-tauri-signing.pfx'
           $keepCertificate = $false
@@ -104,75 +136,50 @@ jobs:
             }
           }
 
-      - name: Build Windows installer
-        if: runner.os == 'Windows'
+      - name: Build signed Windows installer
         shell: pwsh
         run: |
-          $signingConfigPath = $null
+          $signingConfigPath = Join-Path $env:RUNNER_TEMP 'passsa-tauri-signing.json'
           try {
-            if (![string]::IsNullOrWhiteSpace($env:TAURI_CERTIFICATE_THUMBPRINT)) {
-              $signingConfigPath = Join-Path $env:RUNNER_TEMP 'passsa-tauri-signing.json'
-              $signingConfig = @{ bundle = @{ windows = @{ certificateThumbprint = $env:TAURI_CERTIFICATE_THUMBPRINT; digestAlgorithm = 'sha256'; timestampUrl = 'http://timestamp.digicert.com'; tsp = $true } } } | ConvertTo-Json -Compress -Depth 5
-              Set-Content -LiteralPath $signingConfigPath -Value $signingConfig -Encoding utf8
-              npm run tauri:build -- --bundles nsis --config $signingConfigPath
-            } else {
-              npm run tauri:build -- --bundles nsis
-            }
+            $signingConfig = @{ bundle = @{ windows = @{ certificateThumbprint = $env:TAURI_CERTIFICATE_THUMBPRINT; digestAlgorithm = 'sha256'; timestampUrl = 'http://timestamp.digicert.com'; tsp = $true } } } | ConvertTo-Json -Compress -Depth 5
+            Set-Content -LiteralPath $signingConfigPath -Value $signingConfig -Encoding utf8
+            npm run tauri:build -- --bundles nsis --config $signingConfigPath
             if ($LASTEXITCODE -ne 0) { throw 'Build installer Windows Tauri gagal.' }
           } finally {
-            if ($signingConfigPath -and (Test-Path -LiteralPath $signingConfigPath)) {
-              Remove-Item -LiteralPath $signingConfigPath -Force
-            }
+            if (Test-Path -LiteralPath $signingConfigPath) { Remove-Item -LiteralPath $signingConfigPath -Force }
           }
 
-      - name: Build macOS disk image
-        if: runner.os == 'macOS'
-        shell: bash
-        run: npm run tauri:build -- --bundles dmg
-
-      - name: Verify Windows signatures
-        if: runner.os == 'Windows'
+      - name: Verify Windows installer signature
         shell: pwsh
         env:
           WINDOWS_CERTIFICATE_SUBJECT: ${{ vars.WINDOWS_CERTIFICATE_SUBJECT }}
         run: |
-          $thumbprint = $env:TAURI_CERTIFICATE_THUMBPRINT
-          if ([string]::IsNullOrWhiteSpace($thumbprint)) {
-            Write-Output 'Build Windows tidak menggunakan signing; verifikasi signature dilewati.'
-            exit 0
-          }
-          $thumbprint = ($thumbprint -replace '\s', '').ToUpperInvariant()
+          $thumbprint = ($env:TAURI_CERTIFICATE_THUMBPRINT -replace '\s', '').ToUpperInvariant()
           $version = node -p "require('./package.json').version"
           if ($LASTEXITCODE -ne 0) { throw 'Versi paket tidak dapat dibaca untuk memeriksa artifact.' }
           $installer = "src-tauri/target/release/bundle/nsis/PassSa_${version}_x64-setup.exe"
           if (!(Test-Path -LiteralPath $installer)) { throw "Installer Windows tidak ditemukan: $installer." }
-          # Tauri signs a bundle-specific patched executable and restores the standalone build output afterward.
-          # Verify the exact NSIS installer that users download rather than that restored intermediate executable.
-          $files = @($installer)
-          foreach ($file in $files) {
-            $signature = Get-AuthenticodeSignature -LiteralPath $file
-            $signer = $signature.SignerCertificate
-            $actualThumbprint = if ($signer) { ($signer.Thumbprint -replace '\s', '').ToUpperInvariant() } else { '<tidak ditemukan>' }
-            $expectedSubject = $env:WINDOWS_CERTIFICATE_SUBJECT.Trim()
-            $knownUntrustedRoot = $signature.Status -in @('NotTrusted', 'UnknownError') -and $signature.StatusMessage -match '(?i)(certificate chain.*(?:not trusted|untrusted|could not be built)|root certificate.*not trusted)'
-            $signatureIntegrityValid = $signature.Status -eq 'Valid' -or $knownUntrustedRoot
-            if (!$signer -or $actualThumbprint -ne $thumbprint -or $signer.Subject -ne $expectedSubject -or !$signatureIntegrityValid) {
-              $subject = if ($signer) { $signer.Subject } else { '<tidak ditemukan>' }
-              throw "Signature sertifikat PassSa tidak cocok pada $file (status=$($signature.Status); pesan=$($signature.StatusMessage); subject=$subject; thumbprint=$actualThumbprint)."
-            }
+          $signature = Get-AuthenticodeSignature -LiteralPath $installer
+          $signer = $signature.SignerCertificate
+          $actualThumbprint = if ($signer) { ($signer.Thumbprint -replace '\s', '').ToUpperInvariant() } else { '<tidak ditemukan>' }
+          $expectedSubject = $env:WINDOWS_CERTIFICATE_SUBJECT.Trim()
+          $knownUntrustedRoot = $signature.Status -in @('NotTrusted', 'UnknownError') -and $signature.StatusMessage -match '(?i)(certificate chain.*(?:not trusted|untrusted|could not be built)|root certificate.*not trusted)'
+          $signatureIntegrityValid = $signature.Status -eq 'Valid' -or $knownUntrustedRoot
+          if (!$signer -or $actualThumbprint -ne $thumbprint -or $signer.Subject -ne $expectedSubject -or !$signatureIntegrityValid) {
+            throw "Signature installer tidak cocok (status=$($signature.Status); subject=$($signer.Subject); thumbprint=$actualThumbprint)."
           }
           Write-Output 'Signature Authenticode installer cocok dengan sertifikat PassSa dan integritas file terverifikasi.'
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v7
+      - name: Upload signed Windows installer artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: PassSa-${{ matrix.artifact }}-${{ github.sha }}
+          name: PassSa-windows-x64-${{ github.sha }}
           path: src-tauri/target/release/bundle/**
           if-no-files-found: error
           retention-days: 14
 
       - name: Remove Windows signing certificate
-        if: always() && runner.os == 'Windows'
+        if: always()
         shell: pwsh
         run: |
           $thumbprint = $env:TAURI_CERTIFICATE_THUMBPRINT
@@ -182,6 +189,45 @@ jobs:
           }
           $certificatePath = Join-Path $env:RUNNER_TEMP 'passsa-tauri-signing.pfx'
           if (Test-Path -LiteralPath $certificatePath) { Remove-Item -LiteralPath $certificatePath -Force }
+
+  macos:
+    name: macOS disk image (DMG)
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d # stable
+
+      - name: Install Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked JavaScript dependencies
+        run: npm ci
+
+      - name: Run unit and regression tests
+        run: npm test
+
+      - name: Audit Tauri runtime and release package configuration
+        run: npm run qa:tauri
+
+      - name: Build macOS disk image
+        run: npm run tauri:build -- --bundles dmg
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: PassSa-macos-${{ github.sha }}
+          path: src-tauri/target/release/bundle/**
+          if-no-files-found: error
+          retention-days: 14
 
   linux:
     name: Linux packages (AppImage + deb)
@@ -200,15 +246,15 @@ jobs:
             tar wget
 
       - name: Check out source
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
 
       - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@89b12181fb390509a0842a86cc55eeb8eb928c1d # stable
 
       - name: Install Node.js
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 22
           cache: npm
@@ -216,17 +262,17 @@ jobs:
       - name: Install locked JavaScript dependencies
         run: npm ci
 
-      - name: Run tests and Tauri package audit
-        run: |
-          npm test
-          npm run qa:tauri
+      - name: Run unit and regression tests
+        run: npm test
+
+      - name: Audit Tauri runtime and release package configuration
+        run: npm run qa:tauri
 
       - name: Build Linux packages on the Ubuntu 22.04 ABI baseline
-        shell: bash
         run: npm run tauri:build -- --bundles appimage,deb
 
       - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: PassSa-linux-x64-${{ github.sha }}
           path: src-tauri/target/release/bundle/**
