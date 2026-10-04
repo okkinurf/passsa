@@ -4,7 +4,7 @@ const { spawnSync } = require('node:child_process');
 const { PROJECT_ROOT } = require('./lib/runtime');
 
 const root = PROJECT_ROOT;
-const ignored = new Set(['node_modules', '.git', 'dist', 'release', 'backups']);
+const ignored = new Set(['node_modules', '.git', 'dist', 'release', 'backups', 'target']);
 
 function collect(directory) {
   const files = [];

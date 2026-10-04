@@ -1,30 +1,33 @@
-# Persiapan Tauri v2 PassSa
+# PassSa Desktop — Tauri v2
 
-Folder `src-tauri/` adalah shell Tauri v2 yang berjalan paralel dengan Electron. Electron tetap menjadi runtime produksi sampai seluruh service sensitif selesai dipindahkan ke Rust.
+Tauri v2 adalah runtime desktop PassSa untuk Windows, Linux, dan macOS. Versi CLI dan crate dikunci pada lini Tauri 2 melalui `package-lock.json` dan `Cargo.lock`; project ini belum memakai Tauri v3.
 
-## Yang sudah disiapkan
+## Menjalankan dan membangun
 
-- Konfigurasi Tauri v2 untuk Windows, frameless window, NSIS, dan frontend `src/`.
-- Capability default dengan izin window minimum; tidak ada filesystem, shell, HTTP, atau secret permission yang dibuka.
-- Mobile entry point Rust yang valid untuk target Android/iOS berikutnya.
-- `src/tauri-bridge.js` sebagai batas kompatibilitas. Bridge ini tidak menggantikan preload Electron dan tidak menyimpan credential.
-- Command Rust awal `app_info` dan `platform_capabilities` untuk memverifikasi shell.
-- `npm run tauri:config` untuk memvalidasi konfigurasi tanpa toolchain native.
-- `npm run tauri:doctor` untuk memeriksa Cargo, Rust, Tauri CLI, Android SDK, dan Java.
+```bash
+npm ci
+npm run tauri:dev
+npm run tauri:build
+```
 
-## Batasan yang sengaja belum diaktifkan
+Gunakan `npm run qa:tauri` untuk validasi config, pemeriksaan toolchain, audit staging terhadap fixture/credential, dan smoke test auth + operasi vault.
 
-Fitur vault, KDF, AES-GCM, Google OAuth/Drive, Windows Hello, system tray, Quick Access, autofill Native Messaging, import/export, dan dialog native masih memakai adapter Electron. Mengaktifkan Tauri sebelum service tersebut dipindahkan akan berisiko membuat data atau secret tidak aman.
+Output bundler native: Windows NSIS `.exe`, Linux AppImage dan `.deb`, macOS `.dmg`. Workflow `.github/workflows/tauri-desktop-build.yml` menjalankan tes dan bundling pada runner asli masing-masing OS. Jika konfigurasi sertifikat Windows tersedia, binary dan installer Windows ditandatangani self-signed; macOS tetap unsigned tanpa Developer ID. Workflow mengunggah artifact CI berumur 14 hari—bukan membuat release.
 
-## Tahap porting berikutnya
+Prasyarat Linux meliputi GTK3/WebKitGTK 4.1, AppIndicator, dan libsecret. Runtime perlu Secret Service sesi desktop agar kunci dapat disimpan aman. macOS memerlukan Xcode Command Line Tools. Windows membutuhkan WebView2 Runtime.
 
-1. Bekukan schema vault dan protocol envelope sebagai kontrak lintas platform.
-2. Pindahkan crypto, KDF, migrasi, dan conflict handling ke crate Rust yang diuji vector-for-vector terhadap test Node saat ini.
-3. Tambahkan storage terenkripsi berbasis platform: Windows Credential/DPAPI dan Android Keystore.
-4. Portasikan auth lokal, CRUD vault, history, category, tags, notes, dan transfer sebagai command Rust typed.
-5. Tambahkan Google OAuth/Drive dengan capability dan scope minimum.
-6. Baru setelah parity tercapai, aktifkan `tauri:dev` dan `tauri:build` sebagai jalur rilis.
+## Batas keamanan dan kompatibilitas data
 
-## Prerequisite native
+- UI dirender oleh WebView lokal; command native didaftarkan secara eksplisit dan RPC backend memakai allowlist channel.
+- Kunci enkripsi lokal disimpan di keyring OS. Jika secure storage tidak tersedia, fitur vault yang bergantung padanya tidak dapat membuat atau membuka sesi secara aman; tidak ada fallback plaintext.
+- Clipboard ditulis oleh proses Rust dan dibersihkan setelah 30 detik.
+- Dialog import/export menggunakan pemilih file native; path yang dipilih hanya diotorisasi satu kali.
+- Tauri memakai profil **PassSa Tauri** yang berbeda dari profil Electron. Build debug memakai folder sementara yang unik per proses dan mengaktifkan tombol login bypass developer; build release selalu memakai profil terpisah **PassSa Tauri** dan tetap mewajibkan login. Data Electron tidak tertimpa atau dibaca otomatis.
+- Fixture dummy tidak dimasukkan ke runtime Tauri. Bypass developer hanya diaktifkan oleh host Rust saat compile debug dan tidak tersedia pada build release; staging tetap diaudit sebelum smoke/build.
+- Google Drive dan S3 memakai service PassSa yang sama. Konfigurasi OAuth publik/provider tetap harus tersedia; jangan menaruh client secret atau token pengguna di repository.
 
-Pasang Rust MSVC, Cargo Tauri CLI v2, WebView2, Android SDK, dan JDK sebelum build. Jika prerequisite belum ada, `qa:tauri` tetap memvalidasi konfigurasi tetapi melaporkan status native sebagai warning.
+## Belum tersedia pada shell Tauri
+
+Windows Hello dan minimize-to-tray belum dipetakan dan sengaja dilaporkan tidak didukung. Login, vault, 2FA, Quick Access, clipboard, import/export, startup, dan sinkronisasi memakai service yang sama melalui adapter IPC; verifikasi OAuth tetap memerlukan konfigurasi provider di mesin/build terkait.
+
+CI macOS membuat DMG unsigned. Distribusi umum di macOS memerlukan Developer ID signing dan notarization Apple. Artifact CI tidak otomatis dipercaya Gatekeeper dan tidak diterbitkan sebagai release.

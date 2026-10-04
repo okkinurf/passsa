@@ -2,7 +2,7 @@
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "main-capability",
   "description": "Minimal desktop capability for PassSa",
-  "windows": ["main"],
+  "windows": ["main", "quick_access"],
   "permissions": [
     "core:default",
     "core:window:allow-close",

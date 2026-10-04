@@ -1,4 +1,5 @@
 const { spawnSync } = require('node:child_process');
+const path = require('node:path');
 const { PROJECT_ROOT } = require('./lib/runtime');
 
 const command = process.argv[2];
@@ -7,15 +8,16 @@ if (!['dev', 'build'].includes(command)) {
   process.exit(2);
 }
 
-const args = ['tauri', command, ...process.argv.slice(3)];
-const result = spawnSync('cargo', args, {
+const cli = path.join(PROJECT_ROOT, 'node_modules', '@tauri-apps', 'cli', 'tauri.js');
+const args = [cli, command, ...process.argv.slice(3)];
+const result = spawnSync(process.execPath, args, {
   cwd: PROJECT_ROOT,
   stdio: 'inherit',
   windowsHide: false,
 });
 
-if (result.error?.code === 'ENOENT') {
-  console.error('Rust Cargo belum terpasang. Instal Rust toolchain dan Tauri CLI, lalu jalankan `npm run tauri:doctor`.');
+if (result.error?.code === 'ENOENT' || !require('node:fs').existsSync(cli)) {
+  console.error('Tauri CLI lokal belum terpasang. Jalankan `npm ci`, lalu `npm run tauri:doctor` untuk memeriksa Rust dan dependency native.');
   process.exitCode = 1;
 } else if (typeof result.status === 'number') {
   process.exitCode = result.status;

@@ -104,12 +104,18 @@ app.whenReady().then(async () => {
   assert(await win.webContents.executeJavaScript("document.querySelector('.tag-overflow-toggle')?.textContent === '+1'"), 'Ringkasan overflow tags tidak dirender.');
   await win.webContents.executeJavaScript("document.querySelector('.tag-overflow-toggle').click()");
   assert(await win.webContents.executeJavaScript("document.querySelector('.tag-overflow-menu').classList.contains('open')"), 'Popover tag overflow tidak terbuka.');
-  assert(await win.webContents.executeJavaScript(`(() => {
+  const vaultMotion = await win.webContents.executeJavaScript(`(() => {
     const rootStyle = getComputedStyle(document.documentElement);
     const itemStyle = getComputedStyle(document.querySelector('.vault-item'));
-    return rootStyle.getPropertyValue('--spring-pop').trim().includes('cubic-bezier')
-      && itemStyle.animationName === 'item-rise';
-  })()`), 'Sistem motion spring tidak aktif pada tampilan vault.');
+    return {
+      springPop: rootStyle.getPropertyValue('--spring-pop').trim(),
+      animationName: itemStyle.animationName,
+    };
+  })()`);
+  // Keep the spring token for deliberate UI transitions, but don't replay row
+  // entrance animations during list updates/scrolling (the original source of
+  // visible flicker in the vault).
+  assert(vaultMotion.springPop.includes('cubic-bezier') && vaultMotion.animationName === 'none', `Animasi list seharusnya stabil tanpa blink, sementara transisi UI tetap memakai spring: ${JSON.stringify(vaultMotion)}`);
   assert(await win.webContents.executeJavaScript("[...document.querySelectorAll('.custom-category-children')].every((node) => node.classList.contains('collapsed'))"), 'Kategori tidak tertutup saat vault dibuka.');
   await win.webContents.executeJavaScript("document.querySelector('.tree-node[data-filter=tags]').click()");
   assert(await win.webContents.executeJavaScript("!document.querySelector('#tags-overview').classList.contains('hidden') && document.querySelectorAll('.tag-overview-card').length === 4 && document.querySelector('#items-list').classList.contains('hidden') && !document.querySelector('.tree-toggle[data-target=tags-tree]')"), 'Halaman Semua Tags masih menampilkan dropdown atau daftar credential.');

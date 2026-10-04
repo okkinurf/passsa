@@ -42,6 +42,10 @@ contextBridge.exposeInMainWorld('passsa', {
   helloDisable: async () => ({ ok: true, enabled: false }),
   helloUnlock: async () => ({ ok: false, message: 'Windows Hello tidak tersedia dalam smoke test.' }),
   getAppSettings: async () => ({ ...appSettings }),
+  // The current titlebar reports both sync providers; model S3 as an available
+  // but disconnected provider so this Electron UI smoke test can assert the
+  // same empty-state shown by the Tauri desktop app.
+  s3SyncInfo: async () => ({ ok: true, connected: false }),
   setAppSettings: async (input = {}) => {
     appSettings = {
       startWithWindows: input.startWithWindows === true,

@@ -1,0 +1,214 @@
+name: Tauri v2 desktop builds
+
+on:
+  push:
+    branches: [main, "codex/**"]
+    paths:
+      - "src/**"
+      - "src-tauri/**"
+      - "scripts/prepare-tauri-runtime.js"
+      - "scripts/tauri-*.js"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/tauri-desktop-build.yml"
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tauri-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: Windows installer (NSIS)
+            bundles: nsis
+            artifact: windows-x64
+          - os: macos-latest
+            label: macOS disk image (DMG)
+            bundles: dmg
+            artifact: macos
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked JavaScript dependencies
+        run: npm ci
+
+      - name: Run tests and Tauri package audit
+        run: |
+          npm test
+          npm run qa:tauri
+
+      - name: Import Windows signing certificate
+        if: runner.os == 'Windows' && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_CERTIFICATE_SUBJECT: ${{ vars.WINDOWS_CERTIFICATE_SUBJECT }}
+          WINDOWS_CERTIFICATE_THUMBPRINT: ${{ vars.WINDOWS_CERTIFICATE_THUMBPRINT }}
+        run: |
+          $required = @('WINDOWS_CERTIFICATE_BASE64', 'WINDOWS_CERTIFICATE_PASSWORD', 'WINDOWS_CERTIFICATE_SUBJECT', 'WINDOWS_CERTIFICATE_THUMBPRINT')
+          if ($required | Where-Object { [string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($_)) }) {
+            Write-Warning 'Konfigurasi sertifikat tidak lengkap; artifact Windows akan unsigned.'
+            exit 0
+          }
+          $certificatePath = Join-Path $env:RUNNER_TEMP 'passsa-tauri-signing.pfx'
+          $keepCertificate = $false
+          $imported = @()
+          try {
+            try { $bytes = [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64) }
+            catch { throw 'WINDOWS_CERTIFICATE_BASE64 bukan Base64 PFX yang valid.' }
+            [IO.File]::WriteAllBytes($certificatePath, $bytes)
+            $bytes = $null
+            $password = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+            $imported = @(Import-PfxCertificate -FilePath $certificatePath -CertStoreLocation Cert:\CurrentUser\My -Password $password)
+            $thumbprint = ($env:WINDOWS_CERTIFICATE_THUMBPRINT -replace '\s', '').ToUpperInvariant()
+            $certificate = @($imported | Where-Object { $_.Thumbprint -eq $thumbprint } | Select-Object -First 1)
+            if (!$certificate) { throw 'Thumbprint sertifikat hasil import tidak cocok.' }
+            if ($certificate[0].Subject -ne $env:WINDOWS_CERTIFICATE_SUBJECT.Trim()) { throw 'Subject sertifikat hasil import tidak cocok.' }
+            if (!$certificate[0].HasPrivateKey) { throw 'Sertifikat tidak memiliki private key signing.' }
+            "TAURI_CERTIFICATE_THUMBPRINT=$thumbprint" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+            $keepCertificate = $true
+            Write-Output 'Sertifikat signing Windows lolos pemeriksaan.'
+          } finally {
+            if (Test-Path -LiteralPath $certificatePath) { Remove-Item -LiteralPath $certificatePath -Force }
+            if (!$keepCertificate) {
+              foreach ($candidate in $imported) {
+                Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.Thumbprint -eq $candidate.Thumbprint } | Remove-Item -Force
+              }
+            }
+          }
+
+      - name: Build Windows installer
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if (![string]::IsNullOrWhiteSpace($env:TAURI_CERTIFICATE_THUMBPRINT)) {
+            $signingConfig = @{ bundle = @{ windows = @{ certificateThumbprint = $env:TAURI_CERTIFICATE_THUMBPRINT; digestAlgorithm = 'sha256'; timestampUrl = 'http://timestamp.digicert.com'; tsp = $true } } } | ConvertTo-Json -Compress -Depth 5
+            npm run tauri:build -- --bundles nsis --config $signingConfig
+          } else {
+            npm run tauri:build -- --bundles nsis
+          }
+          if ($LASTEXITCODE -ne 0) { throw 'Build installer Windows Tauri gagal.' }
+
+      - name: Build macOS disk image
+        if: runner.os == 'macOS'
+        shell: bash
+        run: npm run tauri:build -- --bundles dmg
+
+      - name: Verify Windows signatures
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $thumbprint = $env:TAURI_CERTIFICATE_THUMBPRINT
+          if ([string]::IsNullOrWhiteSpace($thumbprint)) {
+            Write-Output 'Build Windows tidak menggunakan signing; verifikasi signature dilewati.'
+            exit 0
+          }
+          $thumbprint = ($thumbprint -replace '\s', '').ToUpperInvariant()
+          $version = node -p "require('./package.json').version"
+          if ($LASTEXITCODE -ne 0) { throw 'Versi paket tidak dapat dibaca untuk memeriksa artifact.' }
+          $installer = "src-tauri/target/release/bundle/nsis/PassSa_${version}_x64-setup.exe"
+          $files = @('src-tauri/target/release/passsa.exe', $installer)
+          foreach ($file in $files) {
+            $signature = Get-AuthenticodeSignature -LiteralPath $file
+            if (!$signature.SignerCertificate -or $signature.SignerCertificate.Thumbprint -ne $thumbprint) {
+              throw "Signature sertifikat PassSa tidak valid pada $file."
+            }
+          }
+          Write-Output 'Signature Authenticode binary dan installer cocok dengan thumbprint PassSa.'
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: PassSa-${{ matrix.artifact }}-${{ github.sha }}
+          path: src-tauri/target/release/bundle/**
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Remove Windows signing certificate
+        if: always() && runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $thumbprint = $env:TAURI_CERTIFICATE_THUMBPRINT
+          if (![string]::IsNullOrWhiteSpace($thumbprint)) {
+            $thumbprint = ($thumbprint -replace '\s', '').ToUpperInvariant()
+            Get-ChildItem Cert:\CurrentUser\My | Where-Object { $_.Thumbprint -eq $thumbprint } | Remove-Item -Force
+          }
+          $certificatePath = Join-Path $env:RUNNER_TEMP 'passsa-tauri-signing.pfx'
+          if (Test-Path -LiteralPath $certificatePath) { Remove-Item -LiteralPath $certificatePath -Force }
+
+  linux:
+    name: Linux packages (AppImage + deb)
+    runs-on: ubuntu-24.04
+    container:
+      image: ubuntu:22.04
+    timeout-minutes: 60
+    steps:
+      - name: Install Linux Tauri prerequisites
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends \
+            build-essential ca-certificates curl file git libayatana-appindicator3-dev \
+            libdbus-1-dev libgtk-3-dev libsecret-1-dev libssl-dev \
+            libwebkit2gtk-4.1-dev libxdo-dev librsvg2-dev patchelf pkg-config \
+            tar wget
+
+      - name: Check out source
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked JavaScript dependencies
+        run: npm ci
+
+      - name: Run tests and Tauri package audit
+        run: |
+          npm test
+          npm run qa:tauri
+
+      - name: Build Linux packages on the Ubuntu 22.04 ABI baseline
+        shell: bash
+        run: npm run tauri:build -- --bundles appimage,deb
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: PassSa-linux-x64-${{ github.sha }}
+          path: src-tauri/target/release/bundle/**
+          if-no-files-found: error
+          retention-days: 14

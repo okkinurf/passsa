@@ -1,10 +1,10 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "PassSa",
-  "version": "0.1.0",
-  "identifier": "id.passsa.app",
+  "version": "0.2.0",
+  "identifier": "id.passsa.desktop",
   "build": {
-    "frontendDist": "../src"
+    "frontendDist": "../.tauri/frontend"
   },
   "app": {
     "withGlobalTauri": true,
@@ -12,23 +12,27 @@
       {
         "label": "main",
         "title": "PassSa",
-        "width": 1120,
-        "height": 760,
-        "minWidth": 860,
-        "minHeight": 620,
+        "width": 520,
+        "height": 580,
+        "minWidth": 480,
+        "minHeight": 520,
         "decorations": false,
+        "transparent": true,
         "resizable": true,
         "center": true,
         "shadow": false
       }
     ],
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; connect-src ipc: http://ipc.localhost https://api.github.com; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'"
     }
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis"],
-    "icon": ["../build/icon.ico"]
+    "targets": ["nsis", "appimage", "deb", "dmg"],
+    "icon": ["icons-brand/32x32.png", "icons-brand/128x128.png", "icons-brand/128x128@2x.png", "icons-brand/icon.icns", "icons-brand/icon.ico"],
+    "resources": {
+      "../.tauri/runtime/": "passsa-runtime/"
+    }
   }
 }

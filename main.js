@@ -1,4 +1,9 @@
-const { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, nativeImage, net, powerMonitor, safeStorage, screen, shell, Tray } = require('electron');
+const tauriBackendMode = typeof __PASSSA_TAURI_BACKEND__ !== 'undefined'
+  ? __PASSSA_TAURI_BACKEND__ === true
+  : process.argv.includes('--passsa-tauri-backend');
+const { app, BrowserWindow, clipboard, dialog, globalShortcut, ipcMain, Menu, nativeImage, net, powerMonitor, safeStorage, screen, shell, Tray, startTauriRpcServer } = tauriBackendMode
+  ? require('./src-tauri/backend/electron-adapter.cjs')
+  : require('electron');
 const { spawn } = require('node:child_process');
 const nodeFs = require('node:fs');
 const fs = require('node:fs/promises');
@@ -9,8 +14,10 @@ const { AtomicJsonStore } = require('./src/storage/atomic-json-store');
 const { AuthService } = require('./src/services/auth-service');
 const { VaultService } = require('./src/services/vault-service');
 const { resolveLoginMethod } = require('./src/services/login-security');
-const devSkipLoginMode = !app.isPackaged && process.argv.includes('--passsa-dev-skip-login');
-const { createDummyVaultData, DUMMY_SOURCE } = devSkipLoginMode
+const devSkipLoginMode = !app.isPackaged && (tauriBackendMode
+  ? app.devBypassEnabled === true
+  : process.argv.includes('--passsa-dev-skip-login'));
+const { createDummyVaultData, DUMMY_SOURCE } = !tauriBackendMode && devSkipLoginMode
   ? require('./src/dev/dummy-vault-data')
   : {};
 const { GoogleOAuth } = require('./src/google-oauth');
@@ -724,7 +731,7 @@ function registerIpc() {
   const authenticate = (input, registering) => beginPasswordAuthentication(input, registering);
 
   const seedDevelopmentVault = async () => {
-    if (app.isPackaged || !devSkipLoginMode) return;
+    if (tauriBackendMode || app.isPackaged || !devSkipLoginMode) return;
     const document = await vaultService.document();
     if (document.items.some((item) => item.source === DUMMY_SOURCE)) return;
 
@@ -1137,7 +1144,7 @@ function registerIpc() {
     if (format === 'csv' && input.allowPlaintext !== true) {
       return { ok: false, message: 'Konfirmasi export CSV plaintext terlebih dahulu.' };
     }
-    const filePath = await chooseTransferPath(format);
+    const filePath = String(input.filePath || '') || await chooseTransferPath(format);
     if (!filePath) return { ok: false, canceled: true };
     try {
       const document = await vaultService.document();
@@ -1160,16 +1167,19 @@ function registerIpc() {
     }
   }, true);
   handle('vault:import', async (input = {}) => {
-    const openResult = await dialog.showOpenDialog(mainWindow, {
-      title: 'Import data ke PassSa',
-      properties: ['openFile'],
-      filters: [
-        { name: 'PassSa Backup atau CSV', extensions: ['passsa', 'csv'] },
-        { name: 'Semua file', extensions: ['*'] },
-      ],
-    });
-    if (openResult.canceled || !openResult.filePaths[0]) return { ok: false, canceled: true };
-    const filePath = openResult.filePaths[0];
+    let filePath = String(input.filePath || '');
+    if (!filePath) {
+      const openResult = await dialog.showOpenDialog(mainWindow, {
+        title: 'Import data ke PassSa',
+        properties: ['openFile'],
+        filters: [
+          { name: 'PassSa Backup atau CSV', extensions: ['passsa', 'csv'] },
+          { name: 'Semua file', extensions: ['*'] },
+        ],
+      });
+      if (openResult.canceled || !openResult.filePaths[0]) return { ok: false, canceled: true };
+      filePath = openResult.filePaths[0];
+    }
     const extension = path.extname(filePath).toLowerCase();
     const format = input.format === 'csv' || extension === '.csv' ? 'csv' : 'passsa';
     if (format === 'csv' && input.allowPlaintext !== true) {
@@ -1511,6 +1521,12 @@ if (hasSingleInstanceLock && !nativeHostMode) app.whenReady().then(async () => {
   }
   powerMonitor.on('lock-screen', () => clearSensitiveState('Vault dikunci karena Windows terkunci.'));
   powerMonitor.on('suspend', () => clearSensitiveState('Vault dikunci karena perangkat masuk mode sleep.'));
+  if (tauriBackendMode) {
+    createWindow();
+    createQuickAccessWindow();
+    await startTauriRpcServer({ quickAccessEnabled, minimizeToTray });
+    return;
+  }
   createWindow();
   if (app.isPackaged && !previewMode) createTray();
   if (!previewMode) setQuickAccessHotkey(quickAccessEnabled);

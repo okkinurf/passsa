@@ -2,9 +2,10 @@
 <html lang="id">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src ipc: http://ipc.localhost; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>PassSa Quick Access</title>
+    <script src="quick-access-theme.js"></script>
     <link rel="stylesheet" href="../node_modules/@fortawesome/fontawesome-free/css/all.min.css" />
     <link rel="stylesheet" href="quick-access.css" />
   </head>
@@ -67,6 +68,7 @@
 
       <footer class="quick-footer"><span>Alt + Shift + P</span><span>Quick Access</span></footer>
     </main>
+    <script src="quick-access-tauri-bridge.js"></script>
     <script src="quick-access.js"></script>
   </body>
 </html>
