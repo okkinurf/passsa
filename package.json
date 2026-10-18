@@ -35,8 +35,8 @@
   },
   "devDependencies": {
     "@electron/asar": "^4.3.1",
-    "@tauri-apps/cli": "^2.12.1",
-    "electron": "^44.5.1",
+    "@tauri-apps/cli": "^2.12.3",
+    "electron": "^44.7.2",
     "electron-builder": "^26.0.12",
     "esbuild": "^0.28.2"
   },
@@ -71,7 +71,7 @@
     }
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1146.0",
+    "@aws-sdk/client-s3": "^3.1152.0",
     "@fortawesome/fontawesome-free": "^7.3.1"
   }
 }
