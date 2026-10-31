@@ -36,7 +36,7 @@
   "devDependencies": {
     "@electron/asar": "^4.3.1",
     "@tauri-apps/cli": "^2.12.1",
-    "electron": "^44.5.1",
+    "electron": "^44.9.1",
     "electron-builder": "^26.0.12",
     "esbuild": "^0.28.2"
   },
