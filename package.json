@@ -34,10 +34,10 @@
     "qa:installer": "node scripts/release-package-audit.js && node scripts/installer-qa.js"
   },
   "devDependencies": {
-    "@electron/asar": "^4.3.1",
-    "@tauri-apps/cli": "^2.12.1",
+    "@electron/asar": "^4.3.2",
+    "@tauri-apps/cli": "^2.12.6",
     "electron": "^44.5.1",
-    "electron-builder": "^26.0.12",
+    "electron-builder": "^26.18.0",
     "esbuild": "^0.28.2"
   },
   "build": {
@@ -71,7 +71,7 @@
     }
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.1146.0",
+    "@aws-sdk/client-s3": "^3.1172.0",
     "@fortawesome/fontawesome-free": "^7.3.1"
   }
 }
